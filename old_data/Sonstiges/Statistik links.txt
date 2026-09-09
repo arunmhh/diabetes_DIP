@@ -1,3 +1,0 @@
-Wilcoxon-Test, Mann-Whitney-Test in R
-
-https://www.beratung-statistik.de/statistik-beratung-infos/r-tutorial/r-wilcoxon-mann-whitney/
