@@ -82,5 +82,5 @@ renv/.cache/
 # =========================
 # Project-specific directories
 # =========================
-Script/
+Scripts/
 Renv/
