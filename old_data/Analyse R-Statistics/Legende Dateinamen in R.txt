@@ -1,0 +1,24 @@
+
+
+
+
+
+
+
+
+
+
+dose_data 			Rohdaten von Excel: Diclo,Ibu,Para für alle Fälle alle Gruppen; bereits pivotiert Sheet 3 von "Medikamente Arun 					Testversion" 
+lvdiclo_dosedata 		"dose_data" nach "Leber_Diclo" gefiltert
+lvdiclo_dosedata_gptalst 	"lvdiclo_dosedata" kombiniert mit "ldalt_data"					
+ldalt_data			"lvdiclo_dosedata_gptalst" gefiltert nach "Häufigkeit der Einnahme pro Tag (="numberofdose")" 
+					bfarm-Nummer mit Häufigkeit der Einnahme pro Tag
+dose_result			"lvdiclo_dosedata_gptalst" kombiniert mit "dd_amount" mit der Tagesdosis (="totaldose_mg") berechnet und nach 						Medikamenteneinnahme "Diclofenac" gefiltert
+dose_result1			"dose_result" mit Ausreißerfall herausgefiltert (?) (Fall "93008468") und Tagesdosis gruppiert in 50,75, 100, 						150,200mg
+dose_summary_data		dose_result zusammengefasst nach Tagen der Laborwertmessung (GPT Day1,...)
+
+
+
+filtered_data			dose_result gefiltert nach Tagesdosis 50,75,100,150,200mg
+
+ww				dose_result gefiltert, sodass jede BfArM-Nummer nur noch 1x vorkommt

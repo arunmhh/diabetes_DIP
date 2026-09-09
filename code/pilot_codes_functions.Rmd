@@ -1,0 +1,2553 @@
+---
+title: "Untitled"
+output: html_document
+date: "2026-05-24"
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(scales)
+library(ggprism)
+```
+
+```{r}
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 1. Data Preparation — CK panel
+#    Adjust column names to match your actual data
+# ══════════════════════════════════════════════════════════════════════════════
+
+# ck_data <- all_data %>%
+#   left_join(
+#     diabetic_data,
+#     by           = "bf_ar_m_nummer",
+#     relationship = "many-to-many"
+#   ) %>%
+#   left_join(
+#     gender_data1,
+#     by           = "bf_ar_m_nummer",
+#     relationship = "many-to-many"
+#   ) %>%
+#   filter(panel_id == "ck") %>%
+#   filter(grepl("Leber_", treatment.x)) %>%
+#   filter(!is.na(diabetes), !is.na(treatment.x)) %>% 
+#   mutate(treatment.x = recode(treatment.x,
+#     "Leber_Diclo" = "Liver_Diclo", # Note: Check capitalization of your raw data here!
+#     "Leber_Ibu"   = "Liver_Ibu",
+#     "Leber_Para"  = "Liver_Para"
+#   )) %>% 
+#   mutate(treatment.x = factor(treatment.x,
+#     # Use the NEW recoded names for your factor levels
+#     levels = c("Liver_Diclo", "Liver_Ibu", "Liver_Para") 
+#   ),
+#   diabetes = factor(diabetes),
+#   gender = factor(gender)) %>%
+#   filter(labreads < 15000) %>%
+#   drop_na(labreads, treatment.x, diabetes)
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 2. Helper: label data frames  (unchanged from yours)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# make_label_dfs <- function(data, group_var, patient_id_var) {
+#   label_df <- data %>%
+#     group_by({{ group_var }}) %>%
+#     summarise(
+#       n_patients = n_distinct({{ patient_id_var }}),
+#       n_labreads = n(),
+#       .groups    = "drop"
+#     )
+#   
+#   list(
+#     bottom  = mutate(label_df, label = paste0("N = ", n_patients)),
+#     top = mutate(label_df, label = paste0("n = ", n_labreads))
+#   )
+# }
+# 
+# 
+# # ══════════════════════════════════════════════════════════════════════════════
+# # 3. Main plot function  (your original, lightly hardened)
+# # ══════════════════════════════════════════════════════════════════════════════
+# 
+# plot_lab_comparison <- function(
+#     data,
+#     group_var,
+#     y_var,
+#     patient_id_var,
+#     comparisons,
+#     plot_title   = "Comparison of Lab Values",
+#     x_label      = NULL,
+#     y_label      = "Lab Value",
+#     jitter_width = 0.20,
+#     jitter_alpha = 0.5,
+#     jitter_size  = 5,
+#     text_size    = 8,
+#     n_breaks     = 7
+# ) {
+#   group_col <- deparse(substitute(group_var))
+#   y_col     <- deparse(substitute(y_var))
+#   id_col    <- deparse(substitute(patient_id_var))
+#   
+#   missing_cols <- setdiff(c(group_col, y_col, id_col), names(data))
+#   if (length(missing_cols) > 0)
+#     stop("Column(s) not found: ", paste(missing_cols, collapse = ", "))
+#   
+#   if (!is.numeric(data[[y_col]])) {
+#     message("Converting '", y_col, "' to numeric.")
+#     data[[y_col]] <- as.numeric(data[[y_col]])
+#   }
+#   if (all(is.na(data[[y_col]])))
+#     stop("'", y_col, "' is all NA after conversion.")
+#   
+#   labels          <- make_label_dfs(data, {{ group_var }}, {{ patient_id_var }})
+#   label_df_top    <- labels$top
+#   label_df_bottom <- labels$bottom
+#   
+#   # ---------------------------------------------------------
+#   # 👇 NEW: Create a named vector to replace X-axis labels
+#   # Example: "Liver_Diclo" becomes "Liver_Diclo\nN = 13"
+#   # ---------------------------------------------------------
+#   custom_x_labels <- setNames(
+#     paste0(label_df_bottom[[group_col]], "\n", label_df_bottom$label),
+#     label_df_bottom[[group_col]]
+#   )
+#   
+#   y_max    <- max(data[[y_col]], na.rm = TRUE)
+#   
+#   # Note: I reduced these multipliers slightly so your data doesn't 
+#   # look as squished at the bottom!
+#   y_top    <- y_max * 1.50  
+#   
+#   ggplot(data,
+#          aes(x    = .data[[group_col]],
+#              y    = .data[[y_col]],
+#              fill = .data[[group_col]])) +
+#     
+#     geom_boxplot(width = 0.20, outlier.shape = NA, alpha = 0.5, color = "black") +
+#     
+#     geom_jitter(width = jitter_width, alpha = jitter_alpha,
+#                 size  = jitter_size,  color = "#CC79A7") +
+#     
+#     stat_summary(fun = median, geom = "point",
+#                  shape = 23, size = 4, fill = "brown") +
+#     
+#     geom_text(data = label_df_top,
+#               aes(x = .data[[group_col]], y = y_top, label = label),
+#               inherit.aes = FALSE, fontface = "bold", size = text_size) +
+#     
+#     # ---------------------------------------------------------
+#     # 👇 REMOVED: geom_text for label_df_bottom
+#     # (We no longer need it because of the scale_x_discrete fix below)
+#     # ---------------------------------------------------------
+#     
+#     stat_compare_means(
+#       comparisons  = comparisons,
+#       method       = "wilcox.test",
+#       label        = "p.format",
+#       # 👇 Note: I lowered these slightly so the brackets are closer to the data
+#       label.y      = c(y_max * 1.05, y_max * 1.20, y_max * 1.35),
+#       bracket.size = 1,
+#       tip.length   = 0.02,
+#       size         = text_size
+#     ) +
+#     
+#     labs(title = plot_title, x = NULL, y = y_label) +
+#     
+#     # 👇 Lowered the top limit to match the new bracket heights
+#     coord_cartesian(ylim = c(0, y_max * 1.60), clip = "off") + 
+#     scale_y_continuous(breaks = scales::breaks_pretty(n = n_breaks)) +
+#     
+#     # ---------------------------------------------------------
+#     # 👇 NEW: Apply the custom labels to the X-axis
+#     # ---------------------------------------------------------
+#     scale_x_discrete(labels = custom_x_labels) +
+#     
+#     theme_prism() +
+#       theme(
+#         axis.text.x  = element_text(
+#           size = 24, family = "sans", face = "bold",  angle = 0, 
+#           hjust = 0.5, vjust = 1,
+#           margin = margin(t = 4)  
+#         ),
+#         axis.text.y = element_text(size = 24, family = "sans", face = "bold"),
+#         plot.title.position = "plot",
+#         plot.title = element_text(size = 30, hjust = 0.5),
+#         axis.title.y = element_text(size = 24, family = "sans", face = "bold"),
+#         axis.title.x = element_text(size = 24, family = "sans", face = "bold", 
+#                                     margin = margin(t = 12)),
+#         legend.position = "none",
+#         plot.margin = margin(t = 30, r = 10, b = 30, l = 10)  
+#       )
+# }
+    
+    # theme_classic() +
+    # theme(
+    #   legend.position = "none",
+    #   plot.title      = element_text(hjust = 0.5, size = 28, face = "bold",
+    #                                  margin = margin(b = 10), lineheight = 1.2),
+    #   axis.text.x     = element_text(size = 24, face = "bold"),
+    #   axis.text.y     = element_text(size = 24, face = "bold"),
+    #   axis.title      = element_text(size = 20, face = "bold"),
+    #   axis.line       = element_line(linewidth = 0.5),
+    #   plot.margin     = margin(t = 30, r = 30, b = 40, l = 20)
+    # )
+    
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# 4. Build comparisons dynamically from factor levels
+#    — avoids hardcoding group pairs
+# ══════════════════════════════════════════════════════════════════════════════
+
+# make_comparisons <- function(data, group_col) {
+#   lvls <- levels(factor(data[[group_col]]))
+#   utils::combn(lvls, 2, simplify = FALSE)
+# }
+
+
+```
+
+```{r}
+# # ══════════════════════════════════════════════════════════════════════════════
+# # Function to Loop, Plot, and Save Multiple Panels
+# # ══════════════════════════════════════════════════════════════════════════════
+# 
+# generate_and_save_panel_plots <- function(
+#     panel_ids,
+#     all_data,
+#     diabetic_data,
+#     gender_data,
+# 
+#     # Export options
+#     save_plots_flag     = TRUE,
+#     export_dataset_name = "lab_plots",
+#     export_base_dir     = "output",
+#     export_subfolder    = "panel_comparisons",
+#     export_width        = 12,
+#     export_height       = 10,
+#     export_dpi          = 600,
+#     export_formats      = c("svg", "png")
+# ) {
+# 
+#   # Initialize lists to hold the generated plots and their filenames
+#   plots_list <- list()
+#   plot_names <- c()
+# 
+#   for (pid in panel_ids) {
+# 
+#     # 1. Data Preparation (Dynamic filtering based on 'pid')
+#     panel_data <-
+```
+
+```{r}
+# all_data %>%
+#       left_join(
+#         diabetic_data,
+#         by           = "bf_ar_m_nummer",
+#         relationship = "many-to-many"
+#       ) %>%
+#       left_join(
+#         gender_data,
+#         by           = "bf_ar_m_nummer",
+#         relationship = "many-to-many"
+#       )
+```
+
+```{r}
+# ══════════════════════════════════════════════════════════════════════════════
+# Function to Loop, Plot, and Save Multiple Panels 
+# ══════════════════════════════════════════════════════════════════════════════
+
+# generate_and_save_panel_plots_liver <- function(
+#     panel_ids,
+#     all_data,
+#     diabetic_data,
+#     gender_data,
+#     
+#     # Export options
+#     save_plots_flag     = TRUE,
+#     export_dataset_name = "lab_plots",
+#     export_base_dir     = "output",
+#     export_subfolder    = "panel_comparisons",
+#     export_width        = 12,
+#     export_height       = 10,
+#     export_dpi          = 600,
+#     export_formats      = c("svg", "png")
+# ) {
+#   
+#   # Dictionary mapping raw panel IDs to their display units
+#   unit_map <- c(
+#     # (Keep your existing unit_map here - shortened for readability)
+#     "ck" = "CK (U/L)", "got" = "AST/GOT (U/L)", "gpt" = "ALT/GPT (U/L)", 
+#     "ggt" = "GGT (U/L)", "ldh" = "LDH (U/L)", "crp" = "CRP (mg/L)" # ... add the rest back in
+#   )
+#   
+#   plots_list <- list()
+#   plot_names <- c()
+#   
+#   for (pid in panel_ids) {
+#     
+#     # 1. Data Preparation
+#     panel_data <- all_data %>%
+#       left_join(
+#         diabetic_data,
+#         by           = "bf_ar_m_nummer",
+#         relationship = "many-to-many"
+#       ) %>%
+#       left_join(
+#         gender_data,
+#         by           = c("bf_ar_m_nummer", "treatment"),
+#         relationship = "many-to-many"
+#       ) %>%
+#       filter(panel_id == pid) %>%
+#       filter(grepl("Leber_", treatment)) %>%
+#       filter(!is.na(diabetes), !is.na(treatment)) %>% 
+#       mutate(treatment = recode(treatment,
+#                                 "Leber_Diclo" = "Liver_Diclo", 
+#                                 "Leber_Ibu"   = "Liver_Ibu",
+#                                 "Leber_Para"  = "Liver_Para"
+#       )) %>% 
+#       mutate(
+#         treatment = factor(treatment, levels = c("Liver_Diclo", "Liver_Ibu", "Liver_Para")),
+#         diabetes  = factor(diabetes),
+#         gender    = factor(gender)
+#       ) %>%
+#       filter(labreads < 15000) %>%
+#       drop_na(labreads, diabetes)
+#     
+#     # ---------------------------------------------------------
+#     # 👇 NEW SAFETY CHECKS
+#     # ---------------------------------------------------------
+#     
+#     # Check 1: Did the filtering remove ALL rows?
+#     if (nrow(panel_data) == 0) {
+#       message(paste("Skipping", toupper(pid), "- No data available after filtering."))
+#       next
+#     }
+#     
+#     # Check 2: Do we have at least 2 distinct diabetes groups to compare?
+#     num_groups <- length(unique(panel_data$diabetes))
+#     if (num_groups < 2) {
+#       message(paste("Skipping", toupper(pid), "- Only 1 diabetes group present (cannot run Wilcoxon test)."))
+#       next
+#     }
+#     
+#     # ---------------------------------------------------------
+#     
+#     # 2. Dynamic Plot Titles and Labels
+#     plot_title <- paste(toupper(pid), "Levels by Diabetes Status")
+#     y_label    <- if (pid %in% names(unit_map)) unit_map[[pid]] else toupper(pid)
+#     
+#     # 3. Generate the Plot 
+#     p <- plot_lab_comparison(
+#       data           = panel_data,
+#       group_var      = diabetes,                       
+#       y_var          = labreads,
+#       patient_id_var = bf_ar_m_nummer,
+#       comparisons    = make_comparisons(panel_data, "diabetes"), 
+#       plot_title     = plot_title,
+#       x_label        = "Diabetes Status",              
+#       y_label        = y_label
+#     )
+#     
+#     # 4. Store the plot
+#     plots_list[[length(plots_list) + 1]] <- p
+#     plot_names <- c(plot_names, paste0("Plot_", toupper(pid), "_Diabetes"))
+#     
+#     message(paste("Successfully generated plot for:", toupper(pid)))
+#   }
+#   
+#   # 5. Save the plots
+#   if (save_plots_flag && length(plots_list) > 0) {
+#     message("\nSaving generated plots...")
+#     save_plots( # Assuming you have a custom save_plots function defined
+#       plots        = plots_list,
+#       names        = plot_names,
+#       dataset_name = export_dataset_name,
+#       base_dir     = export_base_dir,
+#       subfolder    = export_subfolder,
+#       width        = export_width,
+#       height       = export_height,
+#       dpi          = export_dpi,
+#       formats      = export_formats
+#     )
+#   }
+#   
+#   names(plots_list) <- plot_names
+#   return(plots_list)
+# }
+# 
+# # ══════════════════════════════════════════════════════════════════════════════
+# # Helper: Build comparisons dynamically from factor levels
+# # ══════════════════════════════════════════════════════════════════════════════
+# 
+# make_comparisons <- function(data, group_col) {
+#   lvls <- levels(factor(data[[group_col]]))
+#   utils::combn(lvls, 2, simplify = FALSE)
+# }
+
+
+```
+
+```{r}
+# Define the panels you want to loop through
+# my_panels <- c("got")
+# 
+# # Run the loop, store the results, and save them automatically
+# all_liver_plots <- generate_and_save_panel_plots(
+#   panel_ids     = my_panels,
+#   all_data      = all_data,          # Your raw long-format data
+#   diabetic_data = diabetic_data,     # Your diabetes meta-data
+#   gender_data   = gender_data1,      # Your gender meta-data
+#   
+#   save_plots_flag  = TRUE,
+#   export_subfolder = "figure/diabetes/plots_all_labvalues/liver_treatments"
+# )
+# 
+# # You can still view a specific plot in RStudio after the loop finishes:
+#  all_liver_plots$Plot_GOT
+```
+
+```{r}
+# # 1. Define your list of panels (using a few from your large list as an example)
+# my_panels <- c("got", "gpt", "ggt", "bilirubin", "crp", "leukozyten", "glucose")
+# 
+# # 2. Call the function and store the resulting plots in a list
+# diabetes_liver_plots <- generate_diabetes_plots_for_liver(
+#   panel_ids     = my_panels,
+#   all_data      = all_data,       # Your main dataset with 'bf_ar_m_nummer', 'panel_id', 'labreads', 'treatment.x'
+#   diabetic_data = diabetic_data,  # Your dataset with 'bf_ar_m_nummer' and 'diabetes' (0/1 or similar)
+#   gender_data1   = gender_data1,    # Your dataset with 'bf_ar_m_nummer' and 'gender'
+#   
+#   # Optional: Customize your export settings here
+#   save_plots_flag     = TRUE,
+#   export_dataset_name = "liver_cohort",
+#   export_subfolder    = "diabetes_comparisons"
+# )
+# 
+# # 3. View a specific plot right in your RStudio viewer!
+# # (Replace "Plot_Diabetes_GOT" with whichever panel you want to see)
+# print(diabetes_liver_plots[["Plot_Diabetes_GOT"]])
+```
+
+```{r}
+# 1. Define the lab panels you want to plot 
+# (You can pass your full list of 79 panels here, or just a few to test)
+# target_panels <- c("ck", "got", "gpt", "crp", "leukozyten", "kreatinin") 
+# 
+# # 2. Call the master function
+# liver_diabetes_plots <- generate_and_save_panel_plots_diabetes_liver(
+#   panel_ids        = target_panels,
+#   all_data         = all_data,         # Your main lab reads dataframe
+#   diabetic_data    = diabetic_data,    # Dataframe with bf_ar_m_nummer & diabetes status
+#   gender_data1      = gender_data1,      # Dataframe with bf_ar_m_nummer & treatment
+#   
+#   # Optional: Adjust your export settings
+#   save_plots_flag  = TRUE,
+#   export_subfolder = "figure/liver_cohort/diabetes_comparisons" 
+# )
+
+# 3. (Optional) If you want to view a specific plot immediately in RStudio:
+# print(liver_diabetes_plots[["Plot_CK_Diabetes_LiverCohort"]])
+```
+
+##==============================
+## diabetes_nondiabets(gender)
+##==============================
+
+```{r}
+# ══════════════════════════════════════════════════════════════════════════════
+# Helper Function: Generate N and n labels for 3-way faceted plots
+# ══════════════════════════════════════════════════════════════════════════════
+
+# make_label_dfs_3way <- function(data, group_col, fill_col, facet_col, id_col) {
+#   
+#   library(dplyr)
+#   
+#   # Convert string column names to symbols for dplyr evaluation
+#   group_sym <- sym(group_col)
+#   fill_sym  <- sym(fill_col)
+#   facet_sym <- sym(facet_col)
+#   id_sym    <- sym(id_col)
+#   
+#   # 1. Top Label: Count UNIQUE patients (N=)
+#   df_top <- data %>%
+#     group_by(!!facet_sym, !!group_sym, !!fill_sym) %>%
+#     summarise(
+#       unique_patients = n_distinct(!!id_sym),
+#       .groups = "drop"
+#     ) %>%
+#     mutate(label = paste0("N = ", unique_patients)) %>%
+#     select(-unique_patients)
+#   
+#   # 2. Bottom Label: Count TOTAL lab readings (n=)
+#   df_bottom <- data %>%
+#     group_by(!!facet_sym, !!group_sym, !!fill_sym) %>%
+#     summarise(
+#       total_reads = n(),
+#       .groups = "drop"
+#     ) %>%
+#     mutate(label = paste0("n = ", total_reads)) %>%
+#     select(-total_reads)
+#   
+#   # Return as a list containing both dataframes
+#   return(list(top = df_top, bottom = df_bottom))
+# }
+# ```
+# 
+# 
+# ```{r}
+# # ══════════════════════════════════════════════════════════════════════════════
+# # Master Loop Function: (Powered by User's Validated Join Logic)
+# # ══════════════════════════════════════════════════════════════════════════════
+# 
+# generate_6boxplot_panel_runs <- function(
+#     panel_ids, all_data, diabetic_data, gender_data,
+#     save_plots_flag = TRUE, export_dataset_name = "six_boxplot_profiles",
+#     export_base_dir = "output", export_subfolder = "treatment_gender_by_diabetes",
+#     export_width = 12, export_height = 10, export_dpi = 600, export_formats = c("svg", "png")
+# ) {
+#   
+#   unit_map <- c("ck" = "CK (U/L)", "gpt" = "ALT/GPT (U/L)", "ggt" = "GGT (U/L)") # Add full map here
+#   
+#   plots_list <- list()
+#   plot_names <- c()
+#   
+#   for (pid in panel_ids) {
+#     
+#     # ── YOUR EXACT DATA PREP LOGIC ──
+#     panel_data <- all_data %>%
+#       left_join(diabetic_data, by = "bf_ar_m_nummer", relationship = "many-to-many") %>%
+#       left_join(gender_data, by = "bf_ar_m_nummer", relationship = "many-to-many") %>%
+#       dplyr::filter(panel_id == pid) %>%
+#       dplyr::filter(grepl("Leber_", treatment.x)) %>%
+#       # Added bf_ar_m_nummer here so the plotting function can count unique patients (N=)
+#       dplyr::select(bf_ar_m_nummer, panel_id, labreads, diabetes, treatment.x, gender) %>%
+#       dplyr::rename("treatment" = "treatment.x") %>%
+#       drop_na() %>%
+#       mutate(
+#         # Matched the exact case-sensitive spelling from your test plot
+#         treatment = factor(treatment, levels = c("Leber_Diclo", "Leber_Ibu", "Leber_Para")),
+#         gender    = factor(gender, levels = c("Male", "Female")),
+#         diabetes_status = factor(
+#           ifelse(diabetes %in% c(1, "1", "Diabetic", "Yes"), "Diabetic", "Non_Diabetic"), 
+#           levels = c("Non_Diabetic", "Diabetic")
+#         )
+#       ) %>%
+#       filter(labreads < 15000)
+#     
+#     if (nrow(panel_data) == 0) {
+#       message(paste("Skipping", toupper(pid), "- No data available."))
+#       next
+#     }
+#     
+#     plot_title <- paste(toupper(pid), "Levels across Treatments & Gender\n(Faceted by Diabetes Status)")
+#     y_label    <- if (pid %in% names(unit_map)) unit_map[[pid]] else toupper(pid)
+#     
+#     p <- plot_lab_6box_layout(
+#       data           = panel_data,
+#       group_var      = treatment,       
+#       fill_var       = gender,          
+#       facet_var      = diabetes_status, 
+#       y_var          = labreads,        
+#       patient_id_var = bf_ar_m_nummer,
+#       plot_title     = plot_title,
+#       y_label        = y_label
+#     )
+#     
+#     plots_list[[length(plots_list) + 1]] <- p
+#     plot_names <- c(plot_names, paste0("Plot_", toupper(pid), "_Treatment_Gender_6Box"))
+#   }
+#   
+#   if (save_plots_flag && length(plots_list) > 0) {
+#     save_plots(plots = plots_list, names = plot_names, dataset_name = export_dataset_name, base_dir = export_base_dir, subfolder = export_subfolder, width = export_width, height = export_height, dpi = export_dpi, formats = export_formats)
+#   }
+#   
+#   names(plots_list) <- plot_names
+#   return(plots_list)
+# }
+```
+
+```{r}
+# ══════════════════════════════════════════════════════════════════════════════
+# Main: Plot 6 Boxplots (Uncrowded Labels - N at Bottom)
+# ══════════════════════════════════════════════════════════════════════════════
+
+# plot_lab_6box_layout <- function(
+#     data, group_var, fill_var, facet_var, y_var, patient_id_var,  
+#     plot_title = "Comparison of Lab Values", y_label = "Lab Value",
+#     text_size = 5, n_breaks = 10
+# ) {
+#   
+#   library(ggplot2)
+#   library(dplyr)
+#   library(ggpubr)
+#   library(scales)
+#   
+#   group_col <- as.character(substitute(group_var))
+#   fill_col  <- as.character(substitute(fill_var))
+#   facet_col <- as.character(substitute(facet_var))
+#   y_col     <- as.character(substitute(y_var))
+#   id_col    <- as.character(substitute(patient_id_var))
+#   
+#   if (!is.numeric(data[[y_col]])) data[[y_col]] <- as.numeric(data[[y_col]])
+#   
+#   # Clean up "Leber_" prefix and map exact spelling
+#   data[[group_col]] <- factor(gsub("Leber_", "", as.character(data[[group_col]])),
+#                               levels = c("Diclo", "Ibu", "Para"))
+#   
+#   # Generate labels
+#   labels          <- make_label_dfs_3way(data, group_col, fill_col, facet_col, id_col)
+#   label_df_top    <- labels$top      # Contains N = (Unique Patients)
+#   label_df_bottom <- labels$bottom   # Contains n = (Total Reads)
+#   
+#   y_max <- max(data[[y_col]], na.rm = TRUE)
+# 
+#   p <- ggplot(data, aes(x = .data[[group_col]], y = .data[[y_col]], fill = .data[[fill_col]])) +
+#     geom_boxplot(width = 0.6, outlier.shape = NA, alpha = 0.6, color = "black", position = position_dodge(0.75)) +
+#     geom_jitter(aes(color = .data[[fill_col]]), alpha = 0.35, size = 1.2, position = position_jitterdodge(jitter.width = 0.15, dodge.width = 0.75)) +
+#     stat_summary(fun = median, geom = "point", shape = 23, size = 2, fill = "brown", position = position_dodge(0.75)) +
+#     
+#     # ── FIX 1: Plot 'n' (Total Reads) just above the boxes ──
+#     geom_text(data = label_df_bottom, aes(x = .data[[group_col]], y = y_max * 1.05, label = paste0("(", label, ")"), group = .data[[fill_col]]), 
+#               inherit.aes = FALSE, fontface = "bold", size = text_size * 0.85, position = position_dodge(0.75), vjust = 0) +
+#     
+#     # ── FIX 2: Plot P-Values higher up so they don't crash into 'n' ──
+#     stat_compare_means(aes(group = .data[[fill_col]]), method = "wilcox.test", label = "p.format", 
+#                        label.y = y_max * 1.22, bracket.size = 0.6, tip.length = 0.01, size = text_size * 0.9) +
+#                        
+#     # ── FIX 3: Plot 'N' (Unique Patients) DOWN below the x-axis line ──
+#     geom_text(data = label_df_top, aes(x = .data[[group_col]], y = -(y_max * 0.08), label = label, group = .data[[fill_col]]), 
+#               inherit.aes = FALSE, fontface = "bold", size = text_size * 0.85, position = position_dodge(0.75), vjust = 1, color = "grey30") +
+#     
+#     facet_wrap(vars(!!sym(facet_col)), scales = "fixed", drop = FALSE) + 
+#     labs(title = plot_title, x = "Liver Treatment", y = y_label, fill = "Gender", color = "Gender") +
+#     
+#     # ── FIX 4: Expand coordinates to allow drawing below 0 ──
+#     coord_cartesian(ylim = c(0, y_max * 1.35), clip = "off") +
+#     scale_y_continuous(breaks = scales::breaks_pretty(n = n_breaks)) +
+#     scale_x_discrete(drop = FALSE) + 
+#     scale_fill_manual(values = c("Male" = "#56B4E9", "Female" = "#CC79A7"), drop = FALSE) +
+#     scale_color_manual(values = c("Male" = "#56B4E9", "Female" = "#CC79A7"), drop = FALSE) +
+#     theme_prism() +
+#     theme(
+#       legend.position = "bottom", 
+#       legend.text = element_text(size = 16, face = "bold"), 
+#       legend.title = element_text(size = 16, face = "bold"),
+#       plot.title = element_text(hjust = 0.5, size = 24, face = "bold", margin = margin(b = 15)),
+#       strip.text = element_text(size = 22, face = "bold"), 
+#       strip.background = element_rect(fill = "gray95", color = "black", linewidth = 0.5),
+#       # Pushed the main X-axis labels down slightly to clear the N labels
+#       axis.text.x = element_text(size = 18, face = "bold", margin = margin(t = 20)), 
+#       axis.text.y = element_text(size = 20, face = "bold"),
+#       axis.title = element_text(size = 18, face = "bold"), 
+#       axis.line = element_line(linewidth = 0.5),
+#       panel.spacing = unit(3, "lines"), 
+#       # ── FIX 5: Increased bottom margin (b=65) so N doesn't get cut off ──
+#       plot.margin = margin(t = 15, r = 30, b = 65, l = 20) 
+#     )
+#   
+#   return(p)
+# }
+```
+
+```{r}
+# ══════════════════════════════════════════════════════════════════════════════
+# RUN SCRIPT: Execute the Plotting Pipeline
+# ══════════════════════════════════════════════════════════════════════════════
+
+# 1. Define the specific labs you want to plot 
+# (Make sure these match the panel_id strings in your all_data dataframe)
+# target_labs <- c("gpt", "ggt", "ck") 
+# 
+# # 2. Call the master function
+# # Note: I am passing 'gender_data1' here since that is what you used in your test!
+# final_plots <- generate_6boxplot_panel_runs(
+#   panel_ids           = target_labs,
+#   all_data            = all_data,
+#   diabetic_data       = diabetic_data,
+#   gender_data         = gender_data1,       
+#   
+#   # Export Settings
+#   save_plots_flag     = TRUE,
+#   export_dataset_name = "Liver_Cohort_Analysis",
+#   #export_base_dir     = "output",
+#   #export_subfolder    = "treatment_comparisons/6Box_Layouts",
+#   export_width        = 16, 
+#   export_height       = 11,
+#   export_dpi          = 600,
+#   export_formats      = c("svg", "png") # Exporting as JPG/PNG based on your uploads
+# )
+# 
+# # ══════════════════════════════════════════════════════════════════════════════
+# # VIEW RESULTS IN RSTUDIO
+# # ══════════════════════════════════════════════════════════════════════════════
+# 
+# # The function returns a list of the generated plots. 
+# # You can view them directly in your RStudio viewer by calling them by name:
+# 
+# if ("Plot_GPT_Treatment_Gender_6Box" %in% names(final_plots)) {
+#   print(final_plots[["Plot_GPT_Treatment_Gender_6Box"]])
+# }
+# 
+# if ("Plot_GGT_Treatment_Gender_6Box" %in% names(final_plots)) {
+#   print(final_plots[["Plot_GGT_Treatment_Gender_6Box"]])
+# }
+```
+
+```{r}
+# library(ggplot2)
+# library(dplyr)
+# library(tidyr)
+# 
+# # Run your quick PNG test with fixed aesthetics, legend, and aligned jitter
+# all_data %>%
+#   left_join(
+#     diabetic_data,
+#     by           = "bf_ar_m_nummer",
+#     relationship = "many-to-many"
+#   ) %>%
+#   left_join(
+#     gender_data1,
+#     by           = "bf_ar_m_nummer",
+#     relationship = "many-to-many"
+#   ) %>% 
+#   dplyr::filter(panel_id == "gpt") %>% 
+#   dplyr::filter(grepl("Leber_", treatment.x)) %>% 
+#   dplyr::select(panel_id, labreads, diabetes, treatment.x, gender) %>% 
+#   dplyr::rename("treatment" = "treatment.x") %>% 
+#   drop_na() %>% 
+#   mutate(
+#     diabetes  = factor(ifelse(diabetes %in% c(1, "1", "Diabetic", "Yes"), "Diabetic", "Non_Diabetic")),
+#     treatment = factor(gsub("Leber_", "", as.character(treatment)), levels = c("Diclo", "Ibu", "Para")), 
+#     gender    = factor(gender)
+#   ) %>% 
+#   
+#   ggplot(aes(x = treatment, y = labreads, fill = gender)) + 
+#   
+#   # 1. Main Boxplot Layer (Matches width and dodging metrics)
+#   geom_boxplot(width = 0.50, color = "black", linewidth = 0.35, 
+#                outlier.shape = NA, alpha = 0.6,
+#                position = position_dodge(0.60)) +
+#   
+#   # 2. Correct Jitter Layer: Uses position_jitterdodge to align dots inside their boxes
+#   geom_jitter(aes(color = gender), alpha = 0.35, size = 1.2, 
+#               position = position_jitterdodge(jitter.width = 0.12, 
+#                                               dodge.width = 0.80)) +
+#   
+#   facet_wrap(~diabetes) +
+#   
+#   # 3. Explicit Color Palettes (Ensures matching tones across bars & dots)
+#   scale_fill_manual(values = c("Male" = "#56B4E9", "Female" = "#CC79A7")) +
+#   scale_color_manual(values = c("Male" = "#56B4E9", "Female" = "#CC79A7")) +
+#   
+#   theme_classic() +
+#   theme(
+#     # Lowered font sizes so they match a 10x6 inch canvas
+#     text = element_text(family = "sans"),
+#     axis.text = element_text(size = 15,face = "bold"),
+#     axis.title = element_text(size = 18,face = "bold"),
+#     axis.line = element_line(linewidth = 0.9),
+#     axis.ticks = element_line(linewidth = 0.8),
+#     strip.text = element_text(size = 16, face = "bold"), # Controls facet header size
+#     legend.text = element_text(size = 18, margin = margin(l = 3)),
+#     legend.key.height = unit(20, "pt"),
+#     legend.key.width = unit(25, "pt"),
+#     legend.position = "inside",
+#     legend.position.inside = c(0.17, 0.85), # Slightly adjusted to clear text
+#     legend.background = element_blank(),
+#     legend.key.justification = "top",
+#     legend.title = element_text(size = 18, face = "bold")
+#   )
+# 
+# # SAVE IN INCHES: This expands the canvas size so the text doesn't overlap
+# ggsave("fig_diabetic_comparison6.png", width = 5, height = 4, units = "in", dpi = 600)
+
+
+```
+
+##=============================================
+## Flupritin data Read
+##============================================
+
+```{r}
+flupirtin_data <- read_excel(here::here("Rawdata/flupirtin dosedata.xlsx"), sheet = 3) %>% 
+  janitor::clean_names() %>% 
+  dplyr::rename(bf_ar_m_nummer = edited_bf_ar_m_nummer2) %>% 
+  drop_na()
+flupirtin_data
+```
+
+```{r}
+all_data %>%
+      left_join(flupirtin_data,
+                by = join_by("bf_ar_m_nummer","treatment"),
+                relationship = "many-to-many") %>%
+      filter(
+        panel_id == "gpt",
+        treatment == "Leber_Diclo"
+      ) %>%
+      filter(
+        !str_detect(attribute, "_from_start|dbs")
+      ) %>%
+      drop_na(labreads, flupirtin, bf_ar_m_nummer) %>%
+      mutate(
+        flupirtin = case_when(
+          flupirtin %in% c("Yes", "Flupirtin", "flupirtin", 1) ~ "Flupirtin",
+          TRUE ~ "No_Flupirtin"
+        ),
+        flupirtin = factor(
+          flupirtin,
+          levels = c("No_Flupirtin", "Flupirtin")
+        )
+      )
+```
+
+```{r}
+library(dplyr)
+library(tidyr)
+
+cleaned_dataset <- 
+all_data %>%
+  # 1. Initial Cohort Merges
+  left_join(
+    diabetic_data,
+    by           = "bf_ar_m_nummer",
+    relationship = "many-to-many"
+  ) %>%
+  left_join(
+    gender_data1,
+    by           = c("bf_ar_m_nummer", "treatment"),
+    relationship = "many-to-many"
+  ) %>%
+  left_join(
+    flupirtin_data,
+    by           = c("bf_ar_m_nummer", "treatment"),
+    relationship = "many-to-many"
+  ) %>% 
+  dplyr::select(-any_of(c("value", "day_raw"))) %>% 
+  dplyr::filter(panel_id == "gpt") %>% 
+  dplyr::filter(grepl("Leber_", treatment)) %>% 
+  drop_na(treatment, diabetes, gender, flupirtin, days, labreads) %>%
+  mutate(
+      treatment = factor(gsub("Leber_", "", as.character(treatment)), 
+                         levels = c("Diclo", "Ibu", "Para")),
+      diabetes  = factor(ifelse(diabetes %in% c( "Diabetic", "Yes"), "Diabetic", "Non_Diabetic"),
+                       levels = c("Non_Diabetic", "Diabetic")),
+      gender    = factor(gender, levels = c("Male", "Female")),
+      flupirtin = factor(ifelse(flupirtin %in% c("flupirtin", "Yes"), "Flupirtin", "No_Flupirtin"),
+                       levels = c("No_Flupirtin", "Flupirtin")),
+      days      = factor(days, levels = sort(unique(as.numeric(as.character(days)))))
+  )
+cleaned_dataset
+```
+
+
+```{r}
+cleaned_dataset %>% 
+  dplyr::filter(kathegorie == "Leber_Diclo")
+```
+
+
+
+##================================================================
+##  liver cases with flupirtin in unique patients.
+##================================================================
+
+
+```{r}
+all_data %>%
+  left_join(diabetic_data, 
+            by = join_by("bf_ar_m_nummer","treatment"), 
+            relationship = "many-to-many") %>%
+  left_join(flupirtin_data, 
+           by = join_by("bf_ar_m_nummer","treatment"), 
+           relationship = "many-to-many") %>%
+  #dplyr::filter(panel_id == "gpt") %>%
+  dplyr::filter(grepl("Leber_", treatment)) %>%
+  #dplyr::filter(diabetes %in% c("Diabetic", "Yes", 1, "1")) %>%
+  group_by(treatment, flupirtin) %>%
+  summarise(total_rows = n(), unique_patients = n_distinct(bf_ar_m_nummer), .groups = "drop")
+```
+
+
+################################ Univeral flupritin peak ##################
+
+```{r}
+# library(ggplot2)
+# library(dplyr)
+# library(ggpubr)
+# library(stringr)
+# 
+# # ==========================================
+# # 1. PLOT FUNCTION (WITH UNIT MAPPING)
+# # ==========================================
+# plot_flupirtin_comparison <- function(
+#     data,
+#     group_var,
+#     y_var,
+#     patient_id_var,
+#     panel_id,
+#     unit_map,
+#     plot_title = "",
+#     text_size = 4
+# ) {
+# 
+#   group_col <- deparse(substitute(group_var))
+#   y_col     <- deparse(substitute(y_var))
+#   id_col    <- deparse(substitute(patient_id_var))
+# 
+#   # ------------------------------
+#   # y-axis label from unit_map
+#   # ------------------------------
+#   y_label <- if (panel_id %in% names(unit_map)) {
+#     unit_map[[panel_id]]
+#   } else {
+#     toupper(panel_id)
+#   }
+# 
+#   # ------------------------------
+#   # Unique patients (N)
+#   # ------------------------------
+#   df_top <- data %>%
+#     group_by(.data[[group_col]]) %>%
+#     summarise(
+#       unique_patients = n_distinct(.data[[id_col]]),
+#       .groups = "drop"
+#     ) %>%
+#     mutate(label = paste0("N=", unique_patients))
+# 
+#   # ------------------------------
+#   # Total observations (n)
+#   # ------------------------------
+#   df_bottom <- data %>%
+#     group_by(.data[[group_col]]) %>%
+#     summarise(
+#       total_reads = n(),
+#       .groups = "drop"
+#     ) %>%
+#     mutate(label = paste0("n=", total_reads))
+# 
+#   y_max <- max(data[[y_col]], na.rm = TRUE)
+# 
+#   p <- ggplot(
+#     data,
+#     aes(
+#       x = .data[[group_col]],
+#       y = .data[[y_col]],
+#       fill = .data[[group_col]]
+#     )
+#   ) +
+# 
+#     geom_violin(
+#       trim = TRUE,
+#       alpha = 0.35,
+#       colour = "black",
+#       linewidth = 0.3
+#     ) +
+# 
+#     geom_boxplot(
+#       width = 0.15,
+#       alpha = 0.7,
+#       outlier.shape = NA,
+#       linewidth = 0.3
+#     ) +
+# 
+#     geom_jitter(
+#       width = 0.08,
+#       alpha = 0.4,
+#       size = 1.5
+#     ) +
+# 
+#     stat_summary(
+#       fun = median,
+#       geom = "point",
+#       shape = 23,
+#       size = 2.5,
+#       fill = "brown"
+#     ) +
+# 
+#     geom_text(
+#       data = df_bottom,
+#       aes(
+#         x = .data[[group_col]],
+#         y = y_max * 1.10,
+#         label = label
+#       ),
+#       inherit.aes = FALSE,
+#       fontface = "bold",
+#       size = text_size
+#     ) +
+# 
+#     geom_text(
+#   data = df_top,
+#   aes(
+#     x = .data[[group_col]],
+#     y = -(y_max * 0.20),
+#     label = paste0("(", label, ")")
+#   ),
+#   inherit.aes = FALSE,
+#   fontface = "bold",
+#   size = text_size
+# ) +
+# 
+#     stat_compare_means(
+#   method = "wilcox.test",
+#   comparisons = list(c("No_Flupirtin", "Flupirtin")),
+#   label = "p.format",
+#   label.y = y_max * 1.12,
+#   bracket.size = 0.4,
+#   tip.length = 0.01,
+#   size = text_size
+# ) +
+# 
+#     labs(
+#       title = plot_title,
+#       x = NULL,
+#       y = y_label
+#     ) +
+# 
+#     coord_cartesian(
+#       ylim = c(0, y_max * 1.25),
+#       clip = "off"
+#     ) +
+#     scale_fill_manual(
+#   values = c(
+#     "No_Flupirtin" = "#E69F00",
+#     "Flupirtin"    = "#009E73"
+#   )
+# )+
+# 
+#     theme_classic() +
+# 
+#     theme(
+#       legend.position = "none",
+#       plot.title = element_text(hjust = 0.5, face = "bold", size = 12),
+#       axis.text = element_text(face = "bold", size = 11),
+#       axis.title = element_text(face = "bold", size = 12),
+#       plot.margin = margin(t = 15, r = 15, b = 30, l = 15)
+#     )
+# 
+#   return(p)
+# }
+# 
+# # ==========================================
+# # 2. LOOP FUNCTION (ALL PANELS)
+# # ==========================================
+# generate_flupirtin_plots <- function(
+#     panel_ids,
+#     all_data,
+#     flupirtin_data,
+#     unit_map
+# ) {
+# 
+#   plots <- list()
+# 
+#   for (pid in panel_ids) {
+# 
+#     message("Processing: ", pid)
+# 
+#     panel_data <- all_data %>%
+#       left_join(flupirtin_data,
+#                 by = "bf_ar_m_nummer",
+#                 relationship = "many-to-many") %>%
+#       filter(
+#         panel_id == pid,
+#         treatment == "Leber_Diclo"
+#       ) %>%
+#       filter(
+#         !str_detect(attribute, "_krankheitsbeginn|DBS")
+#       ) %>%
+#       drop_na(labreads, flupirtin, bf_ar_m_nummer) %>%
+#       mutate(
+#         flupirtin = case_when(
+#           flupirtin %in% c("Yes", "Flupirtin", "flupirtin", 1) ~ "Flupirtin",
+#           TRUE ~ "No_Flupirtin"
+#         ),
+#         flupirtin = factor(
+#           flupirtin,
+#           levels = c("No_Flupirtin", "Flupirtin")
+#         )
+#       )
+# 
+#     if (nrow(panel_data) == 0) next
+#     if (length(unique(panel_data$flupirtin)) < 2) next
+# 
+#     p <- plot_flupirtin_comparison(
+#       data = panel_data,
+#       group_var = flupirtin,
+#       y_var = labreads,
+#       patient_id_var = bf_ar_m_nummer,
+#       panel_id = pid,
+#       unit_map = unit_map,
+#       plot_title <- paste("Liver_Diclo:", toupper(pid), "\n(Flupirtin vs Non Flupirtin peak values)")
+#     )
+# 
+#     plots[[pid]] <- p
+#   }
+# 
+#   return(plots)
+# }
+```
+
+
+##===================
+## gpt_full
+##===================
+
+```{r}
+gpt_full <- all_data %>% 
+  filter(panel_id == "gpt") %>% 
+  filter(treatment == "Leber_Diclo") %>% 
+  drop_na()
+
+gpt_full
+```
+
+
+```{r}
+flupirtin_data %>% 
+  filter(treatment == "Leber_Diclo") %>% 
+  left_join(.,gpt_full, by = join_by(bf_ar_m_nummer)) %>% 
+  drop_na(labreads,days) %>% 
+  mutate(flupirtin = factor(flupirtin)) %>% 
+  group_by(flupirtin) %>% 
+  summarise(
+    n_rows = n(),
+    n_patients = n_distinct(bf_ar_m_nummer),
+    patient_ids = paste(unique(bf_ar_m_nummer), collapse = ", "),
+    .groups = "drop"
+  )
+```
+
+##=============================
+## Unit_map
+##=============================
+
+```{r}
+unit_map <- c(
+    "got" = "AST/GOT (U/L)", "gpt" = "ALT/GPT (U/L)", "ggt" = "GGT (U/L)",
+    "ap" = "Alkaline Phosphatase (U/L)", "gldh" = "GLDH (U/L)", "ldh" = "LDH (U/L)",
+    "cholinesterase" = "Cholinesterase (U/L)", "bilirubin" = "Total Bilirubin (mg/dL)",
+    "total_bilirubin" = "Total Bilirubin (mg/dL)", "direktes" = "Direct Bilirubin (mg/dL)",
+    "direct_bilirubin" = "Direct Bilirubin (mg/dL)", "indirektes" = "Indirect Bilirubin (mg/dL)",
+    "indirect_bilirubin" = "Indirect Bilirubin (mg/dL)", "ammoniak" = "Ammonia (µg/dL)",
+    "ck" = "CK (U/L)", "keratinkinase" = "Creatine Kinase (U/L)", "ck_mb" = "CK-MB (U/L)", 
+    "troponin" = "Troponin (ng/L)", "serummyoglobin" = "Myoglobin (µg/L)",
+    "kreatinin" = "Creatinine (mg/dL)", "harnstoff" = "Urea (mg/dL)",
+    "harnsaure" = "Uric Acid (mg/dL)", "gfr" = "eGFR (mL/min/1.73m²)",
+    "grf" = "eGFR (mL/min/1.73m²)", "glomarulare" = "eGFR (mL/min/1.73m²)",
+    "glucose" = "Glucose (mg/dL)", "lactat" = "Lactate (mmol/L)",
+    "cholesterin" = "Cholesterol (mg/dL)", "triglyceride" = "Triglycerides (mg/dL)",
+    "hdl" = "HDL Cholesterol (mg/dL)", "ldl" = "LDL Cholesterol (mg/dL)",
+    "gesamteiweiss" = "Total Protein (g/dL)", "albumin" = "Albumin (g/dL)",
+    "alpha" = "Alpha-Globulin (%)", "beta" = "Beta-Globulin (%)", "gamma" = "Gamma-Globulin (%)",
+    "amylase" = "Amylase (U/L)", "lipase" = "Lipase (U/L)",
+    "crp" = "CRP (mg/L)", "bsg" = "ESR (mm/h)", "leukozyten" = "Leukocytes (G/L)", "fieber" = "Temperature (°C)",
+    "quick" = "Quick (%)", "inr" = "INR", "ptt" = "PTT (s)", "prothrombin" = "Prothrombin Time (s)", 
+    "tz" = "Thrombin Time (s)", "antithrombin" = "Antithrombin III (%)", "antithrombin_3" = "Antithrombin III (%)",
+    "fibrinogen" = "Fibrinogen (mg/dL)", "d" = "D-Dimer (mg/L)",
+    "erythrozyten" = "Erythrocytes (T/L)", "hb" = "Hemoglobin (g/dL)", "hamatokrit" = "Hematocrit (%)", 
+    "mcv" = "MCV (fL)", "mch" = "MCH (pg)", "mchc" = "MCHC (g/dL)", 
+    "thrombozyten" = "Thrombocytes (G/L)", "trhombozyten" = "Thrombocytes (G/L)",
+    "lymphozyten" = "Lymphocytes (%)", "monozyten" = "Monocytes (%)", "eosinophile" = "Eosinophils (%)", 
+    "basophile" = "Basophils (%)", "neutrophile" = "Neutrophils (%)", 
+    "stabkernige" = "Band Neutrophils (%)", "segmentkernige" = "Segmented Neutrophils (%)",
+    "natrium" = "Sodium (mmol/L)", "kalium" = "Potassium (mmol/L)", "kalzium" = "Calcium (mmol/L)", 
+    "magnesium" = "Magnesium (mmol/L)", "chlorid" = "Chloride (mmol/L)", "phosphat" = "Phosphate (mg/dL)",
+    "serum_eisen" = "Serum Iron (µg/dL)", "transferrin" = "Transferrin (mg/dL)",
+    "ferritin" = "Ferritin (µg/L)", "haptoglobin" = "Haptoglobin (mg/dL)",
+    "total" = "Total Value", "totales" = "Total Value", "blut" = "Blood Value", "serum" = "Serum Value"
+  )
+```
+
+
+##===============================================================
+##  format code for y axis break when outlier exist.(diabetes)
+##===============================================================
+
+```{r}
+
+# ── Libraries ──────────────────────────────────────────────────────────────
+library(ggbreak)
+library(ggpubr)
+library(dplyr)
+library(stringr)
+library(ggprism)
+
+# ── Function ───────────────────────────────────────────────────────────────
+plot_liver_boxplot_break <- function(
+    all_data,
+    diabetic_data,
+    gender_data1,
+    panel = "gpt",
+    unit_map = NULL,
+    comparisons = list(
+      c("Liver_Diclo", "Liver_Ibu"),
+      c("Liver_Diclo", "Liver_Para"),
+      c("Liver_Ibu",   "Liver_Para")
+    ),
+    stat_method   = "wilcox.test",
+    stat_label    = "p.format",
+    tip_length    = 0.01,
+    bracket_size  = 0.5,
+    y_break       = c(3000, 4500),
+    y_break_scale = 0.3,
+    top_margin    = 80,
+    colors        = c(
+      "Liver_Diclo" = "#4E79A7",
+      "Liver_Ibu"   = "#F28E2B",
+      "Liver_Para"  = "#59A14F"
+    )
+) {
+
+  # ── Title & label ────────────────────────────────────────────────────────
+  plot_title <- paste(toupper(panel), "Levels by treatment (Liver Cohort)")
+
+  y_label <- if (!is.null(unit_map) && panel %in% names(unit_map)) {
+    unit_map[[panel]]
+  } else {
+    toupper(panel)
+  }
+
+  # ── Data ─────────────────────────────────────────────────────────────────
+  plot_data <- all_data %>%
+    left_join(diabetic_data,
+              by = join_by("bf_ar_m_nummer", "treatment"),
+              relationship = "many-to-many") %>%
+    left_join(gender_data1,
+              by = join_by("bf_ar_m_nummer", "treatment"),
+              relationship = "many-to-many") %>%
+    mutate(
+      treatment = recode(
+        treatment,
+        "Leber_Diclo" = "Liver_Diclo",
+        "Leber_Ibu"   = "Liver_Ibu",
+        "Leber_Para"  = "Liver_Para"
+      )
+    ) %>%
+    filter(
+      panel_id == .env$panel,
+      grepl("Liver_", treatment),
+      !str_detect(attribute, "_krankheitsbeginn|dbs"),
+      !is.na(diabetes),
+      !is.na(treatment),
+      !is.na(labreads)
+    )
+
+  if (nrow(plot_data) == 0) {
+    stop("No data remaining after filtering.")
+  }
+
+  # ── Stats ───────────────────────────────────────────────────────────────
+  group_stats <- plot_data %>%
+    group_by(treatment) %>%
+    summarise(
+      N = n_distinct(bf_ar_m_nummer),
+      n = n(),
+      y_top = max(labreads, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  x_labels <- setNames(
+    paste0(group_stats$treatment, "\nN = ", group_stats$N),
+    group_stats$treatment
+  )
+
+  # ── y scaling ───────────────────────────────────────────────────────────
+  y_max <- max(plot_data$labreads, na.rm = TRUE)
+
+  n_comp <- length(comparisons)
+
+  label_y_pos <- y_max * (1.28 + seq(0, by = 0.10, length.out = n_comp))
+
+  plot_top <- max(label_y_pos) * 1.10
+
+  n_label_y <- y_max * 1.05
+
+  # ── Plot ────────────────────────────────────────────────────────────────
+  p <- ggplot(
+    plot_data,
+    aes(
+      x = treatment,
+      y = labreads,
+      fill = treatment,
+      colour = treatment
+    )
+  ) +
+
+    geom_boxplot(
+      width = 0.6,
+      alpha = 0.35,
+      linewidth = 0.8,
+      outlier.shape = NA
+    ) +
+
+    geom_jitter(
+      aes(shape = treatment),
+      width = 0.2,
+      size = 2,
+      alpha = 0.8
+    ) +
+
+    geom_text(
+      data = group_stats,
+      aes(x = treatment,
+          y = n_label_y,
+          label = paste0("n = ", n)),
+      inherit.aes = FALSE,
+      fontface = "bold",
+      size = 5
+    ) +
+
+    stat_compare_means(
+      comparisons  = comparisons,
+      method       = stat_method,
+      label        = stat_label,
+      label.y      = label_y_pos,
+      tip.length   = tip_length,
+      bracket.size = bracket_size,
+      step.increase = 0.11,
+      size = 5
+    ) +
+
+    scale_x_discrete(labels = x_labels) +
+    scale_fill_manual(values = colors) +
+    scale_colour_manual(values = colors) +
+    scale_shape_prism() +
+
+    scale_y_break(y_break, scales = y_break_scale) +
+    expand_limits(y = max(label_y_pos) * 1.55) +
+    guides(y = "prism_offset_minor") +
+
+    labs(
+      title = plot_title,
+      x = NULL,
+      y = y_label
+    ) +
+
+    theme_prism() +
+
+    theme(
+      text = element_text(family = "sans"),
+      legend.position = "none",
+
+      plot.title = element_text(
+        hjust = 0.5,
+        size = 26,
+        face = "bold",
+        margin = margin(b = 6)
+      ),
+
+      axis.text.x = element_text(
+        size = 22,
+        face = "bold",
+        margin = margin(t = 6)
+      ),
+
+      axis.text.y = element_text(
+        size = 22,
+        face = "bold"
+      ),
+
+      axis.title = element_text(
+        size = 24,
+        face = "bold"
+      ),
+
+      axis.title.y = element_text(
+        margin = margin(r = -10, unit = "pt")
+      ),
+
+      axis.text.x.top = element_blank(),
+      axis.ticks.x.top = element_blank(),
+      axis.line.x.top = element_blank(),
+
+      plot.margin = margin(
+        t = top_margin,
+        r = 10,
+        b = 10,
+        l = 10,
+        unit = "pt"
+      )
+    )
+
+  return(p)
+}
+```
+
+```{r}
+base_dir <- here::here("output/figure/diabetes/plots_all_labvalues/liver")
+
+svg_dir <- file.path(base_dir, "svg")
+png_dir <- file.path(base_dir, "png")
+
+dir.create(svg_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(png_dir, recursive = TRUE, showWarnings = FALSE)
+```
+
+```{r}
+panel <- "gpt"
+p <- plot_liver_boxplot_break(
+  all_data,
+  diabetic_data,
+  gender_data1,
+  unit_map = unit_map,
+  panel = panel,
+  top_margin = 10,
+  y_break = c(4000, 10000)
+)
+p 
+```
+
+
+```{r}
+panel <- "ferritin"
+print(p)
+
+ggsave(
+  filename = file.path(svg_dir, paste0(panel, "_plot.svg")),
+  plot     = p,
+  width    = 8,
+  height   = 6,
+  device   = svglite::svglite
+)
+
+ggsave(
+  filename = file.path(png_dir, paste0(panel, "_plot.png")),
+  plot     = p,
+  width    = 8,
+  height   = 6,
+  dpi      = 600,
+  bg       = "white"
+)
+```
+
+##=============================
+##
+##==============================
+
+
+```{r}
+panel <- "gpt"
+
+p <- plot_diabetes_boxplot_break(
+  all_data = all_data,
+  diabetic_data = diabetic_data,
+  panel = panel,
+  y_break = c(3000, 4500),
+  y_break_scale = 0.3
+)
+
+p
+```
+
+
+```{r}
+# all_data %>%
+#     left_join(diabetic_data,
+#               by = "bf_ar_m_nummer",
+#               relationship = "many-to-many") %>%
+#     left_join(gender_data1,
+#               by = join_by("bf_ar_m_nummer", "treatment"),
+#               relationship = "many-to-many") %>%
+#     filter(
+#       panel_id == "gpt",
+#       grepl("Leber_", kathegorie),
+#       !str_detect(attribute, "_krankheitsbeginn|dbs"),
+#       !is.na(diabetes),
+#       !is.na(kathegorie),
+#       !is.na(gender),
+#       !is.na(labreads)
+#     ) %>%
+#     mutate(
+#       kathegorie = recode(
+#         kathegorie,
+#         "Leber_Diclo" = "Liver_Diclo",
+#         "Leber_Ibu"   = "Liver_Ibu",
+#         "Leber_Para"  = "Liver_Para"),
+#       diabetes = factor(diabetes),
+#       gender = factor(gender)
+#     ) %>% 
+#   ggplot(aes(x = diabetes, y = labreads))+
+#   geom_boxplot()+
+#   geom_jitter()+
+#   facet_wrap(~ gender)
+```
+
+```{r}
+# all_data %>%
+#   filter(
+#       panel_id == "got",
+#       grepl("Leber_", treatment),
+#       !str_detect(attribute, "_from_start|dbs|_dbs"),
+#       !is.na(treatment),
+#       !is.na(labreads)
+#     ) %>% 
+#     left_join(
+#       diabetic_data,
+#       by = join_by("bf_ar_m_nummer", "treatment")
+#     ) %>%
+#     # left_join(
+#     #   gender_data1,
+#     #   by = join_by("bf_ar_m_nummer", "treatment")
+#     # ) %>%
+#     
+#     mutate(
+#       treatment = recode(
+#         treatment,
+#         "Leber_Diclo" = "Liver_Diclo",
+#         "Leber_Ibu"   = "Liver_Ibu",
+#         "Leber_Para"  = "Liver_Para"
+#       ),
+#       diabetes = factor(
+#         diabetes,
+#         levels = c("Diabetic", "Non_Diabetic")
+#       )#,
+#       #gender = factor(
+#       #  gender,
+#       #  levels = c("Female", "Male")
+#       #)
+#     ) %>% 
+#   group_by(diabetes,treatment) %>%
+#   summarise(
+#     N = n_distinct(bf_ar_m_nummer),
+#     n = n_distinct(labreads),
+#     .groups = "drop"
+#   ) %>%
+#   filter(!is.na(diabetes))
+```
+
+
+
+```{r}
+# all_data %>%
+#   filter(
+#       panel_id == "got",
+#       grepl("Leber_", treatment),
+#       !str_detect(attribute, "_from_start|dbs|_dbs"),
+#       !is.na(treatment),
+#       !is.na(labreads)
+#     ) %>% 
+#     left_join(
+#       diabetic_data,
+#       by = join_by("bf_ar_m_nummer", "treatment")
+#     ) %>%
+#       mutate(
+#       treatment = recode(
+#         treatment,
+#         "Leber_Diclo" = "Liver_Diclo",
+#         "Leber_Ibu"   = "Liver_Ibu",
+#         "Leber_Para"  = "Liver_Para"
+#       ),
+#       diabetes = factor(
+#         diabetes,
+#         levels = c("Diabetic", "Non_Diabetic")
+#       )) %>% 
+#   ggplot(aes(x = diabetes , y = labreads))+
+#   geom_boxplot()+
+#   geom_jitter()
+```
+
+
+```{r}
+ # all_data %>%
+ #    left_join(
+ #      diabetic_data,
+ #      by = join_by("bf_ar_m_nummer","treatment"),
+ #      relationship = "many-to-many"
+ #    ) %>%
+ #    filter(
+ #      panel_id == "gpt",
+ #      grepl("Leber_", treatment),
+ #      !str_detect(attribute, "_from_start|dbs|_dbs"),
+ #      !is.na(diabetes),
+ #      !is.na(treatment),
+ #      !is.na(labreads)
+ #    ) %>%
+ #    mutate(
+ #      treatment = recode(
+ #       treatment,
+ #        "Leber_Diclo" = "Liver_Diclo",
+ #        "Leber_Ibu"   = "Liver_Ibu",
+ #        "Leber_Para"  = "Liver_Para"
+ #      ),
+ #      diabetes = factor(
+ #        diabetes,
+ #        levels = c("Diabetic", "Non_Diabetic")
+ #      )
+ #    ) %>%
+ #    distinct(bf_ar_m_nummer, labreads, .keep_all = TRUE)
+```
+
+##======================================
+## gpt table summary (gtsummary package)
+##======================================
+
+
+```{r}
+gptliver <- all_data %>%
+    left_join(
+      diabetic_data,
+      by = join_by("bf_ar_m_nummer", "treatment"),
+      relationship = "many-to-many"
+    ) %>%
+    left_join(
+      gender_data1,
+      by = join_by("bf_ar_m_nummer", "treatment"),
+      relationship = "many-to-many"
+    ) %>%
+    filter(
+      panel_id == "gpt", #.env$panel,
+      grepl("Leber_", treatment),
+      !str_detect(attribute, "_from_start|dbs"),
+      !is.na(diabetes),
+      !is.na(gender),
+      !is.na(treatment),
+      !is.na(labreads)
+    ) %>%
+    mutate(
+      treatment = recode(
+        treatment,
+        "Leber_Diclo" = "Liver_Diclo",
+        "Leber_Ibu"   = "Liver_Ibu",
+        "Leber_Para"  = "Liver_Para"
+      ),
+      diabetes = factor(diabetes, levels = c("Diabetic", "Non_Diabetic")),
+      gender   = factor(gender,   levels = c("Female", "Male"))
+    ) %>%
+    distinct(bf_ar_m_nummer, labreads, .keep_all = TRUE)
+gptliver
+```
+
+```{r}
+gptliver %>%
+  group_by(diabetes) %>%
+  summarise(
+    N = n_distinct(bf_ar_m_nummer),
+    n = n(),
+    .groups = "drop"
+  )
+```
+
+
+
+
+```{r}
+subject_data <- gptliver %>%
+  distinct(bf_ar_m_nummer, diabetes, gender, treatment)
+subject_data
+
+table1 <- subject_data %>%
+  tbl_summary(
+    by = diabetes,
+    include = c(gender, treatment),
+    missing = "no"
+  ) %>%
+  add_n() %>%
+  add_p() %>%
+  add_difference()
+
+table1_flex <- as_flex_table(table1)
+
+
+
+doc <- read_docx() %>%
+  body_add_par("Table 1: GPT_T2D_NT2D", 
+               style = "heading 1") %>%
+               body_add_flextable(table1_flex)
+
+print(doc, target = "gpt_T2D_Table.docx")
+
+```
+
+##==============================================
+## summary table for diabetes, gender, treatment
+##==============================================
+## in this case tbl_stack is working 
+##==============================================
+
+```{r}
+tbl_diabetes <- subject_data %>%
+  tbl_summary(by = diabetes, include = c(gender, treatment)) %>%
+  add_n() %>%
+  add_p()
+
+tbl_gender <- subject_data %>%
+  tbl_summary(by = gender, include = c(diabetes, treatment)) %>%
+  add_n() %>%
+  add_p()
+
+tbl_treatment <- subject_data %>%
+  tbl_summary(by = treatment, include = c(diabetes, gender)) %>%
+  add_n() %>%
+  add_p()
+```
+
+
+```{r}
+table1_final <- tbl_stack(
+  tbls = list(tbl_diabetes, tbl_gender, tbl_treatment),
+  group_header = c("Diabetes", "Gender", "Treatment")
+)
+table1_final
+```
+
+
+
+```{r}
+gender_bmi_data %>%
+  filter(
+    #treatment == "Leber_Diclo",
+    !is.na(gender),
+    !is.na(bmi)) %>% 
+  group_by(gender) %>%
+  summarise(
+    N = n_distinct(bf_ar_m_nummer),  # subjects
+    n = n(),                         # BMI measurements
+    ymax = max(bmi, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+
+
+```{r}
+all_data %>%
+   left_join(
+     gender_bmi_data,
+     by = join_by("bf_ar_m_nummer","treatment"),
+     relationship = "many-to-many"
+   ) %>%
+   filter(
+     panel_id == "gpt",
+     grepl("Leber_", treatment),
+     !str_detect(attribute, "_from_start|dbs|_dbs"),
+     !is.na(bmi),
+     !is.na(treatment),
+     !is.na(labreads),
+     !is.na(days)
+   ) %>%
+   mutate(
+     treatment = recode(
+      treatment,
+       "Leber_Diclo" = "Liver_Diclo",
+       "Leber_Ibu"   = "Liver_Ibu",
+       "Leber_Para"  = "Liver_Para"
+     ),
+     gender = factor(
+       gender,
+       levels = c("Female", "Male")
+     ),
+     obese = factor(
+     recode(
+     obese,
+     "yes" = "obese",
+     "no"  = "no_obese"),
+     levels = c("obese", "no_obese")),
+     facet_group = paste(gender, obese, sep = " ")) %>% 
+     distinct(bf_ar_m_nummer, labreads, .keep_all = TRUE) %>% 
+     filter(labreads <= 4000) %>% 
+     ggplot(aes(x = treatment, y = labreads))+
+     geom_boxplot()+
+     geom_jitter()+
+     facet_wrap(~ facet_group )+
+     theme_classic()+
+      theme(
+        strip.text = element_text(size = 16, face = "bold")
+      )
+```
+
+
+```{r}
+gender_bmi_data %>% 
+   mutate(
+    obese = case_when(
+      obese == "no"  ~ "no_obese",
+      obese == "yes" ~ "obese",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+##=============================
+## BMI_treatment_gender_obesity
+##=============================
+
+```{r}
+plot_data <- all_data %>%
+  left_join(
+    gender_bmi_data,
+    by = join_by("bf_ar_m_nummer", "treatment"),
+    relationship = "many-to-many"
+  ) %>%
+  filter(
+    panel_id == "gpt",
+    grepl("Leber_", treatment),
+    !str_detect(attribute, "_from_start|dbs|_dbs"),
+    !is.na(bmi),
+    !is.na(treatment),
+    !is.na(labreads),
+    !is.na(days)
+  ) %>%
+  mutate(
+    treatment = recode(
+      treatment,
+      "Leber_Diclo" = "Liver_Diclo",
+      "Leber_Ibu"   = "Liver_Ibu",
+      "Leber_Para"  = "Liver_Para"
+    ),
+    gender = factor(gender, levels = c("Female", "Male")),
+    obese = factor(
+      recode(obese,
+             "yes" = "obese",
+             "no"  = "no_obese"),
+      levels = c("obese", "no_obese")
+    ),
+    facet_group = paste(gender, obese, sep = " "),
+    facet_group = recode(facet_group,
+  "Female no_obese" = "Female / Non-obese",
+  "Female obese"    = "Female / Obese",
+  "Male no_obese"   = "Male / Non-obese",
+  "Male obese"      = "Male / Obese"
+)) %>%
+  distinct(bf_ar_m_nummer, labreads, .keep_all = TRUE) #%>%
+  #filter(labreads <= 4000)
+plot_data
+```
+
+```{r}
+comparisons <- list(
+  c("Liver_Diclo", "Liver_Ibu"),
+  c("Liver_Diclo", "Liver_Para"),
+  c("Liver_Ibu", "Liver_Para")
+)
+
+library(purrr)
+
+stat_test <- plot_data %>%
+  group_by(facet_group) %>%
+  group_split() %>%
+  map(\(df) {
+    fg <- unique(df$facet_group)
+    max_y <- max(df$labreads, na.rm = TRUE)
+    
+    df %>%
+      wilcox_test(labreads ~ treatment, comparisons = comparisons) %>%
+      adjust_pvalue(method = "BH") %>%
+      add_significance("p.adj") %>%
+      add_xy_position(x = "treatment") %>%   # now sees only 3 rows
+      mutate(
+        facet_group = fg,
+        y.position  = max_y + c(600, 1300, 2000)
+      )
+  }) %>%
+  bind_rows()
+
+ggplot(plot_data, aes(x = treatment, y = labreads, color= treatment )) +
+  geom_boxplot() +
+  geom_jitter(width = 0.15, alpha = 0.6) +
+  facet_wrap(~facet_group) +
+  stat_pvalue_manual(
+    stat_test,
+    label    = " p {p.adj}",
+    hide.ns  = FALSE,
+    facet.by = "facet_group"
+  ) +
+  scale_x_discrete(labels = c(
+  "Liver_Diclo" = "Diclofenac",
+  "Liver_Ibu"   = "Ibuprofen",
+  "Liver_Para"  = "Paracetamol"
+))+
+   scale_y_continuous(
+   limits = c(0, 6000),
+   breaks = seq(0, 6000, by = 1000))+
+  scale_color_manual(values = c("#0072B2", "#E69F00", "#009E73"))+
+  labs(
+    y = ("GPT Activity (U/L)"),
+    title = "GPT Activity by Treatment, Sex, and Obesity Status")+
+  theme_classic() +
+  theme(strip.text = element_text(size = 16, face = "bold",
+                                  margin = margin(b = 5)),
+        strip.background = element_blank(),
+        text = element_text(family = "sans"),
+      legend.position = "none",
+
+      plot.title = element_text(
+        hjust = 0.5,
+        size = 25,
+        face = "bold",
+        margin = margin(b = 10)
+      ),
+
+      axis.text.x = element_text(
+        size = 18,
+        face = "bold",
+        margin = margin(t = 1)
+      ),
+
+      axis.text.y = element_text(
+        size = 18,
+        face = "bold"
+      ),
+
+      axis.title = element_text(
+        size = 24,
+        face = "bold"
+      ),
+      plot.margin = margin(
+        t = 10,
+        r = 10,
+        b = 10,
+        l = 10,
+        unit = "pt"
+      ))
+```
+
+##========================================
+## function (BMI_treatment_gender_obesity)
+##========================================
+
+```{r}
+plot_liver_treatment_sex_obesity <- function(
+    all_data,
+    gender_bmi_data,
+    panel,
+    y_var       = "labreads",
+    y_label     = "GPT Activity (U/L)",
+    title       = "GPT Activity by Treatment, Sex, and Obesity Status",
+    max_filter  = 4000,
+    y_limits    = c(0, 6000),
+    y_breaks    = seq(0, 6000, by = 1000),
+    pval_steps  = c(600, 1300, 2000),
+    colors      = c("#0072B2", "#E69F00", "#009E73"),
+    comparisons = list(
+      c("Liver_Diclo", "Liver_Ibu"),
+      c("Liver_Diclo", "Liver_Para"),
+      c("Liver_Ibu",   "Liver_Para")
+    )
+) {
+  
+  # ── 1. Prepare data ──────────────────────────────────────────────────────────
+  plot_data <- all_data %>%
+    left_join(
+      gender_bmi_data,
+      by           = join_by("bf_ar_m_nummer", "treatment"),
+      relationship = "many-to-many"
+    ) %>%
+    filter(
+      panel_id == .env$panel,
+      grepl("Leber_", treatment),
+      !str_detect(attribute, "_from_start|dbs|_dbs"),
+      !is.na(bmi),
+      !is.na(treatment),
+      !is.na(.data[[y_var]]),
+      !is.na(days)
+    ) %>%
+    mutate(
+      treatment = recode(treatment,
+        "Leber_Diclo" = "Liver_Diclo",
+        "Leber_Ibu"   = "Liver_Ibu",
+        "Leber_Para"  = "Liver_Para"
+      ),
+      gender = factor(gender, levels = c("Female", "Male")),
+      obese  = factor(
+        recode(obese, "yes" = "obese", "no" = "no_obese"),
+        levels = c("obese", "no_obese")
+      ),
+      facet_group = paste(gender, obese, sep = " "),
+      facet_group = recode(facet_group,
+        "Female no_obese" = "Female / Non-obese",
+        "Female obese"    = "Female / Obese",
+        "Male no_obese"   = "Male / Non-obese",
+        "Male obese"      = "Male / Obese"
+      )
+    ) %>%
+    distinct(bf_ar_m_nummer, .data[[y_var]], .keep_all = TRUE) %>%
+    filter(.data[[y_var]] <= max_filter)
+  
+  # ── Guard: stop early if no data ─────────────────────────────────────────────
+  if (nrow(plot_data) == 0) {
+    stop("No data after filtering for panel '", panel, "'. Check panel_id and treatment names.")
+  }
+  
+  # ── Guard: report which facet groups have all 3 treatments ───────────────────
+  valid_groups <- plot_data %>%
+    group_by(facet_group) %>%
+    summarise(n_treatments = n_distinct(treatment), .groups = "drop") %>%
+    filter(n_treatments == 3) %>%
+    pull(facet_group)
+  
+  skipped <- setdiff(unique(plot_data$facet_group), valid_groups)
+  if (length(skipped) > 0) {
+    warning("Skipping facet group(s) with fewer than 3 treatments: ",
+            paste(skipped, collapse = ", "))
+  }
+  
+  plot_data <- filter(plot_data, facet_group %in% valid_groups)
+  
+  # ── 2. Statistical tests ─────────────────────────────────────────────────────
+  test_formula <- as.formula(paste(y_var, "~ treatment"))
+  
+  stat_test <- plot_data %>%
+    group_by(facet_group) %>%
+    group_split() %>%
+    map(\(df) {
+      fg    <- unique(df$facet_group)
+      max_y <- max(df[[y_var]], na.rm = TRUE)
+      
+      tryCatch({
+        df %>%
+          wilcox_test(test_formula, comparisons = comparisons) %>%
+          adjust_pvalue(method = "BH") %>%
+          add_significance("p.adj") %>%
+          add_xy_position(x = "treatment") %>%
+          mutate(
+            facet_group = fg,
+            y.position  = max_y + pval_steps
+          )
+      }, error = function(e) {
+        warning("Statistical test failed for '", fg, "': ", e$message)
+        NULL   # dropped by compact() below
+      })
+    }) %>%
+    compact() %>%   # removes NULL entries from failed groups
+    bind_rows()
+  
+  # ── Guard: stop if no tests succeeded ────────────────────────────────────────
+  if (nrow(stat_test) == 0) {
+    stop("All statistical tests failed. Check that each facet group has ",
+         "sufficient observations per treatment.")
+  }
+  
+  # ── 3. Plot ──────────────────────────────────────────────────────────────────
+  ggplot(plot_data, aes(x = treatment, y = .data[[y_var]], color = treatment)) +
+    geom_boxplot() +
+    geom_jitter(width = 0.15, alpha = 0.6) +
+    facet_wrap(~facet_group) +
+    stat_pvalue_manual(
+      stat_test,
+      label    = "p {p.adj}",
+      hide.ns  = FALSE,
+      facet.by = "facet_group"
+    ) +
+    scale_x_discrete(labels = c(
+      "Liver_Diclo" = "Diclofenac",
+      "Liver_Ibu"   = "Ibuprofen",
+      "Liver_Para"  = "Paracetamol"
+    )) +
+    scale_y_continuous(limits = y_limits, breaks = y_breaks) +
+    scale_color_manual(values = colors) +
+    labs(y = y_label, title = title) +
+    theme_classic() +
+    theme(
+      strip.text       = element_text(size = 16, face = "bold", margin = margin(b = 5)),
+      strip.background = element_blank(),
+      text             = element_text(family = "sans"),
+      legend.position  = "none",
+      plot.title       = element_text(hjust = 0.5, size = 25, face = "bold", margin = margin(b = 10)),
+      axis.text.x      = element_text(size = 18, face = "bold", margin = margin(t = 1)),
+      axis.text.y      = element_text(size = 18, face = "bold"),
+      axis.title       = element_text(size = 24, face = "bold"),
+      plot.margin      = margin(t = 10, r = 10, b = 10, l = 10, unit = "pt")
+    )
+}
+```
+
+
+
+
+
+
+====================================================================
+====================================================================
+
+
+```{r}
+library(tidyverse)
+library(rstatix)
+library(ggpubr)
+library(purrr)
+library(glue)
+
+# ════════════════════════════════════════════════════════════════════════════
+# FUNCTION
+# ════════════════════════════════════════════════════════════════════════════
+
+plot_liver_treatment_sex_obesity <- function(
+    all_data,
+    gender_bmi_data,
+    panel,
+    y_var            = "labreads",
+    y_label          = "GPT Activity (U/L)",
+    title            = "GPT Activity by Treatment, Sex, and Obesity Status",
+    max_filter       = 4000,
+    y_limits         = c(0, 6000),
+    y_breaks         = NULL,
+    pval_multipliers = c(0.16, 0.24, 0.32),
+    colors           = c("#0072B2", "#E69F00", "#009E73"),
+    comparisons      = list(
+      c("Liver_Diclo", "Liver_Ibu"),
+      c("Liver_Diclo", "Liver_Para"),
+      c("Liver_Ibu",   "Liver_Para")
+    )
+) {
+
+  # ── auto y_breaks ─────────────────────────────────────────────────────────
+  if (is.null(y_breaks)) {
+    y_breaks <- pretty(c(0, max_filter), n = 6)
+  }
+
+  # ── p-value offset steps (as fractions of y_limits max) ───────────────────
+  # pval_steps[k] = offset ABOVE max_y for the k-th bracket
+  pval_steps <- max(y_limits) * pval_multipliers          # e.g. c(1400, 2100, 2800)
+  step_size  <- pval_steps[2] - pval_steps[1]             # spacing between brackets
+
+  # FIX 1 ── hard-code integer x positions; never use add_xy_position()
+  # step.increase in add_xy_position() nudges xmin/xmax by a fraction,
+  # producing non-integers that cause seq_len() to crash inside stat_pvalue_manual.
+  x_levels <- c("Liver_Diclo" = 1L, "Liver_Ibu" = 2L, "Liver_Para" = 3L)
+
+  # ── 1. Prepare data ───────────────────────────────────────────────────────
+  plot_data <- all_data %>%
+    left_join(
+      gender_bmi_data,
+      by           = join_by("bf_ar_m_nummer", "treatment"),
+      relationship = "many-to-many"
+    ) %>%
+    filter(
+      panel_id == .env$panel,
+      grepl("Leber_", treatment),
+      !str_detect(attribute, "_from_start|dbs|_dbs"),
+      !is.na(bmi),
+      !is.na(treatment),
+      !is.na(.data[[y_var]]),
+      !is.na(days)
+    ) %>%
+    mutate(
+      treatment = recode(treatment,
+        "Leber_Diclo" = "Liver_Diclo",
+        "Leber_Ibu"   = "Liver_Ibu",
+        "Leber_Para"  = "Liver_Para"
+      ),
+      gender = factor(gender, levels = c("Female", "Male")),
+      obese  = factor(
+        recode(obese, "yes" = "obese", "no" = "no_obese"),
+        levels = c("obese", "no_obese")
+      ),
+      facet_group = paste(gender, obese, sep = " "),
+      facet_group = recode(facet_group,
+        "Female no_obese" = "Female / Non-obese",
+        "Female obese"    = "Female / Obese",
+        "Male no_obese"   = "Male / Non-obese",
+        "Male obese"      = "Male / Obese"
+      )
+    ) %>%
+    distinct(bf_ar_m_nummer, .data[[y_var]], .keep_all = TRUE) %>%
+    filter(.data[[y_var]] <= max_filter)
+
+  # ── Guard 1: no data ──────────────────────────────────────────────────────
+  if (nrow(plot_data) == 0) {
+    warning("Panel '", panel, "': no data after filtering.")
+    return(NULL)
+  }
+
+  # ── Guard 2: valid facet groups ───────────────────────────────────────────
+  valid_groups <- plot_data %>%
+    group_by(facet_group) %>%
+    summarise(n_treatments = n_distinct(treatment), .groups = "drop") %>%
+    filter(n_treatments == 3) %>%
+    pull(facet_group)
+
+  if (length(valid_groups) == 0) {
+    warning("Panel '", panel, "': no facet group has all 3 treatments.")
+    return(NULL)
+  }
+
+  plot_data <- filter(plot_data, facet_group %in% valid_groups)
+
+  # ── 2. Statistical tests ──────────────────────────────────────────────────
+  test_formula <- as.formula(paste(y_var, "~ treatment"))
+
+  stat_test <- plot_data %>%
+    group_by(facet_group) %>%
+    group_split() %>%
+    map(\(df) {
+
+      fg    <- unique(df$facet_group)
+      max_y <- max(df[[y_var]], na.rm = TRUE)
+
+      tryCatch({
+        df %>%
+          wilcox_test(test_formula, comparisons = comparisons) %>%
+          adjust_pvalue(method = "BH") %>%
+          add_significance("p.adj") %>%
+          # FIX 1 continued ── attach integer positions here, before bind_rows
+          mutate(
+            facet_group = fg,
+            max_y       = max_y,
+            xmin        = x_levels[group1],   # integer: 1, 2, or 3
+            xmax        = x_levels[group2]    # integer: 1, 2, or 3
+          )
+      }, error = function(e) {
+        warning("Panel '", panel, "', group '", fg, "': Wilcoxon failed – ", conditionMessage(e))
+        NULL
+      })
+    }) %>%
+    compact() %>%
+    bind_rows() %>%
+    filter(!is.na(group1), !is.na(group2), !is.na(xmin), !is.na(xmax))
+
+  if (nrow(stat_test) == 0) {
+    warning("Panel '", panel, "': all statistical tests failed.")
+    return(NULL)
+  }
+
+  # ── 3. p-value positioning ────────────────────────────────────────────────
+  sig_tests <- stat_test %>%
+    group_by(facet_group) %>%
+    mutate(
+      y.position = first(max_y) +
+        pval_steps[1] +
+        (row_number() - 1L) * step_size
+    ) %>%
+    ungroup()
+
+  # FIX 2 ── auto-expand y_limits so brackets are never OOB.
+  # scale_y_continuous(limits=…) uses censor() by default: values outside limits
+  # become NA, then seq_len(NA) crashes inside stat_pvalue_manual.
+  max_annot_y  <- max(sig_tests$y.position, na.rm = TRUE)
+  plot_y_max   <- if (is.finite(max_annot_y) && max_annot_y > y_limits[2]) {
+    max_annot_y * 1.05   # 5% breathing room above the topmost bracket
+  } else {
+    y_limits[2]
+  }
+  plot_y_limits <- c(y_limits[1], plot_y_max)
+
+  # ── 4. Plot ───────────────────────────────────────────────────────────────
+  ggplot(plot_data, aes(x = treatment, y = .data[[y_var]], color = treatment)) +
+    geom_boxplot() +
+    geom_jitter(width = 0.15, alpha = 0.6, size = 2) +
+    facet_wrap(~facet_group) +
+    {
+      if (nrow(sig_tests) > 0)
+        stat_pvalue_manual(
+          sig_tests,
+          label    = "p {p.adj}",
+          size     = 5,
+          hide.ns  = FALSE     # show all comparisons incl. ns
+        )
+    } +
+    scale_y_continuous(limits = plot_y_limits, breaks = y_breaks) +
+    scale_x_discrete(labels = c(
+      "Liver_Diclo" = "Liver_Diclo",
+      "Liver_Ibu"   = "Liver_Ibu",
+      "Liver_Para"  = "Liver_Para"
+    )) +
+    scale_color_manual(values = colors) +
+    labs(y = y_label, title = title) +
+    theme_classic() +
+    theme(
+      strip.text       = element_text(size = 16, face = "bold"),
+      strip.background = element_blank(),
+      legend.position  = "none",
+      plot.title       = element_text(hjust = 0.5, size = 25, face = "bold"),
+      axis.text.x      = element_text(size = 22, face = "bold"),
+      axis.text.y      = element_text(size = 22, face = "bold"),
+      axis.title       = element_text(size = 24, face = "bold")
+    )
+}
+```
+
+
+```{r}
+library(purrr)
+library(ggplot2)
+
+#------------------------------------------------------------
+# Panels
+#------------------------------------------------------------
+
+
+#panels <- c("got", "gpt", "ggt", "ap")
+
+unit_map <- c(
+    "got" = "AST/GOT (U/L)", "gpt" = "ALT/GPT (U/L)", "ggt" = "GGT (U/L)",
+    "ap" = "Alkaline Phosphatase (U/L)", "gldh" = "GLDH (U/L)", "ldh" = "LDH (U/L)",
+    "cholinesterase" = "Cholinesterase (U/L)", "bilirubin" = "Total Bilirubin (mg/dL)",
+    "total_bilirubin" = "Total Bilirubin (mg/dL)", "direktes" = "Direct Bilirubin (mg/dL)",
+    "direct_bilirubin" = "Direct Bilirubin (mg/dL)", "indirektes" = "Indirect Bilirubin (mg/dL)",
+    "indirect_bilirubin" = "Indirect Bilirubin (mg/dL)", "ammoniak" = "Ammonia (µg/dL)",
+    "ck" = "CK (U/L)", "keratinkinase" = "Creatine Kinase (U/L)", "ck_mb" = "CK-MB (U/L)", 
+    "troponin" = "Troponin (ng/L)", "serummyoglobin" = "Myoglobin (µg/L)",
+    "kreatinin" = "Creatinine (mg/dL)", "harnstoff" = "Urea (mg/dL)",
+    "harnsaure" = "Uric Acid (mg/dL)", "gfr" = "eGFR (mL/min/1.73m²)",
+    "grf" = "eGFR (mL/min/1.73m²)", "glomarulare" = "eGFR (mL/min/1.73m²)",
+    "glucose" = "Glucose (mg/dL)", "lactat" = "Lactate (mmol/L)",
+    "cholesterin" = "Cholesterol (mg/dL)", "triglyceride" = "Triglycerides (mg/dL)",
+    "hdl" = "HDL Cholesterol (mg/dL)", "ldl" = "LDL Cholesterol (mg/dL)",
+    "gesamteiweiss" = "Total Protein (g/dL)", "albumin" = "Albumin (g/dL)",
+    "alpha" = "Alpha-Globulin (%)", "beta" = "Beta-Globulin (%)", "gamma" = "Gamma-Globulin (%)",
+    "amylase" = "Amylase (U/L)", "lipase" = "Lipase (U/L)",
+    "crp" = "CRP (mg/L)", "bsg" = "ESR (mm/h)", "leukozyten" = "Leukocytes (G/L)", "fieber" = "Temperature (°C)",
+    "quick" = "Quick (%)", "inr" = "INR", "ptt" = "PTT (s)", "prothrombin" = "Prothrombin Time (s)", 
+    "tz" = "Thrombin Time (s)", "antithrombin" = "Antithrombin III (%)", "antithrombin_3" = "Antithrombin III (%)",
+    "fibrinogen" = "Fibrinogen (mg/dL)", "d" = "D-Dimer (mg/L)",
+    "erythrozyten" = "Erythrocytes (T/L)", "hb" = "Hemoglobin (g/dL)", "hamatokrit" = "Hematocrit (%)", 
+    "mcv" = "MCV (fL)", "mch" = "MCH (pg)", "mchc" = "MCHC (g/dL)", 
+    "thrombozyten" = "Thrombocytes (G/L)", "trhombozyten" = "Thrombocytes (G/L)",
+    "lymphozyten" = "Lymphocytes (%)", "monozyten" = "Monocytes (%)", "eosinophile" = "Eosinophils (%)", 
+    "basophile" = "Basophils (%)", "neutrophile" = "Neutrophils (%)", 
+    "stabkernige" = "Band Neutrophils (%)", "segmentkernige" = "Segmented Neutrophils (%)",
+    "natrium" = "Sodium (mmol/L)", "kalium" = "Potassium (mmol/L)", "kalzium" = "Calcium (mmol/L)", 
+    "magnesium" = "Magnesium (mmol/L)", "chlorid" = "Chloride (mmol/L)", "phosphat" = "Phosphate (mg/dL)",
+    "serum_eisen" = "Serum Iron (µg/dL)", "transferrin" = "Transferrin (mg/dL)",
+    "ferritin" = "Ferritin (µg/L)", "haptoglobin" = "Haptoglobin (mg/dL)",
+    "total" = "Total Value", "totales" = "Total Value", "blut" = "Blood Value", "serum" = "Serum Value"
+  )
+
+
+panels <- all_data %>%
+  dplyr::pull(panel_id) %>%
+  unique() %>%
+  na.omit() %>%
+  trimws() %>%
+  intersect(names(unit_map))
+
+base_dir <- file.path(here::here(
+  "output", "figure", "diabetes",
+  "plots_all_labvalues", "BMI_treatment_gender_obese"
+))
+svg_dir <- file.path(base_dir, "svg")
+png_dir <- file.path(base_dir, "png")
+dir.create(svg_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(png_dir, recursive = TRUE, showWarnings = FALSE)
+
+plot_list <- list()
+
+for (panel in panels) {
+
+  max_filter       <- 7000
+  y_limits         <- c(0, max_filter)
+  pval_multipliers <- c(0.20, 0.30, 0.40)
+
+  p <- plot_liver_treatment_sex_obesity(
+    all_data         = all_data,
+    gender_bmi_data  = gender_bmi_data,
+    panel            = panel,
+    y_var            = "labreads",
+    y_label          = unit_map[[panel]],
+    title            = paste0(
+      toupper(panel),
+      " Activity by Treatment, Sex, and Obesity Status"
+    ),
+    max_filter       = max_filter,
+    y_limits         = y_limits,
+    y_breaks         = seq(0, max_filter, by = 2000),
+    pval_multipliers = pval_multipliers
+  )
+
+  plot_list[[panel]] <- p
+
+  # FIX 3 ── skip ggsave if function returned NULL (empty panel)
+  if (is.null(p)) {
+    message("Skipping save for panel '", panel, "' – NULL plot returned.")
+    next
+  }
+
+  ggsave(
+    filename = file.path(svg_dir, paste0(panel, "_BMI_treatment_gender_obese.svg")),
+    plot     = p,
+    width    = 12,
+    height   = 8
+  )
+  ggsave(
+    filename = file.path(png_dir, paste0(panel, "_BMI_treatment_gender_obese.png")),
+    plot     = p,
+    width    = 12,
+    height   = 8,
+    dpi      = 300
+  )
+}
+
+plot_list[["got"]]
+plot_list[["gpt"]]
+plot_list[["ggt"]]
+plot_list[["ap"]]
+```
+
+
+```{r}
+#------------------------------------------------------------
+# Output folder
+#------------------------------------------------------------
+
+base_dir <- file.path(here::here(
+  "output",
+  "figure",
+  "diabetes",
+  "plots_all_labvalues",
+  "BMI_treatment_gender_obese"
+))
+
+svg_dir <- file.path(base_dir, "svg")
+png_dir <- file.path(base_dir, "png")
+
+dir.create(svg_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(png_dir, recursive = TRUE, showWarnings = FALSE)
+```
+
+
+```{r}
+panel <- "got"
+
+p <- plot_liver_treatment_sex_obesity(
+  all_data        = all_data,
+  gender_bmi_data = gender_bmi_data,
+  panel           = panel,
+  y_var           = "labreads",
+  y_label         = unit_map[[panel]],
+  title           = paste0(
+    toupper(panel),
+    " Activity by Treatment, Sex, and Obesity Status"
+  ),
+  max_filter      = 5000,
+  y_limits        = c(0, 7000),
+  y_breaks        = seq(0, 7000, by = 1000),
+  pval_steps      = c(700, 1400, 2100)
+)
+
+p
+```
+
+```{r}
+print(p)
+
+ggsave(
+  filename = file.path(
+    svg_dir,
+    paste0(panel, "_BMI_treatment_gender_obese.svg")
+  ),
+  plot   = p,
+  width  = 8,
+  height = 6,
+  device = svglite::svglite
+)
+
+ggsave(
+  filename = file.path(
+    png_dir,
+    paste0(panel, "_BMI_treatment_gender_obese.png")
+  ),
+  plot   = p,
+  width  = 8,
+  height = 6,
+  dpi    = 600,
+  bg     = "white"
+)
+```
+
+
+
+```{r}
+library(gg.gap)
+library(plotrix)
+```
+
+
+```{r}
+plot_data
+```
+
+
+```{r}
+plot_data %>% 
+  ggplot(aes(x = gender, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(size = 2) +
+  theme_classic() %>% 
+  gg.gap::segments = list(c(0,1000))
+```
+
+
+
+```{r}
+library(readxl)
+```
+
+```{r}
+excel_sheets(here::here("Rawdata/rucham_rawdata.xlsx"))
+
+```
+
+```{r}
+library(readxl)
+library(purrr)
+library(here)
+
+# Excel file path
+file_path <- here::here("Rawdata/rucham_rawdata.xlsx")
+
+# Get all sheet names
+sheet_names <- excel_sheets(file_path)
+
+# Read all sheets into a named list
+all_sheets <- sheet_names %>%
+  set_names() %>%
+  map(~ read_excel(file_path, sheet = .x))
+
+# View names
+names(all_sheets)
+
+```
+
+```{r}
+    all_sheets[["course of ALP"]]
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

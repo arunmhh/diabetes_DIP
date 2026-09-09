@@ -1,0 +1,4635 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-05-15"
+---
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+```
+
+```{r}
+fs_gpt_full <- gpt_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_gpt_full$attribute))
+fs_gpt_full
+```
+
+```{r}
+
+fs_gpt_full_filtered <- gpt_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_gpt_full_filtered
+```
+
+```{r}
+fs_gpt_full_filtered_grouped <- fs_gpt_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 20.9 ~ "within normal reference",
+      peak_labread >= 21 & peak_labread <= 62.9 ~ "1-2 times ULN",
+      peak_labread >= 63 & peak_labread <= 127.9 ~ "3-5 times ULN",
+      peak_labread >= 128 & peak_labread <= 212.9 ~ "6-9 times ULN",
+      peak_labread >= 213 & peak_labread <= 1062.9 ~ "10-49 times ULN",
+      peak_labread >= 1063 & peak_labread <= 2124.9 ~ "50-99 times ULN",
+      peak_labread >= 2125 & peak_labread <= 10624.9 ~ "100-499 times ULN",
+      peak_labread >= 10625 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_gpt_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_gpt_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_ALT <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-ALT", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_ALT.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_ALT)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_gpt_full_filtered <- fs_gpt_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_gpt_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_gpt_full_filtered_grouped <- ldiclo_fs_gpt_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 20.9 ~ "within normal reference",
+      peak_labread >= 21 & peak_labread <= 62.9 ~ "1-2 times ULN",
+      peak_labread >= 63 & peak_labread <= 127.9 ~ "3-5 times ULN",
+      peak_labread >= 128 & peak_labread <= 212.9 ~ "6-9 times ULN",
+      peak_labread >= 213 & peak_labread <= 1062.9 ~ "10-49 times ULN",
+      peak_labread >= 1063 & peak_labread <= 2124.9 ~ "50-99 times ULN",
+      peak_labread >= 2125 & peak_labread <= 10624.9 ~ "100-499 times ULN",
+      peak_labread >= 10625 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_gpt_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_gpt_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_ALT <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-ALT", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_ALT.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_ALT)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_gpt_full_filtered <- fs_gpt_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_gpt_full_filtered_grouped <- libu_fs_gpt_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 20.9 ~ "within normal reference",
+      peak_labread >= 21 & peak_labread <= 62.9 ~ "1-2 times ULN",
+      peak_labread >= 63 & peak_labread <= 127.9 ~ "3-5 times ULN",
+      peak_labread >= 128 & peak_labread <= 212.9 ~ "6-9 times ULN",
+      peak_labread >= 213 & peak_labread <= 1062.9 ~ "10-49 times ULN",
+      peak_labread >= 1063 & peak_labread <= 2124.9 ~ "50-99 times ULN",
+      peak_labread >= 2125 & peak_labread <= 10624.9 ~ "100-499 times ULN",
+      peak_labread >= 10625 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_gpt_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_ALT <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-ALT", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_ALT.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_ALT)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_gpt_full_filtered <- fs_gpt_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_gpt_full_filtered_grouped <- lpara_fs_gpt_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 20.9 ~ "within normal reference",
+      peak_labread >= 21 & peak_labread <= 62.9 ~ "1-2 times ULN",
+      peak_labread >= 63 & peak_labread <= 127.9 ~ "3-5 times ULN",
+      peak_labread >= 128 & peak_labread <= 212.9 ~ "6-9 times ULN",
+      peak_labread >= 213 & peak_labread <= 1062.9 ~ "10-49 times ULN",
+      peak_labread >= 1063 & peak_labread <= 2124.9 ~ "50-99 times ULN",
+      peak_labread >= 2125 & peak_labread <= 10624.9 ~ "100-499 times ULN",
+      peak_labread >= 10625 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_gpt_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_AST <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-AST", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_ALT
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_AST.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_AST)
+dev.off()
+
+
+```
+
+
+### got #######################################################################
+
+```{r}
+fs_got_full <- got_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_got_full$attribute))
+fs_got_full
+```
+
+```{r}
+
+fs_got_full_filtered <- got_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_got_full_filtered
+```
+
+```{r}
+fs_got_full_filtered_grouped <- fs_got_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 20.9 ~ "within normal reference",
+      peak_labread >= 21 & peak_labread <= 62.9 ~ "1-2 times ULN",
+      peak_labread >= 63 & peak_labread <= 127.9 ~ "3-5 times ULN",
+      peak_labread >= 128 & peak_labread <= 212.9 ~ "6-9 times ULN",
+      peak_labread >= 213 & peak_labread <= 1062.9 ~ "10-49 times ULN",
+      peak_labread >= 1063 & peak_labread <= 2124.9 ~ "50-99 times ULN",
+      peak_labread >= 2125 & peak_labread <= 10624.9 ~ "100-499 times ULN",
+      peak_labread >= 10625 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_got_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_got_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_got <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-got", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_got.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_got)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_got_full_filtered <- fs_got_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_got_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_got_full_filtered_grouped <- ldiclo_fs_got_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 20.9 ~ "within normal reference",
+      peak_labread >= 21 & peak_labread <= 62.9 ~ "1-2 times ULN",
+      peak_labread >= 63 & peak_labread <= 127.9 ~ "3-5 times ULN",
+      peak_labread >= 128 & peak_labread <= 212.9 ~ "6-9 times ULN",
+      peak_labread >= 213 & peak_labread <= 1062.9 ~ "10-49 times ULN",
+      peak_labread >= 1063 & peak_labread <= 2124.9 ~ "50-99 times ULN",
+      peak_labread >= 2125 & peak_labread <= 10624.9 ~ "100-499 times ULN",
+      peak_labread >= 10625 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_got_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_got_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_got <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-got", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_got.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_got)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_got_full_filtered <- fs_got_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_got_full_filtered_grouped <- libu_fs_got_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 20.9 ~ "within normal reference",
+      peak_labread >= 21 & peak_labread <= 62.9 ~ "1-2 times ULN",
+      peak_labread >= 63 & peak_labread <= 127.9 ~ "3-5 times ULN",
+      peak_labread >= 128 & peak_labread <= 212.9 ~ "6-9 times ULN",
+      peak_labread >= 213 & peak_labread <= 1062.9 ~ "10-49 times ULN",
+      peak_labread >= 1063 & peak_labread <= 2124.9 ~ "50-99 times ULN",
+      peak_labread >= 2125 & peak_labread <= 10624.9 ~ "100-499 times ULN",
+      peak_labread >= 10625 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_got_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_got <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-got", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_got.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_got)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_got_full_filtered <- fs_got_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_got_full_filtered_grouped <- lpara_fs_got_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 20.9 ~ "within normal reference",
+      peak_labread >= 21 & peak_labread <= 62.9 ~ "1-2 times ULN",
+      peak_labread >= 63 & peak_labread <= 127.9 ~ "3-5 times ULN",
+      peak_labread >= 128 & peak_labread <= 212.9 ~ "6-9 times ULN",
+      peak_labread >= 213 & peak_labread <= 1062.9 ~ "10-49 times ULN",
+      peak_labread >= 1063 & peak_labread <= 2124.9 ~ "50-99 times ULN",
+      peak_labread >= 2125 & peak_labread <= 10624.9 ~ "100-499 times ULN",
+      peak_labread >= 10625 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_got_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_got <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-got", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_got
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_got.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_got)
+dev.off()
+
+
+```
+
+
+
+
+
+
+
+
+### ggt #######################################################################
+
+```{r}
+fs_ggt_full <- ggt_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_ggt_full$attribute))
+fs_ggt_full
+```
+
+```{r}
+
+fs_ggt_full_filtered <- ggt_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_ggt_full_filtered
+```
+
+```{r}
+fs_ggt_full_filtered_grouped <- fs_ggt_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+     peak_labread <= 25.9 ~ "within normal reference",
+      peak_labread >= 26 & peak_labread <= 77.9 ~ "1-2 times ULN",
+      peak_labread >= 78 & peak_labread <= 155.9 ~ "3-5 times ULN",
+      peak_labread >= 156 & peak_labread <= 259.9 ~ "6-9 times ULN",
+      peak_labread >= 260 & peak_labread <= 1299.9 ~ "10-49 times ULN",
+      peak_labread >= 1300 & peak_labread <= 2599.9 ~ "50-99 times ULN",
+      peak_labread >= 2600 & peak_labread <= 12999.9 ~ "100-499 times ULN",
+      peak_labread >= 13000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_ggt_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_ggt_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_ggt <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-ggt", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_ggt.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_ggt)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_ggt_full_filtered <- fs_ggt_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_ggt_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_ggt_full_filtered_grouped <- ldiclo_fs_ggt_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 25.9 ~ "within normal reference",
+      peak_labread >= 26 & peak_labread <= 77.9 ~ "1-2 times ULN",
+      peak_labread >= 78 & peak_labread <= 155.9 ~ "3-5 times ULN",
+      peak_labread >= 156 & peak_labread <= 259.9 ~ "6-9 times ULN",
+      peak_labread >= 260 & peak_labread <= 1299.9 ~ "10-49 times ULN",
+      peak_labread >= 1300 & peak_labread <= 2599.9 ~ "50-99 times ULN",
+      peak_labread >= 2600 & peak_labread <= 12999.9 ~ "100-499 times ULN",
+      peak_labread >= 13000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_ggt_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_ggt_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_ggt <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-ggt", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_ggt.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_ggt)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_ggt_full_filtered <- fs_ggt_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_ggt_full_filtered_grouped <- libu_fs_ggt_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 25.9 ~ "within normal reference",
+      peak_labread >= 26 & peak_labread <= 77.9 ~ "1-2 times ULN",
+      peak_labread >= 78 & peak_labread <= 155.9 ~ "3-5 times ULN",
+      peak_labread >= 156 & peak_labread <= 259.9 ~ "6-9 times ULN",
+      peak_labread >= 260 & peak_labread <= 1299.9 ~ "10-49 times ULN",
+      peak_labread >= 1300 & peak_labread <= 2599.9 ~ "50-99 times ULN",
+      peak_labread >= 2600 & peak_labread <= 12999.9 ~ "100-499 times ULN",
+      peak_labread >= 13000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_ggt_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_ggt <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-ggt", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_ggt.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_ggt)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_ggt_full_filtered <- fs_ggt_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_ggt_full_filtered_grouped <- lpara_fs_ggt_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 25.9 ~ "within normal reference",
+      peak_labread >= 26 & peak_labread <= 77.9 ~ "1-2 times ULN",
+      peak_labread >= 78 & peak_labread <= 155.9 ~ "3-5 times ULN",
+      peak_labread >= 156 & peak_labread <= 259.9 ~ "6-9 times ULN",
+      peak_labread >= 260 & peak_labread <= 1299.9 ~ "10-49 times ULN",
+      peak_labread >= 1300 & peak_labread <= 2599.9 ~ "50-99 times ULN",
+      peak_labread >= 2600 & peak_labread <= 12999.9 ~ "100-499 times ULN",
+      peak_labread >= 13000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_ggt_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_ggt <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-ggt", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_ALT
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_ggt.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_ggt)
+dev.off()
+
+
+```
+
+
+
+### ldh #######################################################################
+
+```{r}
+fs_ldh_full <- ldh_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_ldh_full$attribute))
+fs_ldh_full
+```
+
+```{r}
+
+fs_ldh_full_filtered <- ldh_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_ldh_full_filtered
+```
+
+```{r}
+fs_ldh_full_filtered_grouped <- fs_ldh_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 382.9 ~ "within normal reference",
+      peak_labread >= 383 & peak_labread <= 1148.9 ~ "1-2 times ULN",
+      peak_labread >= 1149 & peak_labread <= 2297.9 ~ "3-5 times ULN",
+      peak_labread >= 2298 & peak_labread <= 3829.9 ~ "6-9 times ULN",
+      peak_labread >= 3830 & peak_labread <= 19149.9 ~ "10-49 times ULN",
+      peak_labread >= 19150 & peak_labread <= 38299.9 ~ "50-99 times ULN",
+      peak_labread >= 38300 & peak_labread <= 191499.9 ~ "100-499 times ULN",
+      peak_labread >= 191500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_ldh_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_ldh_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_ldh <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-ldh", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_ldh.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_ldh)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_ldh_full_filtered <- fs_ldh_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_ldh_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_ldh_full_filtered_grouped <- ldiclo_fs_ldh_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 382.9 ~ "within normal reference",
+      peak_labread >= 383 & peak_labread <= 1148.9 ~ "1-2 times ULN",
+      peak_labread >= 1149 & peak_labread <= 2297.9 ~ "3-5 times ULN",
+      peak_labread >= 2298 & peak_labread <= 3829.9 ~ "6-9 times ULN",
+      peak_labread >= 3830 & peak_labread <= 19149.9 ~ "10-49 times ULN",
+      peak_labread >= 19150 & peak_labread <= 38299.9 ~ "50-99 times ULN",
+      peak_labread >= 38300 & peak_labread <= 191499.9 ~ "100-499 times ULN",
+      peak_labread >= 191500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_ldh_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_ldh_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_ldh <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-ldh", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_ldh.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_ldh)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_ldh_full_filtered <- fs_ldh_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_ldh_full_filtered_grouped <- libu_fs_ldh_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 382.9 ~ "within normal reference",
+      peak_labread >= 383 & peak_labread <= 1148.9 ~ "1-2 times ULN",
+      peak_labread >= 1149 & peak_labread <= 2297.9 ~ "3-5 times ULN",
+      peak_labread >= 2298 & peak_labread <= 3829.9 ~ "6-9 times ULN",
+      peak_labread >= 3830 & peak_labread <= 19149.9 ~ "10-49 times ULN",
+      peak_labread >= 19150 & peak_labread <= 38299.9 ~ "50-99 times ULN",
+      peak_labread >= 38300 & peak_labread <= 191499.9 ~ "100-499 times ULN",
+      peak_labread >= 191500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_ldh_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_ldh <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-ldh", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_ldh.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_ldh)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_ldh_full_filtered <- fs_ldh_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_ldh_full_filtered_grouped <- lpara_fs_ldh_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 382.9 ~ "within normal reference",
+      peak_labread >= 383 & peak_labread <= 1148.9 ~ "1-2 times ULN",
+      peak_labread >= 1149 & peak_labread <= 2297.9 ~ "3-5 times ULN",
+      peak_labread >= 2298 & peak_labread <= 3829.9 ~ "6-9 times ULN",
+      peak_labread >= 3830 & peak_labread <= 19149.9 ~ "10-49 times ULN",
+      peak_labread >= 19150 & peak_labread <= 38299.9 ~ "50-99 times ULN",
+      peak_labread >= 38300 & peak_labread <= 191499.9 ~ "100-499 times ULN",
+      peak_labread >= 191500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_ldh_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_ldh <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-ldh", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_ldh
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_ldh.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_ldh)
+dev.off()
+
+
+```
+
+
+
+### ap #######################################################################
+
+```{r}
+fs_ap_full <- ap_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_ap_full$attribute))
+fs_ap_full
+```
+
+```{r}
+
+fs_ap_full_filtered <- ap_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_ap_full_filtered
+```
+
+```{r}
+fs_ap_full_filtered_grouped <- fs_ap_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 20.9 ~ "within normal reference",
+      peak_labread >= 119 & peak_labread <= 356.9 ~ "1-2 times ULN",
+      peak_labread >= 357 & peak_labread <= 713.9 ~ "3-5 times ULN",
+      peak_labread >= 714 & peak_labread <= 1189.9 ~ "6-9 times ULN",
+      peak_labread >= 1190 & peak_labread <= 5949.9 ~ "10-49 times ULN",
+      peak_labread >= 5950 & peak_labread <= 11899.9 ~ "50-99 times ULN",
+      peak_labread >= 11900 & peak_labread <= 59499.9 ~ "100-499 times ULN",
+      peak_labread >= 59500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_ap_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_ap_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_ap <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-ap", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_ap.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_ap)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_ap_full_filtered <- fs_ap_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_ap_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_ap_full_filtered_grouped <- ldiclo_fs_ap_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 20.9 ~ "within normal reference",
+      peak_labread >= 119 & peak_labread <= 356.9 ~ "1-2 times ULN",
+      peak_labread >= 357 & peak_labread <= 713.9 ~ "3-5 times ULN",
+      peak_labread >= 714 & peak_labread <= 1189.9 ~ "6-9 times ULN",
+      peak_labread >= 1190 & peak_labread <= 5949.9 ~ "10-49 times ULN",
+      peak_labread >= 5950 & peak_labread <= 11899.9 ~ "50-99 times ULN",
+      peak_labread >= 11900 & peak_labread <= 59499.9 ~ "100-499 times ULN",
+      peak_labread >= 59500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_ap_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_ap_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_ap <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-ap", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_ap.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_ap)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_ap_full_filtered <- fs_ap_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_ap_full_filtered_grouped <- libu_fs_ap_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 20.9 ~ "within normal reference",
+      peak_labread >= 119 & peak_labread <= 356.9 ~ "1-2 times ULN",
+      peak_labread >= 357 & peak_labread <= 713.9 ~ "3-5 times ULN",
+      peak_labread >= 714 & peak_labread <= 1189.9 ~ "6-9 times ULN",
+      peak_labread >= 1190 & peak_labread <= 5949.9 ~ "10-49 times ULN",
+      peak_labread >= 5950 & peak_labread <= 11899.9 ~ "50-99 times ULN",
+      peak_labread >= 11900 & peak_labread <= 59499.9 ~ "100-499 times ULN",
+      peak_labread >= 59500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_ap_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_ap <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-ap", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_ap.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_ap)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_ap_full_filtered <- fs_ap_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_ap_full_filtered_grouped <- lpara_fs_ap_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 20.9 ~ "within normal reference",
+      peak_labread >= 119 & peak_labread <= 356.9 ~ "1-2 times ULN",
+      peak_labread >= 357 & peak_labread <= 713.9 ~ "3-5 times ULN",
+      peak_labread >= 714 & peak_labread <= 1189.9 ~ "6-9 times ULN",
+      peak_labread >= 1190 & peak_labread <= 5949.9 ~ "10-49 times ULN",
+      peak_labread >= 5950 & peak_labread <= 11899.9 ~ "50-99 times ULN",
+      peak_labread >= 11900 & peak_labread <= 59499.9 ~ "100-499 times ULN",
+      peak_labread >= 59500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_ap_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_ap <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-ap", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_ap
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_ap.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_ap)
+dev.off()
+
+
+```
+
+
+
+### ck #######################################################################
+
+```{r}
+fs_ck_full <- ck_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_ck_full$attribute))
+fs_ck_full
+```
+
+```{r}
+
+fs_ck_full_filtered <- ck_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_ck_full_filtered
+```
+
+```{r}
+fs_ck_full_filtered_grouped <- fs_ck_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 77.9 ~ "within normal reference",
+      peak_labread >= 78 & peak_labread <= 233.9 ~ "1-2 times ULN",
+      peak_labread >= 234 & peak_labread <= 467.9 ~ "3-5 times ULN",
+      peak_labread >= 468 & peak_labread <= 770.9 ~ "6-9 times ULN",
+      peak_labread >= 780 & peak_labread <= 3899.9 ~ "10-49 times ULN",
+      peak_labread >= 3900 & peak_labread <= 7799.9 ~ "50-99 times ULN",
+      peak_labread >= 7800 & peak_labread <= 38999.9 ~ "100-499 times ULN",
+      peak_labread >= 39000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_ck_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_ck_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_ck <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-ck", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_ck.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_ck)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_ck_full_filtered <- fs_ck_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_ck_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_ck_full_filtered_grouped <- ldiclo_fs_ck_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 77.9 ~ "within normal reference",
+      peak_labread >= 78 & peak_labread <= 233.9 ~ "1-2 times ULN",
+      peak_labread >= 234 & peak_labread <= 467.9 ~ "3-5 times ULN",
+      peak_labread >= 468 & peak_labread <= 770.9 ~ "6-9 times ULN",
+      peak_labread >= 780 & peak_labread <= 3899.9 ~ "10-49 times ULN",
+      peak_labread >= 3900 & peak_labread <= 7799.9 ~ "50-99 times ULN",
+      peak_labread >= 7800 & peak_labread <= 38999.9 ~ "100-499 times ULN",
+      peak_labread >= 39000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_ck_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_ck_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_ck <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-ck", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_ck.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_ck)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_ck_full_filtered <- fs_ck_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_ck_full_filtered_grouped <- libu_fs_ck_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 77.9 ~ "within normal reference",
+      peak_labread >= 78 & peak_labread <= 233.9 ~ "1-2 times ULN",
+      peak_labread >= 234 & peak_labread <= 467.9 ~ "3-5 times ULN",
+      peak_labread >= 468 & peak_labread <= 770.9 ~ "6-9 times ULN",
+      peak_labread >= 780 & peak_labread <= 3899.9 ~ "10-49 times ULN",
+      peak_labread >= 3900 & peak_labread <= 7799.9 ~ "50-99 times ULN",
+      peak_labread >= 7800 & peak_labread <= 38999.9 ~ "100-499 times ULN",
+      peak_labread >= 39000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_ck_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_ck <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-ck", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_ck.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_ck)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_ck_full_filtered <- fs_ck_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_ck_full_filtered_grouped <- lpara_fs_ck_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 77.9 ~ "within normal reference",
+      peak_labread >= 78 & peak_labread <= 233.9 ~ "1-2 times ULN",
+      peak_labread >= 234 & peak_labread <= 467.9 ~ "3-5 times ULN",
+      peak_labread >= 468 & peak_labread <= 770.9 ~ "6-9 times ULN",
+      peak_labread >= 780 & peak_labread <= 3899.9 ~ "10-49 times ULN",
+      peak_labread >= 3900 & peak_labread <= 7799.9 ~ "50-99 times ULN",
+      peak_labread >= 7800 & peak_labread <= 38999.9 ~ "100-499 times ULN",
+      peak_labread >= 39000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_ck_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_ck <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-ck", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_ck
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_ck.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_ck)
+dev.off()
+
+
+```
+
+
+### leukozyten #######################################################################
+
+```{r}
+fs_leukozyten_full <- leukozyten_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_leukozyten_full$attribute))
+fs_leukozyten_full
+```
+
+```{r}
+
+fs_leukozyten_full_filtered <- leukozyten_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_leukozyten_full_filtered
+```
+
+```{r}
+fs_leukozyten_full_filtered_grouped <- fs_leukozyten_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 7999.9 ~ "within normal reference",
+      peak_labread >= 8000 & peak_labread <= 23999.9 ~ "1-2 times ULN",
+      peak_labread >= 24000 & peak_labread <= 47999.9 ~ "3-5 times ULN",
+      peak_labread >= 48000 & peak_labread <= 79999.9 ~ "6-9 times ULN",
+      peak_labread >= 80000 & peak_labread <= 399999.9 ~ "10-49 times ULN",
+      peak_labread >= 400000 & peak_labread <= 799999.9 ~ "50-99 times ULN",
+      peak_labread >= 800000 & peak_labread <= 3999999.9 ~ "100-499 times ULN",
+      peak_labread >= 4000000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_leukozyten_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_leukozyten_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_leukozyten <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-leukozyten", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_leukozyten.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_leukozyten)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_leukozyten_full_filtered <- fs_leukozyten_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_leukozyten_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_leukozyten_full_filtered_grouped <- ldiclo_fs_leukozyten_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 7999.9 ~ "within normal reference",
+      peak_labread >= 8000 & peak_labread <= 23999.9 ~ "1-2 times ULN",
+      peak_labread >= 24000 & peak_labread <= 47999.9 ~ "3-5 times ULN",
+      peak_labread >= 48000 & peak_labread <= 79999.9 ~ "6-9 times ULN",
+      peak_labread >= 80000 & peak_labread <= 399999.9 ~ "10-49 times ULN",
+      peak_labread >= 400000 & peak_labread <= 799999.9 ~ "50-99 times ULN",
+      peak_labread >= 800000 & peak_labread <= 3999999.9 ~ "100-499 times ULN",
+      peak_labread >= 4000000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_leukozyten_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_leukozyten_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_leukozyten <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-leukozyten", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_leukozyten.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_leukozyten)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_leukozyten_full_filtered <- fs_leukozyten_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_leukozyten_full_filtered_grouped <- libu_fs_leukozyten_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 7999.9 ~ "within normal reference",
+      peak_labread >= 8000 & peak_labread <= 23999.9 ~ "1-2 times ULN",
+      peak_labread >= 24000 & peak_labread <= 47999.9 ~ "3-5 times ULN",
+      peak_labread >= 48000 & peak_labread <= 79999.9 ~ "6-9 times ULN",
+      peak_labread >= 80000 & peak_labread <= 399999.9 ~ "10-49 times ULN",
+      peak_labread >= 400000 & peak_labread <= 799999.9 ~ "50-99 times ULN",
+      peak_labread >= 800000 & peak_labread <= 3999999.9 ~ "100-499 times ULN",
+      peak_labread >= 4000000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_leukozyten_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_leukozyten <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-leukozyten", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_leukozyten.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_leukozyten)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_leukozyten_full_filtered <- fs_leukozyten_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_leukozyten_full_filtered_grouped <- lpara_fs_leukozyten_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 7999.9 ~ "within normal reference",
+      peak_labread >= 8000 & peak_labread <= 23999.9 ~ "1-2 times ULN",
+      peak_labread >= 24000 & peak_labread <= 47999.9 ~ "3-5 times ULN",
+      peak_labread >= 48000 & peak_labread <= 79999.9 ~ "6-9 times ULN",
+      peak_labread >= 80000 & peak_labread <= 399999.9 ~ "10-49 times ULN",
+      peak_labread >= 400000 & peak_labread <= 799999.9 ~ "50-99 times ULN",
+      peak_labread >= 800000 & peak_labread <= 3999999.9 ~ "100-499 times ULN",
+      peak_labread >= 4000000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_leukozyten_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_leukozyten <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-leukozyten", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_leukozyten
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_leukozyten.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_leukozyten)
+dev.off()
+
+
+```
+
+
+
+### thrombozyten #######################################################################
+
+```{r}
+fs_thrombozyten_full <- thrombozyten_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_thrombozyten_full$attribute))
+fs_thrombozyten_full
+```
+
+```{r}
+
+fs_thrombozyten_full_filtered <- thrombozyten_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_thrombozyten_full_filtered
+```
+
+```{r}
+fs_thrombozyten_full_filtered_grouped <- fs_thrombozyten_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 224999 ~ "within normal reference",
+      peak_labread >= 225000 & peak_labread <= 674999 ~ "1-2 times ULN",
+      peak_labread >= 675000 & peak_labread <= 1349999 ~ "3-5 times ULN",
+      peak_labread >= 1350000 & peak_labread < 2249999 ~ "6-9 times ULN",
+      peak_labread >= 2250000 & peak_labread <= 11249999 ~ "10-49 times ULN",
+      peak_labread >= 11250000 & peak_labread <= 22499999 ~ "50-99 times ULN",
+      peak_labread >= 22500000 & peak_labread <= 112499999 ~ "100-499 times ULN",
+      peak_labread >= 112500000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_thrombozyten_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_thrombozyten_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_thrombozyten <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-thrombozyten", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_thrombozyten.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_thrombozyten)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_thrombozyten_full_filtered <- fs_thrombozyten_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_thrombozyten_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_thrombozyten_full_filtered_grouped <- ldiclo_fs_thrombozyten_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 224999 ~ "within normal reference",
+      peak_labread >= 225000 & peak_labread <= 674999 ~ "1-2 times ULN",
+      peak_labread >= 675000 & peak_labread <= 1349999 ~ "3-5 times ULN",
+      peak_labread >= 1350000 & peak_labread < 2249999 ~ "6-9 times ULN",
+      peak_labread >= 2250000 & peak_labread <= 11249999 ~ "10-49 times ULN",
+      peak_labread >= 11250000 & peak_labread <= 22499999 ~ "50-99 times ULN",
+      peak_labread >= 22500000 & peak_labread <= 112499999 ~ "100-499 times ULN",
+      peak_labread >= 112500000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_thrombozyten_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_thrombozyten_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_thrombozyten <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-thrombozyten", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_thrombozyten.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_thrombozyten)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_thrombozyten_full_filtered <- fs_thrombozyten_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_thrombozyten_full_filtered_grouped <- libu_fs_thrombozyten_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 224999 ~ "within normal reference",
+      peak_labread >= 225000 & peak_labread <= 674999 ~ "1-2 times ULN",
+      peak_labread >= 675000 & peak_labread <= 1349999 ~ "3-5 times ULN",
+      peak_labread >= 1350000 & peak_labread < 2249999 ~ "6-9 times ULN",
+      peak_labread >= 2250000 & peak_labread <= 11249999 ~ "10-49 times ULN",
+      peak_labread >= 11250000 & peak_labread <= 22499999 ~ "50-99 times ULN",
+      peak_labread >= 22500000 & peak_labread <= 112499999 ~ "100-499 times ULN",
+      peak_labread >= 112500000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_thrombozyten_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_thrombozyten <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-thrombozyten", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_thrombozyten.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_thrombozyten)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_thrombozyten_full_filtered <- fs_thrombozyten_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_thrombozyten_full_filtered_grouped <- lpara_fs_thrombozyten_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 224999 ~ "within normal reference",
+      peak_labread >= 225000 & peak_labread <= 674999 ~ "1-2 times ULN",
+      peak_labread >= 675000 & peak_labread <= 1349999 ~ "3-5 times ULN",
+      peak_labread >= 1350000 & peak_labread < 2249999 ~ "6-9 times ULN",
+      peak_labread >= 2250000 & peak_labread <= 11249999 ~ "10-49 times ULN",
+      peak_labread >= 11250000 & peak_labread <= 22499999 ~ "50-99 times ULN",
+      peak_labread >= 22500000 & peak_labread <= 112499999 ~ "100-499 times ULN",
+      peak_labread >= 112500000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_thrombozyten_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_thrombozyten <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-thrombozyten", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_thrombozyten
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_thrombozyten.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_thrombozyten)
+dev.off()
+
+
+```
+
+
+### erythrozyten #######################################################################
+
+```{r}
+fs_erythrozyten_full <- erythrozyten_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_erythrozyten_full$attribute))
+fs_erythrozyten_full
+```
+
+```{r}
+
+fs_erythrozyten_full_filtered <- erythrozyten_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_erythrozyten_full_filtered
+```
+
+```{r}
+fs_erythrozyten_full_filtered_grouped <- fs_erythrozyten_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 4749999 ~ "within normal reference",
+      peak_labread >= 4750000 & peak_labread <= 14249999 ~ "1-2 times ULN",
+      peak_labread >= 14250000 & peak_labread <= 28499999 ~ "3-5 times ULN",
+      peak_labread >= 28500000 & peak_labread <= 47499999 ~ "6-9 times ULN",
+      peak_labread >= 47500000 & peak_labread <= 237499999 ~ "10-49 times ULN",
+      peak_labread >= 237500000 & peak_labread <= 474999999 ~ "50-99 times ULN",
+      peak_labread >= 475000000 & peak_labread <= 2374999999 ~ "100-499 times ULN",
+      peak_labread >= 2375000000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_erythrozyten_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_erythrozyten_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_erythrozyten <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-erythrozyten", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_erythrozyten.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_erythrozyten)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_erythrozyten_full_filtered <- fs_erythrozyten_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_erythrozyten_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_erythrozyten_full_filtered_grouped <- ldiclo_fs_erythrozyten_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 4749999 ~ "within normal reference",
+      peak_labread >= 4750000 & peak_labread <= 14249999 ~ "1-2 times ULN",
+      peak_labread >= 14250000 & peak_labread <= 28499999 ~ "3-5 times ULN",
+      peak_labread >= 28500000 & peak_labread <= 47499999 ~ "6-9 times ULN",
+      peak_labread >= 47500000 & peak_labread <= 237499999 ~ "10-49 times ULN",
+      peak_labread >= 237500000 & peak_labread <= 474999999 ~ "50-99 times ULN",
+      peak_labread >= 475000000 & peak_labread <= 2374999999 ~ "100-499 times ULN",
+      peak_labread >= 2375000000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_erythrozyten_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_erythrozyten_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_erythrozyten <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-erythrozyten", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_erythrozyten.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_erythrozyten)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_erythrozyten_full_filtered <- fs_erythrozyten_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_erythrozyten_full_filtered_grouped <- libu_fs_erythrozyten_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 4749999 ~ "within normal reference",
+      peak_labread >= 4750000 & peak_labread <= 14249999 ~ "1-2 times ULN",
+      peak_labread >= 14250000 & peak_labread <= 28499999 ~ "3-5 times ULN",
+      peak_labread >= 28500000 & peak_labread <= 47499999 ~ "6-9 times ULN",
+      peak_labread >= 47500000 & peak_labread <= 237499999 ~ "10-49 times ULN",
+      peak_labread >= 237500000 & peak_labread <= 474999999 ~ "50-99 times ULN",
+      peak_labread >= 475000000 & peak_labread <= 2374999999 ~ "100-499 times ULN",
+      peak_labread >= 2375000000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_erythrozyten_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_erythrozyten <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-erythrozyten", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_erythrozyten.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_erythrozyten)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_erythrozyten_full_filtered <- fs_erythrozyten_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_erythrozyten_full_filtered_grouped <- lpara_fs_erythrozyten_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 4749999 ~ "within normal reference",
+      peak_labread >= 4750000 & peak_labread <= 14249999 ~ "1-2 times ULN",
+      peak_labread >= 14250000 & peak_labread <= 28499999 ~ "3-5 times ULN",
+      peak_labread >= 28500000 & peak_labread <= 47499999 ~ "6-9 times ULN",
+      peak_labread >= 47500000 & peak_labread <= 237499999 ~ "10-49 times ULN",
+      peak_labread >= 237500000 & peak_labread <= 474999999 ~ "50-99 times ULN",
+      peak_labread >= 475000000 & peak_labread <= 2374999999 ~ "100-499 times ULN",
+      peak_labread >= 2375000000 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_erythrozyten_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_erythrozyten <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-erythrozyten", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_erythrozyten
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_erythrozyten.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_erythrozyten)
+dev.off()
+
+
+```
+
+
+### total_bilirubin #######################################################################
+
+```{r}
+fs_total_bilirubin_full <- total_bilirubin_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_total_bilirubin_full$attribute))
+fs_total_bilirubin_full
+```
+
+```{r}
+
+fs_total_bilirubin_full_filtered <- total_bilirubin_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_total_bilirubin_full_filtered
+```
+
+```{r}
+fs_total_bilirubin_full_filtered_grouped <- fs_total_bilirubin_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 0.499 ~ "within normal reference",
+      peak_labread >= 0.5 & peak_labread <= 1.499 ~ "1-2 times ULN",
+      peak_labread >= 1.5 & peak_labread <= 2.99 ~ "3-5 times ULN",
+      peak_labread >= 3 & peak_labread <= 4.99 ~ "6-9 times ULN",
+      peak_labread >= 5 & peak_labread <= 24.99 ~ "10-49 times ULN",
+      peak_labread >= 25 & peak_labread <= 49.99 ~ "50-99 times ULN",
+      peak_labread >= 50 & peak_labread <= 249.99 ~ "100-499 times ULN",
+      peak_labread >= 250 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_total_bilirubin_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_total_bilirubin_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_total_bilirubin <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-total_bilirubin", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_total_bilirubin.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_total_bilirubin)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_total_bilirubin_full_filtered <- fs_total_bilirubin_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_total_bilirubin_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_total_bilirubin_full_filtered_grouped <- ldiclo_fs_total_bilirubin_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 0.499 ~ "within normal reference",
+      peak_labread >= 0.5 & peak_labread <= 1.499 ~ "1-2 times ULN",
+      peak_labread >= 1.5 & peak_labread <= 2.99 ~ "3-5 times ULN",
+      peak_labread >= 3 & peak_labread <= 4.99 ~ "6-9 times ULN",
+      peak_labread >= 5 & peak_labread <= 24.99 ~ "10-49 times ULN",
+      peak_labread >= 25 & peak_labread <= 49.99 ~ "50-99 times ULN",
+      peak_labread >= 50 & peak_labread <= 249.99 ~ "100-499 times ULN",
+      peak_labread >= 250 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_total_bilirubin_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_total_bilirubin_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_total_bilirubin <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-total_bilirubin", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_total_bilirubin.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_total_bilirubin)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_total_bilirubin_full_filtered <- fs_total_bilirubin_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_total_bilirubin_full_filtered_grouped <- libu_fs_total_bilirubin_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 0.499 ~ "within normal reference",
+      peak_labread >= 0.5 & peak_labread <= 1.499 ~ "1-2 times ULN",
+      peak_labread >= 1.5 & peak_labread <= 2.99 ~ "3-5 times ULN",
+      peak_labread >= 3 & peak_labread <= 4.99 ~ "6-9 times ULN",
+      peak_labread >= 5 & peak_labread <= 24.99 ~ "10-49 times ULN",
+      peak_labread >= 25 & peak_labread <= 49.99 ~ "50-99 times ULN",
+      peak_labread >= 50 & peak_labread <= 249.99 ~ "100-499 times ULN",
+      peak_labread >= 250 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_total_bilirubin_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_total_bilirubin <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-total_bilirubin", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_total_bilirubin.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_total_bilirubin)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_total_bilirubin_full_filtered <- fs_total_bilirubin_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_total_bilirubin_full_filtered_grouped <- lpara_fs_total_bilirubin_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 0.499 ~ "within normal reference",
+      peak_labread >= 0.5 & peak_labread <= 1.499 ~ "1-2 times ULN",
+      peak_labread >= 1.5 & peak_labread <= 2.99 ~ "3-5 times ULN",
+      peak_labread >= 3 & peak_labread <= 4.99 ~ "6-9 times ULN",
+      peak_labread >= 5 & peak_labread <= 24.99 ~ "10-49 times ULN",
+      peak_labread >= 25 & peak_labread <= 49.99 ~ "50-99 times ULN",
+      peak_labread >= 50 & peak_labread <= 249.99 ~ "100-499 times ULN",
+      peak_labread >= 250 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_total_bilirubin_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_total_bilirubin <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-total_bilirubin", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_total_bilirubin
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_total_bilirubin.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_total_bilirubin)
+dev.off()
+
+
+```
+
+
+
+### hb #######################################################################
+
+```{r}
+fs_hb_full <- hb_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_hb_full$attribute))
+fs_hb_full
+```
+
+```{r}
+
+fs_hb_full_filtered <- hb_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_hb_full_filtered
+```
+
+```{r}
+fs_hb_full_filtered_grouped <- fs_hb_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 14.9 ~ "within normal reference",
+      peak_labread >= 15 & peak_labread <= 44.9 ~ "1-2 times ULN",
+      peak_labread >= 45 & peak_labread <= 89.9 ~ "3-5 times ULN",
+      peak_labread >= 90 & peak_labread <= 149.9 ~ "6-9 times ULN",
+      peak_labread >= 150 & peak_labread <= 749.9 ~ "10-49 times ULN",
+      peak_labread >= 750 & peak_labread <= 1499.9 ~ "50-99 times ULN",
+      peak_labread >= 1500 & peak_labread <= 7499.9 ~ "100-499 times ULN",
+      peak_labread >= 7500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_hb_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_hb_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_hb <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-hb", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_hb.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_hb)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_hb_full_filtered <- fs_hb_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_hb_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_hb_full_filtered_grouped <- ldiclo_fs_hb_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 14.9 ~ "within normal reference",
+      peak_labread >= 15 & peak_labread <= 44.9 ~ "1-2 times ULN",
+      peak_labread >= 45 & peak_labread <= 89.9 ~ "3-5 times ULN",
+      peak_labread >= 90 & peak_labread <= 149.9 ~ "6-9 times ULN",
+      peak_labread >= 150 & peak_labread <= 749.9 ~ "10-49 times ULN",
+      peak_labread >= 750 & peak_labread <= 1499.9 ~ "50-99 times ULN",
+      peak_labread >= 1500 & peak_labread <= 7499.9 ~ "100-499 times ULN",
+      peak_labread >= 7500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_hb_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_hb_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_hb <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-hb", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_hb.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_hb)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_hb_full_filtered <- fs_hb_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_hb_full_filtered_grouped <- libu_fs_hb_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 14.9 ~ "within normal reference",
+      peak_labread >= 15 & peak_labread <= 44.9 ~ "1-2 times ULN",
+      peak_labread >= 45 & peak_labread <= 89.9 ~ "3-5 times ULN",
+      peak_labread >= 90 & peak_labread <= 149.9 ~ "6-9 times ULN",
+      peak_labread >= 150 & peak_labread <= 749.9 ~ "10-49 times ULN",
+      peak_labread >= 750 & peak_labread <= 1499.9 ~ "50-99 times ULN",
+      peak_labread >= 1500 & peak_labread <= 7499.9 ~ "100-499 times ULN",
+      peak_labread >= 7500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_hb_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_hb <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-hb", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_hb.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_hb)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_hb_full_filtered <- fs_hb_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_hb_full_filtered_grouped <- lpara_fs_hb_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 14.9 ~ "within normal reference",
+      peak_labread >= 15 & peak_labread <= 44.9 ~ "1-2 times ULN",
+      peak_labread >= 45 & peak_labread <= 89.9 ~ "3-5 times ULN",
+      peak_labread >= 90 & peak_labread <= 149.9 ~ "6-9 times ULN",
+      peak_labread >= 150 & peak_labread <= 749.9 ~ "10-49 times ULN",
+      peak_labread >= 750 & peak_labread <= 1499.9 ~ "50-99 times ULN",
+      peak_labread >= 1500 & peak_labread <= 7499.9 ~ "100-499 times ULN",
+      peak_labread >= 7500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_hb_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_hb <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-hb", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_hb
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_hb.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_hb)
+dev.off()
+
+
+```
+
+
+
+### kreatinin #######################################################################
+
+```{r}
+fs_kreatinin_full <- kreatinin_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_kreatinin_full$attribute))
+fs_kreatinin_full
+```
+
+```{r}
+
+fs_kreatinin_full_filtered <- kreatinin_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_kreatinin_full_filtered
+```
+
+```{r}
+fs_kreatinin_full_filtered_grouped <- fs_kreatinin_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 0.99 ~ "within normal reference",
+      peak_labread >= 1 & peak_labread <= 2.99 ~ "1-2 times ULN",
+      peak_labread >= 3 & peak_labread <= 5.99 ~ "3-5 times ULN",
+      peak_labread >= 6 & peak_labread <= 9.99 ~ "6-9 times ULN",
+      peak_labread >= 10 & peak_labread <= 49.99 ~ "10-49 times ULN",
+      peak_labread >= 50 & peak_labread <= 99.99 ~ "50-99 times ULN",
+      peak_labread >= 100 & peak_labread <= 499.99 ~ "100-499 times ULN",
+      peak_labread >= 500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_kreatinin_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_kreatinin_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_kreatinin <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-kreatinin", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_kreatinin.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_kreatinin)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_kreatinin_full_filtered <- fs_kreatinin_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_kreatinin_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_kreatinin_full_filtered_grouped <- ldiclo_fs_kreatinin_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 0.99 ~ "within normal reference",
+      peak_labread >= 1 & peak_labread <= 2.99 ~ "1-2 times ULN",
+      peak_labread >= 3 & peak_labread <= 5.99 ~ "3-5 times ULN",
+      peak_labread >= 6 & peak_labread <= 9.99 ~ "6-9 times ULN",
+      peak_labread >= 10 & peak_labread <= 49.99 ~ "10-49 times ULN",
+      peak_labread >= 50 & peak_labread <= 99.99 ~ "50-99 times ULN",
+      peak_labread >= 100 & peak_labread <= 499.99 ~ "100-499 times ULN",
+      peak_labread >= 500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_kreatinin_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_kreatinin_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_kreatinin <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-kreatinin", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_kreatinin.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_kreatinin)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_kreatinin_full_filtered <- fs_kreatinin_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_kreatinin_full_filtered_grouped <- libu_fs_kreatinin_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 0.99 ~ "within normal reference",
+      peak_labread >= 1 & peak_labread <= 2.99 ~ "1-2 times ULN",
+      peak_labread >= 3 & peak_labread <= 5.99 ~ "3-5 times ULN",
+      peak_labread >= 6 & peak_labread <= 9.99 ~ "6-9 times ULN",
+      peak_labread >= 10 & peak_labread <= 49.99 ~ "10-49 times ULN",
+      peak_labread >= 50 & peak_labread <= 99.99 ~ "50-99 times ULN",
+      peak_labread >= 100 & peak_labread <= 499.99 ~ "100-499 times ULN",
+      peak_labread >= 500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_kreatinin_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_kreatinin <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-kreatinin", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_kreatinin.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_kreatinin)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_kreatinin_full_filtered <- fs_kreatinin_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_kreatinin_full_filtered_grouped <- lpara_fs_kreatinin_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 0.99 ~ "within normal reference",
+      peak_labread >= 1 & peak_labread <= 2.99 ~ "1-2 times ULN",
+      peak_labread >= 3 & peak_labread <= 5.99 ~ "3-5 times ULN",
+      peak_labread >= 6 & peak_labread <= 9.99 ~ "6-9 times ULN",
+      peak_labread >= 10 & peak_labread <= 49.99 ~ "10-49 times ULN",
+      peak_labread >= 50 & peak_labread <= 99.99 ~ "50-99 times ULN",
+      peak_labread >= 100 & peak_labread <= 499.99 ~ "100-499 times ULN",
+      peak_labread >= 500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_kreatinin_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_kreatinin <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-kreatinin", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_kreatinin
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_kreatinin.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_kreatinin)
+dev.off()
+
+
+```
+
+
+### crp #######################################################################
+
+```{r}
+fs_crp_full <- crp_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_crp_full$attribute))
+fs_crp_full
+```
+
+```{r}
+
+fs_crp_full_filtered <- crp_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_crp_full_filtered
+```
+
+```{r}
+fs_crp_full_filtered_grouped <- fs_crp_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 7.49 ~ "within normal reference",
+      peak_labread >= 7.5 & peak_labread <= 22.49 ~ "1-2 times ULN",
+      peak_labread >= 22.5 & peak_labread <= 44.9 ~ "3-5 times ULN",
+      peak_labread >= 45 & peak_labread <= 74.9 ~ "6-9 times ULN",
+      peak_labread >= 75 & peak_labread <= 374.9 ~ "10-49 times ULN",
+      peak_labread >= 375 & peak_labread <= 749.9 ~ "50-99 times ULN",
+      peak_labread >= 750 & peak_labread <= 3749.9 ~ "100-499 times ULN",
+      peak_labread >= 3750 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_crp_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_crp_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_crp <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-crp", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_crp.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_crp)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_crp_full_filtered <- fs_crp_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_crp_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_crp_full_filtered_grouped <- ldiclo_fs_crp_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 7.49 ~ "within normal reference",
+      peak_labread >= 7.5 & peak_labread <= 22.49 ~ "1-2 times ULN",
+      peak_labread >= 22.5 & peak_labread <= 44.9 ~ "3-5 times ULN",
+      peak_labread >= 45 & peak_labread <= 74.9 ~ "6-9 times ULN",
+      peak_labread >= 75 & peak_labread <= 374.9 ~ "10-49 times ULN",
+      peak_labread >= 375 & peak_labread <= 749.9 ~ "50-99 times ULN",
+      peak_labread >= 750 & peak_labread <= 3749.9 ~ "100-499 times ULN",
+      peak_labread >= 3750 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_crp_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_crp_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_crp <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-crp", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_crp.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_crp)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_crp_full_filtered <- fs_crp_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_crp_full_filtered_grouped <- libu_fs_crp_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 7.49 ~ "within normal reference",
+      peak_labread >= 7.5 & peak_labread <= 22.49 ~ "1-2 times ULN",
+      peak_labread >= 22.5 & peak_labread <= 44.9 ~ "3-5 times ULN",
+      peak_labread >= 45 & peak_labread <= 74.9 ~ "6-9 times ULN",
+      peak_labread >= 75 & peak_labread <= 374.9 ~ "10-49 times ULN",
+      peak_labread >= 375 & peak_labread <= 749.9 ~ "50-99 times ULN",
+      peak_labread >= 750 & peak_labread <= 3749.9 ~ "100-499 times ULN",
+      peak_labread >= 3750 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_crp_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_crp <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-crp", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_crp.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_crp)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_crp_full_filtered <- fs_crp_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_crp_full_filtered_grouped <- lpara_fs_crp_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 7.49 ~ "within normal reference",
+      peak_labread >= 7.5 & peak_labread <= 22.49 ~ "1-2 times ULN",
+      peak_labread >= 22.5 & peak_labread <= 44.9 ~ "3-5 times ULN",
+      peak_labread >= 45 & peak_labread <= 74.9 ~ "6-9 times ULN",
+      peak_labread >= 75 & peak_labread <= 374.9 ~ "10-49 times ULN",
+      peak_labread >= 375 & peak_labread <= 749.9 ~ "50-99 times ULN",
+      peak_labread >= 750 & peak_labread <= 3749.9 ~ "100-499 times ULN",
+      peak_labread >= 3750 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_crp_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_crp <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-crp", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_crp
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_crp.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_crp)
+dev.off()
+
+
+```
+
+
+
+### natrium #######################################################################
+
+```{r}
+fs_natrium_full <- natrium_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_natrium_full$attribute))
+fs_natrium_full
+```
+
+```{r}
+
+fs_natrium_full_filtered <- natrium_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_natrium_full_filtered
+```
+
+```{r}
+fs_natrium_full_filtered_grouped <- fs_natrium_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 282.9 ~ "within normal reference",
+      peak_labread >= 283 & peak_labread <= 848.9 ~ "1-2 times ULN",
+      peak_labread >= 849 & peak_labread <= 1697.9 ~ "3-5 times ULN",
+      peak_labread >= 1698 & peak_labread <= 2829.9 ~ "6-9 times ULN",
+      peak_labread >= 2830 & peak_labread <= 14149.9 ~ "10-49 times ULN",
+      peak_labread >= 14150 & peak_labread <= 28299.9 ~ "50-99 times ULN",
+      peak_labread >= 28300 & peak_labread <= 141499.9 ~ "100-499 times ULN",
+      peak_labread >= 141500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_natrium_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_natrium_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_natrium <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-natrium", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_natrium.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_natrium)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_natrium_full_filtered <- fs_natrium_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_natrium_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_natrium_full_filtered_grouped <- ldiclo_fs_natrium_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 282.9 ~ "within normal reference",
+      peak_labread >= 283 & peak_labread <= 848.9 ~ "1-2 times ULN",
+      peak_labread >= 849 & peak_labread <= 1697.9 ~ "3-5 times ULN",
+      peak_labread >= 1698 & peak_labread <= 2829.9 ~ "6-9 times ULN",
+      peak_labread >= 2830 & peak_labread <= 14149.9 ~ "10-49 times ULN",
+      peak_labread >= 14150 & peak_labread <= 28299.9 ~ "50-99 times ULN",
+      peak_labread >= 28300 & peak_labread <= 141499.9 ~ "100-499 times ULN",
+      peak_labread >= 141500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_natrium_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_natrium_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_natrium <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-natrium", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_natrium.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_natrium)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_natrium_full_filtered <- fs_natrium_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_natrium_full_filtered_grouped <- libu_fs_natrium_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 282.9 ~ "within normal reference",
+      peak_labread >= 283 & peak_labread <= 848.9 ~ "1-2 times ULN",
+      peak_labread >= 849 & peak_labread <= 1697.9 ~ "3-5 times ULN",
+      peak_labread >= 1698 & peak_labread <= 2829.9 ~ "6-9 times ULN",
+      peak_labread >= 2830 & peak_labread <= 14149.9 ~ "10-49 times ULN",
+      peak_labread >= 14150 & peak_labread <= 28299.9 ~ "50-99 times ULN",
+      peak_labread >= 28300 & peak_labread <= 141499.9 ~ "100-499 times ULN",
+      peak_labread >= 141500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_natrium_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_natrium <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-natrium", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_natrium.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_natrium)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_natrium_full_filtered <- fs_natrium_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_natrium_full_filtered_grouped <- lpara_fs_natrium_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 282.9 ~ "within normal reference",
+      peak_labread >= 283 & peak_labread <= 848.9 ~ "1-2 times ULN",
+      peak_labread >= 849 & peak_labread <= 1697.9 ~ "3-5 times ULN",
+      peak_labread >= 1698 & peak_labread <= 2829.9 ~ "6-9 times ULN",
+      peak_labread >= 2830 & peak_labread <= 14149.9 ~ "10-49 times ULN",
+      peak_labread >= 14150 & peak_labread <= 28299.9 ~ "50-99 times ULN",
+      peak_labread >= 28300 & peak_labread <= 141499.9 ~ "100-499 times ULN",
+      peak_labread >= 141500 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_natrium_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_natrium <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-natrium", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_natrium
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_natrium.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_natrium)
+dev.off()
+
+
+```
+
+
+### kalium #######################################################################
+
+```{r}
+fs_kalium_full <- kalium_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_kalium_full$attribute))
+fs_kalium_full
+```
+
+```{r}
+
+fs_kalium_full_filtered <- kalium_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_kalium_full_filtered
+```
+
+```{r}
+fs_kalium_full_filtered_grouped <- fs_kalium_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 4.39 ~ "within normal reference",
+      peak_labread >= 4.4 & peak_labread <= 13.19 ~ "1-2 times ULN",
+      peak_labread >= 13.2 & peak_labread <= 25.39 ~ "3-5 times ULN",
+      peak_labread >= 26.4 & peak_labread <= 43.99 ~ "6-9 times ULN",
+      peak_labread >= 44 & peak_labread <= 219.9 ~ "10-49 times ULN",
+      peak_labread >= 220 & peak_labread <= 439.9 ~ "50-99 times ULN",
+      peak_labread >= 440 & peak_labread <= 2221.9 ~ "100-499 times ULN",
+      peak_labread >= 2222 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_kalium_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_kalium_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_kalium <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-kalium", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_kalium.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_kalium)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_kalium_full_filtered <- fs_kalium_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_kalium_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_kalium_full_filtered_grouped <- ldiclo_fs_kalium_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 4.39 ~ "within normal reference",
+      peak_labread >= 4.4 & peak_labread <= 13.19 ~ "1-2 times ULN",
+      peak_labread >= 13.2 & peak_labread <= 25.39 ~ "3-5 times ULN",
+      peak_labread >= 26.4 & peak_labread <= 43.99 ~ "6-9 times ULN",
+      peak_labread >= 44 & peak_labread <= 219.9 ~ "10-49 times ULN",
+      peak_labread >= 220 & peak_labread <= 439.9 ~ "50-99 times ULN",
+      peak_labread >= 440 & peak_labread <= 2221.9 ~ "100-499 times ULN",
+      peak_labread >= 2222 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_kalium_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_kalium_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_kalium <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-kalium", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_kalium.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_kalium)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_kalium_full_filtered <- fs_kalium_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_kalium_full_filtered_grouped <- libu_fs_kalium_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 4.39 ~ "within normal reference",
+      peak_labread >= 4.4 & peak_labread <= 13.19 ~ "1-2 times ULN",
+      peak_labread >= 13.2 & peak_labread <= 25.39 ~ "3-5 times ULN",
+      peak_labread >= 26.4 & peak_labread <= 43.99 ~ "6-9 times ULN",
+      peak_labread >= 44 & peak_labread <= 219.9 ~ "10-49 times ULN",
+      peak_labread >= 220 & peak_labread <= 439.9 ~ "50-99 times ULN",
+      peak_labread >= 440 & peak_labread <= 2221.9 ~ "100-499 times ULN",
+      peak_labread >= 2222 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_kalium_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_kalium <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-kalium", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_kalium.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_kalium)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_kalium_full_filtered <- fs_kalium_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_kalium_full_filtered_grouped <- lpara_fs_kalium_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 4.39 ~ "within normal reference",
+      peak_labread >= 4.4 & peak_labread <= 13.19 ~ "1-2 times ULN",
+      peak_labread >= 13.2 & peak_labread <= 25.39 ~ "3-5 times ULN",
+      peak_labread >= 26.4 & peak_labread <= 43.99 ~ "6-9 times ULN",
+      peak_labread >= 44 & peak_labread <= 219.9 ~ "10-49 times ULN",
+      peak_labread >= 220 & peak_labread <= 439.9 ~ "50-99 times ULN",
+      peak_labread >= 440 & peak_labread <= 2221.9 ~ "100-499 times ULN",
+      peak_labread >= 2222 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_kalium_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_kalium <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-kalium", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_kalium
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_kalium.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_kalium)
+dev.off()
+
+
+```
+
+
+### kalzium #######################################################################
+
+```{r}
+fs_kalzium_full <- kalzium_full %>% 
+#  filter(attribute == "_From Start") %>%
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))
+#  filter(grepl("_From Start", fs_kalzium_full$attribute))
+fs_kalzium_full
+```
+
+```{r}
+
+fs_kalzium_full_filtered <- kalzium_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+fs_kalzium_full_filtered
+```
+
+```{r}
+fs_kalzium_full_filtered_grouped <- fs_kalzium_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 2.49 ~ "within normal reference",
+      peak_labread >= 2.5 & peak_labread <= 7.49 ~ "1-2 times ULN",
+      peak_labread >= 7.5 & peak_labread <= 14.9 ~ "3-5 times ULN",
+      peak_labread >= 15 & peak_labread <= 24.9 ~ "6-9 times ULN",
+      peak_labread >= 25 & peak_labread <= 124.9 ~ "10-49 times ULN",
+      peak_labread >= 125 & peak_labread <= 249.9 ~ "50-99 times ULN",
+      peak_labread >= 250 & peak_labread <= 10624.9 ~ "100-499 times ULN",
+      peak_labread >= 1250 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+fs_kalzium_full_filtered_grouped
+```
+
+
+
+
+####labreads per Group count###
+```{r}
+labvalue_group_count <- fs_kalzium_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+labvalue_group_count
+```
+
+
+
+```{r}
+labvalue_group_count$Labvalue_Group <-  factor(labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+all_patients_control_visit_labvalue_dimension_of_peak_kalzium <- labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "all patients_control visit_labvalue dimension of peak-kalzium", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/all_patients_control_visit_labvalue_dimension_of_peak_kalzium.svg", height = 8, width = 6.5)
+print(all_patients_control_visit_labvalue_dimension_of_peak_kalzium)
+dev.off()
+```
+
+####liver diclo############
+
+```{r}
+
+ldiclo_fs_kalzium_full_filtered <- fs_kalzium_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+ldiclo_fs_kalzium_full_filtered
+```
+
+
+```{r}
+ldiclo_fs_kalzium_full_filtered_grouped <- ldiclo_fs_kalzium_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 2.49 ~ "within normal reference",
+      peak_labread >= 2.5 & peak_labread <= 7.49 ~ "1-2 times ULN",
+      peak_labread >= 7.5 & peak_labread <= 14.9 ~ "3-5 times ULN",
+      peak_labread >= 15 & peak_labread <= 24.9 ~ "6-9 times ULN",
+      peak_labread >= 25 & peak_labread <= 124.9 ~ "10-49 times ULN",
+      peak_labread >= 125 & peak_labread <= 249.9 ~ "50-99 times ULN",
+      peak_labread >= 250 & peak_labread <= 10624.9 ~ "100-499 times ULN",
+      peak_labread >= 1250 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+ldiclo_fs_kalzium_full_filtered_grouped
+```
+
+
+```{r}
+ldiclo_labvalue_group_count <- ldiclo_fs_kalzium_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+ldiclo_labvalue_group_count
+```
+
+
+```{r}
+ldiclo_labvalue_group_count$Labvalue_Group <-  factor(ldiclo_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+ldiclo_control_visit_labvalue_dimension_of_peak_kalzium <- ldiclo_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = ldiclo_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver diclo_control visit_labvalue dimension of peak-kalzium", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/ldiclo_control_visit_labvalue_dimension_of_peak_kalzium.svg", height = 8, width = 6.5)
+print(ldiclo_control_visit_labvalue_dimension_of_peak_kalzium)
+dev.off()
+```
+
+
+
+####liver ibu############
+
+```{r}
+
+libu_fs_kalzium_full_filtered <- fs_kalzium_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Ibu")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+libu_fs_kalzium_full_filtered_grouped <- libu_fs_kalzium_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 2.49 ~ "within normal reference",
+      peak_labread >= 2.5 & peak_labread <= 7.49 ~ "1-2 times ULN",
+      peak_labread >= 7.5 & peak_labread <= 14.9 ~ "3-5 times ULN",
+      peak_labread >= 15 & peak_labread <= 24.9 ~ "6-9 times ULN",
+      peak_labread >= 25 & peak_labread <= 124.9 ~ "10-49 times ULN",
+      peak_labread >= 125 & peak_labread <= 249.9 ~ "50-99 times ULN",
+      peak_labread >= 250 & peak_labread <= 10624.9 ~ "100-499 times ULN",
+      peak_labread >= 1250 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+libu_labvalue_group_count <- libu_fs_kalzium_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+libu_labvalue_group_count$Labvalue_Group <-  factor(libu_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+libu_control_visit_labvalue_dimension_of_peak_kalzium <-libu_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = libu_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver ibu_control visit_labvalue dimension of peak-kalzium", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+#dir.create("plots_labvalue dimension of rise_from start", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/libu_control_visit_labvalue_dimension_of_peak_kalzium.svg", height = 8, width = 6.5)
+print(libu_control_visit_labvalue_dimension_of_peak_kalzium)
+dev.off()
+```
+
+
+
+####liver_para############
+
+```{r}
+
+lpara_fs_kalzium_full_filtered <- fs_kalzium_full %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+#  filter(!grepl("_From Start", attribute))%>%
+  filter(Treatment == "Leber_Diclo")%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+```
+
+
+```{r}
+lpara_fs_kalzium_full_filtered_grouped <- lpara_fs_kalzium_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 2.49 ~ "within normal reference",
+      peak_labread >= 2.5 & peak_labread <= 7.49 ~ "1-2 times ULN",
+      peak_labread >= 7.5 & peak_labread <= 14.9 ~ "3-5 times ULN",
+      peak_labread >= 15 & peak_labread <= 24.9 ~ "6-9 times ULN",
+      peak_labread >= 25 & peak_labread <= 124.9 ~ "10-49 times ULN",
+      peak_labread >= 125 & peak_labread <= 249.9 ~ "50-99 times ULN",
+      peak_labread >= 250 & peak_labread <= 10624.9 ~ "100-499 times ULN",
+      peak_labread >= 1250 ~ ">500 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+```
+
+
+```{r}
+lpara_labvalue_group_count <- lpara_fs_kalzium_full_filtered_grouped %>%
+  count(Labvalue_Group, sort = TRUE)
+```
+
+
+```{r}
+lpara_labvalue_group_count$Labvalue_Group <-  factor(lpara_labvalue_group_count$Labvalue_Group, 
+                                   levels = c( "within normal reference","1-2 times ULN", "3-5 times ULN", 
+"6-9 times ULN", "10-49 times ULN", "50-99 times ULN","100-499 times ULN",  ">500 times ULN"))
+
+ 
+lpara_control_visit_labvalue_dimension_of_peak_kalzium <- lpara_labvalue_group_count %>%
+  mutate(n = as.numeric(n)) %>% 
+  ggplot(aes(x = Labvalue_Group, y =n)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(data = lpara_labvalue_group_count, 
+            aes(label = paste0("N = ", n)),
+            vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+            size = 5)+       # Optional: kleinere Schriftgröße
+  labs(title = "liver para_control visit_labvalue dimension of peak-kalzium", 
+       x = "Factor of reference value", 
+       y = "number of patients") +
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) #-> liver_para_control_visit_labvalue_dimension_of_peak_kalzium
+
+
+dir.create("plots_labvalue dimension of rise_control visit", showWarnings = FALSE)
+svg("plots_labvalue dimension of rise_control visit/lpara_control_visit_labvalue_dimension_of_peak_kalzium.svg", height = 8, width = 6.5)
+print(lpara_control_visit_labvalue_dimension_of_peak_kalzium)
+dev.off()
+
+
+```
+

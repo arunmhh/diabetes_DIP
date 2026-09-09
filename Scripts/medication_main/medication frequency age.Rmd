@@ -1,0 +1,184 @@
+---
+title: "hospitalisation labvalues at time of dismiss"
+output: html_document
+date: "2024-12-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+```
+
+
+
+
+```{r}
+library(readxl)
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/medication frequency - age")
+
+age_rawdata <- read_excel("patient age rawdata - full.xlsx")%>%
+  drop_na(age_group)
+age_rawdata
+
+```
+
+
+```{r}
+library(readxl)
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/Ergebnis Vergleich dosis_labvalues")
+
+med_rawdata <- read_excel("Dose table_assumed_full.xlsx", sheet = 1, skip = 2) %>%
+  rename("Edited_BfArM Nummer2" = "BfArM Nummer")
+med_rawdata
+```
+
+
+```{r}
+diclo_med <- med_rawdata %>%
+  select(1,2,3,4,5,7,8,9,10,11,12,13,14,15,16)  # wählt die Spalten 1 bis 16 aus
+   # filtert nur Zeilen mit mind. einem Eintrag in Spalten 3-16
+diclo_med
+```
+
+
+```{r}
+ibu_med <- med_rawdata %>%
+  select(1,2,17:19,21:29)  # wählt die Spalten 1 bis 16 aus
+   # filtert nur Zeilen mit mind. einem Eintrag in Spalten 3-16
+ibu_med
+```
+
+
+```{r}
+para_med <- med_rawdata %>%
+  select(1,2,30:32,34:42)  # wählt die Spalten 1 bis 16 aus
+   # filtert nur Zeilen mit mind. einem Eintrag in Spalten 3-16
+para_med
+```
+
+
+```{r}
+diclo_age <- left_join(age_rawdata, diclo_med, by = "Edited_BfArM Nummer2") %>% 
+  select(-Kathegorie) %>% 
+  filter(rowSums(!is.na(across(4:16))) > 0)
+  
+diclo_age
+```
+
+
+
+
+```{r}
+
+diclo_age_counts <- diclo_age %>% 
+  group_by(age_group) %>%
+  summarize(n = n(), .groups = "drop")
+
+frequency_of_diclofenac_intake_in_age_groups <- ggplot(diclo_age_counts,aes(x = age_group, y = n))+
+  geom_col()+
+  theme_classic()+
+  geom_text(data = diclo_age_counts, 
+            aes(x = age_group, 
+                y = max(diclo_age_counts$n) * 1, 
+                label = paste0("n=", n)),color = "red") +
+  labs(title = "frequency of diclofenac intake in age groups", hjust = 0.5,
+       x = "age group",
+       y = "Patients"
+       )+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+   
+  )
+dir.create("plots", showWarnings = FALSE)
+svg("plots/frequency_of_diclofenac_intake_in_age_groups.svg", height = 6, width = 8)
+print(frequency_of_diclofenac_intake_in_age_groups)
+dev.off()
+```
+
+```{r}
+ibu_age <- left_join(age_rawdata, ibu_med, by = "Edited_BfArM Nummer2") %>% 
+  select(-Kathegorie) %>% 
+  filter(rowSums(!is.na(across(4:15))) > 0)
+  
+ibu_age
+```
+
+```{r}
+
+ibu_age_counts <- ibu_age %>% 
+  group_by(age_group) %>%
+  summarize(n = n(), .groups = "drop")
+
+frequency_of_ibuprofen_intake_in_age_groups <- ggplot(ibu_age_counts,aes(x = age_group, y = n))+
+  geom_col()+
+  theme_classic()+
+  geom_text(data = ibu_age_counts, 
+            aes(x = age_group, 
+                y = max(ibu_age_counts$n) * 1, 
+                label = paste0("n=", n)),color = "red") +
+  labs(title = "frequency of intake of ibuprofen in age groups", hjust = 0.5,
+       x = "age group",
+       y = "Patients"
+       )+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+   
+  )
+dir.create("plots", showWarnings = FALSE)
+svg("plots/frequency_of_ibuprofen_intake_in_age_groups.svg", height = 6, width = 8)
+print(frequency_of_ibuprofen_intake_in_age_groups)
+dev.off()
+```
+
+
+
+```{r}
+para_age <- left_join(age_rawdata, para_med, by = "Edited_BfArM Nummer2") %>% 
+  select(-Kathegorie) %>% 
+  filter(rowSums(!is.na(across(4:15))) > 0)
+  
+para_age
+```
+
+```{r}
+
+para_age_counts <- para_age %>% 
+  group_by(age_group) %>%
+  summarize(n = n(), .groups = "drop")
+
+frequency_of_paracetamol_intake_in_age_groups <- ggplot(para_age_counts,aes(x = age_group, y = n))+
+  geom_col()+
+  theme_classic()+
+  geom_text(data = para_age_counts, 
+            aes(x = age_group, 
+                y = max(para_age_counts$n) * 1, 
+                label = paste0("n=", n)),color = "red") +
+  labs(title = "frequency of intake of paracetamol in age groups", hjust = 0.5,
+       x = "age group",
+       y = "Patients"
+       )+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+   
+  )
+dir.create("plots", showWarnings = FALSE)
+svg("plots/frequency_of_paracetamol_intake_in_age_groups.svg", height = 6, width = 8)
+print(frequency_of_paracetamol_intake_in_age_groups)
+dev.off()
+```
+
+
+

@@ -1,0 +1,1826 @@
+---
+title: "boxplot and lineplot"
+author: "Arun Kumar"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r} 
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+library(ggstatsplot)
+```
+
+
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for Thrombocytes #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_thromb <- left_join(ldthromb_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_thromb %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_thromb,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "liver_diclo boxplot for daily dose",
+       x = "dailydose in mg",
+       y = "Thrombocytes cells/ul") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  title = "liver_diclo daily doses of Diclofenac", type = "np",
+  ylab = "Thrombocytes cells/ul",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$attribute <- factor(dd_50mg$attribute,levels = c( "Erythrozyten Day1", "Erythrozyten Day2", "Erythrozyten Day3","Erythrozyten Day4","Erythrozyten Day5", "Erythrozyten Day6","Erythrozyten Day7","Erythrozyten Day8","Erythrozyten Day9","Erythrozyten Day10", "Erythrozyten Day11","Erythrozyten Day12","Erythrozyten Day13","Erythrozyten Day14","Erythrozyten Day15","Erythrozyten Day16","Erythrozyten Day17","Erythrozyten Day18","Erythrozyten Day19","Erythrozyten Day20","Erythrozyten Day21","Erythrozyten Day22","Erythrozyten Day23","Erythrozyten Day24","Erythrozyten Day25","Erythrozyten Day26","Erythrozyten Day27","Erythrozyten Day28","Erythrozyten Day29","Erythrozyten Day30","Erythrozyten Day31","Erythrozyten Day32","Erythrozyten Day33","Erythrozyten Day34","Erythrozyten Day35","Erythrozyten Day36","Erythrozyten Day37","Erythrozyten Day38","Erythrozyten Day39","Erythrozyten Day40","Erythrozyten Day41","Erythrozyten Day42","Erythrozyten Day43","Erythrozyten Day44","Erythrozyten Day45","Erythrozyten Day46","Erythrozyten Day47","Erythrozyten Day48","Erythrozyten Day49","Erythrozyten Day50","Erythrozyten Day51","Erythrozyten Day52","Erythrozyten Day53","Erythrozyten Day54","Erythrozyten Day55","Erythrozyten Day56","Erythrozyten Day57","Erythrozyten Day58","Erythrozyten Day59","Erythrozyten Day60","Erythrozyten Day61","Erythrozyten Day62","Erythrozyten Day63","Erythrozyten Day64","Erythrozyten Day65","Erythrozyten Day66","Erythrozyten Day67","Erythrozyten Day68","Erythrozyten Day69","Erythrozyten Day70","Erythrozyten Day71","Erythrozyten Day72","Erythrozyten Day73","Erythrozyten Day74","Erythrozyten Day75","Erythrozyten Day76","Erythrozyten Day77","Erythrozyten Day78","Erythrozyten Day79","Erythrozyten Day80","Erythrozyten Day81","Erythrozyten Day82","Erythrozyten Day83","Erythrozyten Day84","Erythrozyten Day85","Erythrozyten Day86","Erythrozyten Day87","Erythrozyten Day88","Erythrozyten Day89","Erythrozyten Day90","Erythrozyten Day91","Erythrozyten Day92","Erythrozyten Day93","Erythrozyten Day94","Erythrozyten Day95","Erythrozyten Day96","Erythrozyten Day97","Erythrozyten Day98","Erythrozyten Day99","Erythrozyten Day100"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 50mg daily-dose",
+       x = "Day of measurement",
+       y = "Thrombocytes cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 100mg daily-dose",
+       x = "Day of measurement",
+       y = "Thrombocytes cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 150mg daily-dose",
+       x = "Day of measurement",
+       y = "Thrombocytes cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 200mg daily-dose",
+       x = "Day of measurement",
+       y = "Erythrocytes cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth() + labs(title = "liver_diclo smooth line plot for diclofenac dose groups",        x = "daily dose (mg)",             y = "AST U/L")	
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "liver_diclo linerar regression for dayly doses",
+       x = "daily dose in mg",
+       y = "Thrombocytes cells/ul") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldthromb_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "liver_diclo boxplot for cumulative dose groups",
+       x = "Dose Group",
+       y = "Thrombocytes cells/ul") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for Natrium/Sodium #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_nat <- left_join(ldnat_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_nat %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_nat,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "liver_diclo boxplot for daily dose",
+       x = "dailydose in mg",
+       y = "Sodium mmol/l") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(100, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  title = "liver_diclo daily doses of Diclofenac", type = "np",
+  ylab = "Sodium mmol/l",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(25,50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 50mg daily-dose",
+       x = "Day of measurement",
+       y = "Sodium mmol/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 100mg daily-dose",
+       x = "Day of measurement",
+       y = "Sodium mmol/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 150mg daily-dose",
+       x = "Day of measurement",
+       y = "Sodium mmol/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 200mg daily-dose",
+       x = "Day of measurement",
+       y = "Erythrocytes cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth() + labs(title = "liver_diclo smooth line plot for diclofenac dose groups",        x = "daily dose (mg)",             y = "AST U/L")	
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "liver_diclo linerar regression for dayly doses",
+       x = "daily dose in mg",
+       y = "Sodium mmol/l") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldnat_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "liver_diclo boxplot for cumulative dose groups",
+       x = "Dose Group",
+       y = "Sodium mmol/l") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for Kalium/Potassium #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_kal <- left_join(ldkal_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_kal %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_kal,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "liver_diclo boxplot for daily dose",
+       x = "dailydose in mg",
+       y = "Potassium mmol/l") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  title = "liver_diclo daily doses of Diclofenac", type = "np",
+  ylab = "Potassium mmol/l",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(25,50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 50mg daily-dose",
+       x = "Day of measurement",
+       y = "Potassium mmol/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 100mg daily-dose",
+       x = "Day of measurement",
+       y = "Potassium mmol/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 150mg daily-dose",
+       x = "Day of measurement",
+       y = "Potassium mmol/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 200mg daily-dose",
+       x = "Day of measurement",
+       y = "Erythrocytes cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth() + labs(title = "liver_diclo smooth line plot for diclofenac dose groups",        x = "daily dose (mg)",             y = "AST U/L")	
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "liver_diclo linerar regression for dayly doses",
+       x = "daily dose in mg",
+       y = "Potassium mmol/l") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldkal_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "liver_diclo boxplot for cumulative dose groups",
+       x = "Dose Group",
+       y = "Potassium mmol/l") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for Kalzium/Calcium #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_cal <- left_join(ldcal_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_cal %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_cal,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "liver_diclo boxplot for daily dose",
+       x = "dailydose in mg",
+       y = "Calcium mmol/l") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  title = "liver_diclo daily doses of Diclofenac", type = "np",
+  ylab = "Calcium mmol/l",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(25,50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 50mg daily-dose",
+       x = "Day of measurement",
+       y = "Calcium mmol/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 100mg daily-dose",
+       x = "Day of measurement",
+       y = "Calcium mmol/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 150mg daily-dose",
+       x = "Day of measurement",
+       y = "Calcium mmol/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 200mg daily-dose",
+       x = "Day of measurement",
+       y = "Erythrocytes cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth() + labs(title = "liver_diclo smooth line plot for diclofenac dose groups",        x = "daily dose (mg)",             y = "AST U/L")	
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "liver_diclo linerar regression for dayly doses",
+       x = "daily dose in mg",
+       y = "Calcium mmol/l") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldcal_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "liver_diclo boxplot for cumulative dose groups",
+       x = "Dose Group",
+       y = "Calcium mmol/l") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for Glucose #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_glu <- left_join(ldglu_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_glu %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_glu,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "liver_diclo boxplot for daily dose",
+       x = "dailydose in mg",
+       y = "Glucose mg/dl") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  title = "liver_diclo daily doses of Diclofenac", type = "np",
+  ylab = "Glucose mg/dl",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(25,50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 50mg daily-dose",
+       x = "Day of measurement",
+       y = "Glucose mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 100mg daily-dose",
+       x = "Day of measurement",
+       y = "Glucose mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 150mg daily-dose",
+       x = "Day of measurement",
+       y = "Glucose mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + geom_text(aes(label = count), vjust = -1.5, size = 5) + # SEM error bars in red
+  labs(title = "liver_diclo labvalues for 200mg daily-dose",
+       x = "Day of measurement",
+       y = "Erythrocytes cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth() + labs(title = "liver_diclo smooth line plot for diclofenac dose groups",        x = "daily dose (mg)",             y = "AST U/L")	
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "liver_diclo linerar regression for dayly doses",
+       x = "daily dose in mg",
+       y = "Glucose mg/dl") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldglu_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "liver_diclo boxplot for cumulative dose groups",
+       x = "Dose Group",
+       y = "Glucose mg/dl") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```

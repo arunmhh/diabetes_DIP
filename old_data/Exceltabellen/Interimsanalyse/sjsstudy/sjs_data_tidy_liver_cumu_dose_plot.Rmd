@@ -1,0 +1,243 @@
+---
+title: "dose_comparsion"
+output: html_document
+date: "2023-06-23"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## 
+
+```{r }
+library(tidyverse)
+library(readxl)
+```
+
+
+#read data 
+```{r pressure, echo=FALSE}
+liver_diclo_dosesexdata <- read_excel("data_19June/Zusammenfassung Geschlecht, kumulative Dosis.xlsx",sheet = 4)
+
+```
+
+
+
+```{r}
+liver_diclo_dosesexdata %>% drop_na() %>% 
+  ggplot(aes(x = Sex, y = Dose, color = Sex ))+
+  geom_boxplot()+
+  geom_jitter()+
+  labs(
+    title = "Cumulative dose response in liver Diclofenac", hjust =0.5)+
+  theme_classic()
+
+ggsave( "Visualplot_diclo/liverdiclo_dosesex.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+```
+
+
+```{r}
+liver_diclo_dosesexdata %>% drop_na() %>% 
+  ggplot(aes(x = Time, y = Dose, color = Sex ))+
+  geom_line()+
+    labs(
+      x = "Time in Days",
+      title = "Cumulative dose response in liver Diclofenac", hjust =0.5)+
+  theme_classic()
+ggsave( "Visualplot_diclo/liverdiclo_dosetime.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+```
+
+
+#normality test
+
+```{r}
+shapiro.test(liver_diclo_dosesexdata$Dose)
+```
+
+
+
+```{r}
+t.test(Dose ~ Sex, data = liver_diclo_dosesexdata)
+```
+wilcox test
+
+```{r}
+wilcox.test(Dose ~ Sex, data= liver_diclo_dosesexdata, exact = FALSE, correct = FALSE, conf.int = 0.95)
+
+```
+
+
+
+```{r}
+liver_ibu_dosesexdata <- read_excel("data_19June/Zusammenfassung Geschlecht, kumulative Dosis.xlsx",sheet = 5)
+```
+
+
+```{r}
+liver_ibu_dosesexdata %>% drop_na() %>% 
+  ggplot(aes(x = Sex, y = Dose, color = Sex ))+
+  geom_boxplot()+
+  geom_jitter()+
+  labs(
+    title = "Cumulative dose response in liver Ibuprofen", hjust =0.5)+
+  theme_classic()
+ggsave( "Visualplot_ibu/liveribu_dosesex.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+```
+
+
+```{r}
+liver_ibu_dosesexdata %>% drop_na() %>% 
+  ggplot(aes(x = Time, y = Dose, color = Sex ))+
+  geom_line()+
+    labs(
+      x = "Time in Days",
+      title = "Cumulative dose response in liver Ibuprofen", hjust =0.5)+
+  theme_classic()
+ggsave( "Visualplot_ibu/liveribu_dosetime.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+## Normality test
+```{r}
+shapiro.test(liver_ibu_dosesexdata$Dose)
+```
+```{r}
+wilcox.test(Dose ~ Sex, data= liver_ibu_dosesexdata, exact = FALSE, correct = FALSE, conf.int = 0.95)
+```
+## paracetamol 
+
+
+```{r}
+liver_para_dosesexdata <- read_excel("data_19June/Zusammenfassung Geschlecht, kumulative Dosis.xlsx",sheet = 6)
+```
+
+```{r}
+liver_para_dosesexdata %>% drop_na() %>% 
+  ggplot(aes(x = Sex, y = Dose, color = Sex ))+
+  geom_boxplot()+
+  geom_jitter()+
+  labs(
+    title = "Cumulative dose response in liver Paracetamol", hjust =0.5)+
+  theme_classic()
+ggsave( "Visualplot_para/liverpara_dosesex.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+```
+
+
+```{r}
+shapiro.test(liver_para_dosesexdata$Dose)
+```
+
+
+```{r}
+wilcox.test(Dose ~ Sex, data= liver_para_dosesexdata, exact = FALSE, correct = FALSE, conf.int = 0.95)
+```
+
+## dose response with time
+
+```{r}
+liver_para_dosesexdata %>% drop_na() %>% 
+  ggplot(aes(x = Time, y = Dose, color = Sex ))+
+  geom_line()+
+    labs(
+      x = "Time in Days",
+      title = "Cumulative dose response in liver Paracetamol", hjust =0.5)+
+  theme_classic()
+ggsave( "Visualplot_para/liverpara_dosetime.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+```
+
+
+```{r}
+all_dosesexdata <- read_excel("data_19June/Zusammenfassung Geschlecht, kumulative Dosis.xlsx",sheet = 7)
+```
+
+```{r}
+all_dosesexdata %>% drop_na() %>% 
+  ggplot(aes(x = Treatment, y = Dose, color = Sex ))+
+  geom_boxplot()+
+  geom_jitter()+
+  labs(
+    title = "Cumulative dose response in liver all groups", hjust =0.5)+
+  theme_classic()
+ggsave( "Visualplot_liver all groups/liverallgroups_dosesex.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+```
+
+
+```{r}
+all_dosesexdata %>% drop_na() %>% 
+  ggplot(aes(x = Time, y = Dose, color = Treatment ))+
+  geom_line()+
+    labs(
+      x = "Time in Days",
+      title = "Cumulative dose response in liver all groups", hjust =0.5)+
+  theme_classic()
+ggsave( "Visualplot_liver all groups/liverallgroups_dosetime.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+```
+
+
+
+
+
+```{r}
+all_dosesexdata %>% drop_na() %>% 
+  ggplot(aes(x = Time, y = Intake, color = Treatment ))+
+  geom_line()+
+    labs(
+      x = "Time in Days",
+      y = "Daily intake of dose (mg)",
+      title = " Daily dose response in liver all groups", hjust =0.5)+
+  theme_classic()
+ggsave( "Visualplot_liver all groups/liverallgroups_dosetime.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+```
+
+
+
+```{r}
+all_dosesexdata %>% 
+  filter(Treatment == "liver_para") %>% 
+  ggplot(aes(x = Time, y = Intake ))+
+  geom_line()
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

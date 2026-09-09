@@ -1,0 +1,6197 @@
+---
+title: "boxplot and lineplot"
+author: "Arun Kumar"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r} 
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+library(ggstatsplot)
+```
+### labels##
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+gpt_summary_data$Attribute <- factor(gpt_summary_data$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+              "GPT Day4", "GPT Day5", "GPT Day6", "GPT Day7", 
+              "GPT Day8", "GPT Day9", "GPT Day10", "GPT Day11",
+              "GPT Day12", "GPT Day16", "GPT Day17", "GPT Day20", 
+              "GPT Day26","GPT Day_Unknown"))
+
+##for boxplt
+gptalst_data$Attribute <- factor(gptalst_data$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+              "GPT Day4", "GPT Day5", "GPT Day6", "GPT Day7", 
+              "GPT Day8", "GPT Day9", "GPT Day10", "GPT Day11",
+              "GPT Day12", "GPT Day16", "GPT Day17", "GPT Day20", 
+              "GPT Day26","GPT Day_Unknown"))
+```
+
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+```{r}
+gpt_summary_data <- ldalt_data  %>% filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(Attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(gpt_summary_data$mean_labread + gpt_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(gpt_summary_data, aes(x = Attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 0.5, se = TRUE) + # SEM error bars in red
+  labs(title = "Line Plot of Mean ALT for Female",
+       x = "Attribute",
+       y = "ALT U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(gpt_summary_data$mean_labread + gpt_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldalt_data %>% 
+  mutate(Attribute = as.factor(Attribute)) %>% 
+  group_by(Attribute) %>% 
+  ggplot(aes(x = Attribute, y = labreads)) +
+  geom_boxplot() +
+  labs(title = "Boxplot of ALT for both gender",
+       x = "Attribute",
+       y = "ALT U/L") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+###dose data##
+```{r}
+
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/Arun Testversionen")
+
+dose_data <- read_excel("Medikamente Arun Testversion.xlsx", sheet = 3)  
+  
+lvdiclo_dosedata <- dose_data %>% 
+  filter(Attribut == "Leber_Diclo") %>% 
+  rename( "Edited_BfArM Nummer2" ="BfArM Nummer_2" )
+
+lvdiclo_dosedata
+```
+
+
+```{r}
+lvdiclo_dosedata_gptalst <- left_join(ldalt_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_gptalst %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_gptalst,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(Attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of ALT for both gender",
+       x = "dailydose in mg",
+       y = "ALT U/L") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+
+### plot##
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "ALT U/L",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(25,50)) %>% 
+  mutate(Attribute = as.factor(Attribute)) %>% 
+  group_by(Attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = Attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "Attribute",
+       y = "ALT U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(Attribute = as.factor(Attribute)) %>% 
+  group_by(Attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+dd_100mg$Attribute <- 
+  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+                                          "GPT Day4","GPT Day5", "GPT Day6",
+                                          "GPT Day7","GPT Day8", "GPT Day9", 
+                                          "GPT Day10","GPT Day11","GPT Day12",
+                                          "GPT Day17","GPT Day20","GPT Day26",
+"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = Attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "Attribute",
+       y = "ALT U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_150mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(Attribute = as.factor(Attribute)) %>% 
+  group_by(Attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+#  lab read(!is.na(mean_labread) & is.finite(mean_labread))
+  
+  
+### for lineplot
+#dd_150mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_150mg, aes(x = Attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "Attribute",
+       y = "ALT U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+###line plot for 150mg#### 
+```{r}
+
+dd_150mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(Attribute = as.factor(Attribute)) %>% 
+  group_by(Attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) %>% 
+  filter(!is.na(mean_labread) & is.finite(mean_labread))
+  
+### for lineplot
+ dd_150mg$Attribute <- 
+   factor(dd_150mg$Attribute,levels = c( "GPT Day1","GPT Day3", 
+                                           "GPT Day4","GPT Day5", "GPT Day6",
+                                           "GPT Day8", "GPT Day9", 
+                                           "GPT Day10","GPT Day12",
+                                           "GPT Day16","GPT Day26","GPT Day_Unknown"))
+
+
+ggplot(dd_150mg, aes(x = Attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "Attribute",
+       y = "ALT U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(187.5,200,900)) %>% 
+  mutate(Attribute = as.factor(Attribute)) %>% 
+  group_by(Attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+#  filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+  dd_200mg$Attribute <- 
+    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = Attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "Attribute",
+       y = "ALT U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = " ALT in U/L") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 2500, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 2400, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+
+###################cumulative dose = CD #######
+
+```{r}
+CD_dose <- lvdiclo_dosedata_gptalst %>% 
+  filter(Kathegorie == "Kumulative Dosis" & Treatment == "Diclofenac")
+
+num_dosetaken <- lvdiclo_dosedata_gptalst %>% 
+  filter(Kathegorie == "Dauer der Einnahme (Tage)" & Treatment == "Diclofenac") %>% 
+  rename("daysofintake" = "Dose_mg") %>% dplyr::select(1,10)
+
+CD_dose_weekdata <- left_join(CD_dose, num_dosetaken, by = ("Edited_BfArM Nummer2")) %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  drop_na(daysofintake)
+
+
+```
+
+
+```{r}
+cumulativ_4week <- CD_dose_weekdata %>% 
+  filter(daysofintake <= 28) %>% 
+  mutate(daysofintake = as.factor(daysofintake)) %>% 
+  drop_na(Dose_mg)  
+  
+  
+  cumulativ_4week <- cumulativ_4week[cumulativ_4week$`Edited_BfArM Nummer2` != "93008468", ]
+  
+ cumulativ_4week %>% 
+   ggplot( aes(x = daysofintake, y = Dose_mg)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(se = TRUE, color = "red", linetype = "dashed")+
+     labs(title = "Diclofene cummulative dose",
+       x = "Number of day",
+       y = "Cummulative dose (mg)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+   
+```
+
+### Cumulative Dose for 50-1000(mg)########
+```{r}
+
+library(dplyr)
+library(readxl)
+
+# Read the Excel file and filter the data
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/Arun Testversionen")
+CD_liverdiclo <- read_excel("Medikamente Arun Testversion.xlsx", sheet = 4, skip = 1) %>%
+  filter(Cumulative_Dose > 0.0 & Cumulative_Dose <= 1000 & Treatment == "Leber_Diclo")
+
+# Summarize the counts of each Cumulative_Dose
+dose_counts <- CD_liverdiclo %>%
+  group_by(Cumulative_Dose) %>%
+  summarise(count = n())
+
+# Add the count column back into the original data frame
+CD_liverdiclo <- CD_liverdiclo %>%
+  left_join(dose_counts, by = "Cumulative_Dose")
+
+# View the result
+print(CD_liverdiclo)
+
+  
+```
+
+```{r}
+CD_liverdiclo %>% 
+  mutate(Cumulative_Dose = as.factor(Cumulative_Dose)) %>% 
+  ggplot(aes(x = Cumulative_Dose, y = count))+
+  geom_point()+
+  labs(title = "Cumultive Dose Diclofenac",
+       x = "cumulative Dose(mg)",
+       y = "Number of Patient") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### Cumulative Dose higer than 1000(mg)########
+```{r}
+
+library(dplyr)
+library(readxl)
+
+# Read the Excel file and filter the data
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/Arun Testversionen")
+CD_liverdiclo1k <- read_excel("Medikamente Arun Testversion.xlsx", sheet = 4, skip = 1) %>%
+  filter(Cumulative_Dose >= 1000 & Treatment == "Leber_Diclo")
+
+dose_counts1K <-CD_liverdiclo1k %>%
+  group_by(Cumulative_Dose) %>%
+  summarise(count = n())
+
+# View the result
+#print(CD_liverdiclo1k)
+
+  
+```
+
+```{r}
+ dose_counts1K %>% 
+  mutate(Cumulative_Dose = Cumulative_Dose/1000) %>% 
+   mutate(Cumulative_Dose = as.factor(Cumulative_Dose)) %>% 
+  ggplot(aes(x = Cumulative_Dose, y = count))+
+  geom_point()+
+  labs(title = "Cumultive Dose Diclofenac",
+       x = "cumulative Dose(g)",
+       y = "Number of Patient") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+
+```
+
+
+
+
+```{r}
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/Arun Testversionen")
+read_excel("Medikamente Arun Testversion.xlsx", sheet = 4, skip = 1) %>% 
+  filter(Cumulative_Dose > 0.0 & Treatment == "Leber_Diclo")
+
+
+
+ 
+
+```
+
+
+
+```{r}
+library(dplyr)
+library(readxl)
+library(ggplot2)
+
+# Read the Excel file and filter the data
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/Arun Testversionen")
+CD_liverdiclo <- read_excel("Medikamente Arun Testversion.xlsx", sheet = 4, skip = 1) %>%
+  filter(Cumulative_Dose > 0.0 & Treatment == "Leber_Diclo")
+
+# Create dose groups
+CD_liverdiclo <- CD_liverdiclo %>%
+  mutate(Dose_Group = cut(Cumulative_Dose,
+                          breaks = c(0, 1000, 5000,20000, Inf),
+                          labels = c("50mg to 1g", "1g to 5g", "5g to 20g", "20g < Higher"),
+                          right = FALSE)) # right = FALSE to make intervals inclusive of lower bound and exclusive of upper bound
+
+# View the result with dose groups
+print(CD_liverdiclo)
+
+# Plot frequency of each dose group
+ggplot(CD_liverdiclo, aes(x = Dose_Group)) +
+  geom_bar() +
+  labs(title = "Frequency of Cumulative Dose Groups",
+       x = "Dose Group",
+       y = "Frequency") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  )
+
+```
+
+
+```{r}
+library(dplyr)
+library(readxl)
+library(ggplot2)
+
+# Read the Excel file and filter the data
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/Arun Testversionen")
+CD_liverdiclo <- read_excel("Medikamente Arun Testversion.xlsx", sheet = 4, skip = 1) %>%
+  filter(Cumulative_Dose > 0.0  & Treatment == "Leber_Diclo")
+
+# Create dose groups
+CD_liverdiclo <- CD_liverdiclo %>%
+  mutate(Dose_Group = cut(Cumulative_Dose,
+                          breaks = c(0, 1000, 5000, 20000, Inf),
+                          labels = c("50mg to 1g", "1g to 5g", "5g to 20g", " Higher to 20"),
+                          right = FALSE)) # right = FALSE to make intervals inclusive of lower bound and exclusive of upper bound
+
+# View the result with dose groups
+print(CD_liverdiclo)
+
+# Plot frequency of each dose group
+ggplot(CD_liverdiclo, aes(x = Dose_Group)) +
+  geom_bar() +
+  labs(title = "Frequency of Cumulative Dose Groups",
+       x = "Dose Group",
+       y = "Frequency") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(table(CD_liverdiclo$Dose_Group))))
+
+```
+
+
+```{r}
+CD_liverdiclo_labreads <- left_join(CD_liverdiclo,gptalst_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  filter(Attribute == "GPT Day1") %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreads
+```
+
+```{r}
+ 
+ 
+ggplot(CD_liverdiclo_labreads, aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac ALT",
+       x = "Dose Group",
+       y = "ALT U/L") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreads$labreads)))
+```
+
+
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldalt_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac ALT",
+       x = "Dose Group",
+       y = "ALT U/L") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for AST #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_ast <- left_join(ldast_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_ast %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_ast,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(Attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+# dose_result %>% 
+#   filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+#   mutate(totaldose_mg = as.factor(totaldose_mg)) %>%
+#   ggplot(aes(x = totaldose_mg, y = labreads))+
+#   geom_boxplot()+
+#   labs(title = "Boxplot of ALT for both gender",
+#        x = "dailydose in mg",
+#        y = "AST U/L") +
+#   theme_classic() +
+#     theme(
+#      plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+#      axis.text.x = element_text(face="bold", angle = 45)
+#   )+
+#   scale_y_continuous(breaks = all_breaks,
+#                      limits = c(0, max_value))
+#   
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "AST U/L",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(50)) %>% 
+  mutate(Attribute = as.factor(Attribute)) %>% 
+  group_by(Attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = Attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "Attribute",
+       y = "AST U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(100)) %>% 
+  mutate(Attribute = as.factor(Attribute)) %>% 
+  group_by(Attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = Attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "Attribute",
+       y = "AST U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+###line plot for 150mg#### 
+```{r}
+
+dd_150mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(Attribute = as.factor(Attribute)) %>% 
+  group_by(Attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+#  filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+# dd_150mg$Attribute <- 
+#   factor(dd_150mg$Attribute,levels = c( "GPT Day1","GPT Day3", 
+#                                           "GPT Day4","GPT Day5", "GPT Day6",
+#                                           "GPT Day8", "GPT Day9", 
+#                                           "GPT Day10","GPT Day12",
+#                                           "GPT Day16","GPT Day26","GPT Day_Unknown"))
+
+
+ggplot(dd_150mg, aes(x = Attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "Attribute",
+       y = "AST U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200)) %>% 
+  mutate(Attribute = as.factor(Attribute)) %>% 
+  group_by(Attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+#  filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = Attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "Attribute",
+       y = "AST U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = " AST in U/L") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 2500, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 2400, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+###################cumulative dose = CD #######
+
+```{r}
+CD_dose <- lvdiclo_dosedata_ast %>% 
+  filter(Kathegorie == "Kumulative Dosis" & Treatment == "Diclofenac")
+
+num_dosetaken <- lvdiclo_dosedata_ast %>% 
+  filter(Kathegorie == "Dauer der Einnahme (Tage)" & Treatment == "Diclofenac") %>% 
+  rename("daysofintake" = "Dose_mg") %>% dplyr::select(1,10)
+
+CD_dose_weekdata <- left_join(CD_dose, num_dosetaken, by = ("Edited_BfArM Nummer2")) %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  drop_na(daysofintake)
+
+
+```
+
+
+```{r}
+cumulativ_4week <- CD_dose_weekdata %>% 
+  filter(daysofintake <= 28) %>% 
+  mutate(daysofintake = as.factor(daysofintake)) %>% 
+  drop_na(Dose_mg)  
+  
+  
+  cumulativ_4week <- cumulativ_4week[cumulativ_4week$`Edited_BfArM Nummer2` != "93008468", ]
+  
+ cumulativ_4week %>% 
+   ggplot( aes(x = daysofintake, y = Dose_mg)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(se = TRUE, color = "red", linetype = "dashed")+
+     labs(title = "Diclofene cummulative dose",
+       x = "Number of day",
+       y = "Cummulative dose (mg)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+  
+   
+```
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldast_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac ALT",
+       x = "Dose Group",
+       y = "ALT U/L") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for CK #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_ck <- left_join(ldck_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_ck %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_ck,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>%
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of AST for both gender",
+       x = "dailydose in mg",
+       y = "AST U/L") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "CK U/L",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "CK U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "CK U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "CK U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "CK U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = " AST in U/L") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 2500, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 2400, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldck_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac ALT",
+       x = "Dose Group",
+       y = "AST U/L") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for quick #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_quick <- left_join(ldquick_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_quick %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_quick,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of quick for both gender",
+       x = "dailydose in mg",
+       y = "quick U/L") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "quick U/L",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "quick U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "quick U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "attribute",
+       y = "quick U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "quick U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = " quick in U/L") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 2500, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 2400, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldquick_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac quick",
+       x = "Dose Group",
+       y = "quick U/L") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for inr #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_inr <- left_join(ldinr_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_inr %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_inr,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of inr for both gender",
+       x = "dailydose in mg",
+       y = "inr U/L") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "inr U/L",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "inr U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "inr U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "attribute",
+       y = "inr U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "inr U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = " inr in U/L") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 1, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 1, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldinr_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac inr",
+       x = "Dose Group",
+       y = "inr U/L") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for ptt #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_ptt <- left_join(ldptt_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_ptt %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_ptt,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of quick for both gender",
+       x = "dailydose in mg",
+       y = "ptt U/L") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "ptt U/L",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "ptt U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "ptt U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "attribute",
+       y = "ptt U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "quick U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = "pttuick in U/L") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldptt_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac ptt",
+       x = "Dose Group",
+       y = "ptt U/L") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for leucocytes #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_leukozyten <- left_join(ldleukozyten_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_leukozyten %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_leukozyten,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of quick for both gender",
+       x = "dailydose in mg",
+       y = "leucocytes U/L") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "leucocytes cells/ul",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(25,50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "leucocytes cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "leucocytes cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "attribute",
+       y = "leucocytes cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,187.5)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "leucocytes cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = "leucocytes cells/ul") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldleukozyten_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac leucocytes",
+       x = "Dose Group",
+       y = "leucocytes cells/ul") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for ggt #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_ggt <- left_join(ldggt_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_ggt %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_ggt,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of quick for both gender",
+       x = "dailydose in mg",
+       y = "ptt U/L") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "ptt U/L",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "ptt U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "ptt U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "attribute",
+       y = "ptt U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "quick U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = "pttuick in U/L") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldptt_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac ptt",
+       x = "Dose Group",
+       y = "ptt U/L") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for ldh #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_ldh <- left_join(ldldh_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_ldh %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_ldh,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of ldh for both gender",
+       x = "dailydose in mg",
+       y = "ldh U/L") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "ldh U/L",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "ldh U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "ldh U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "attribute",
+       y = "ldh U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,187.5)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "quick U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = "ldh in U/L") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldldh_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac ldh",
+       x = "Dose Group",
+       y = "ldh U/L") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for hb #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_hb <- left_join(ldhb_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_hb %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_hb,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of hb for both gender",
+       x = "dailydose in mg",
+       y = "hb g/dl") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "hb g/dl",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "hb g/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "hb g/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "attribute",
+       y = "hb g/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "hb g/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = "hb g/dl") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldhb_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac hb",
+       x = "Dose Group",
+       y = "hb g/dl") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for total bilirubin #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_totbili <- left_join(ldtotbili_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_totbili %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_totbili,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of totbili for both gender",
+       x = "dailydose in mg",
+       y = "totbili mg/dl") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "totbili mg/dl",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "totbili mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "totbili mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "attribute",
+       y = "totbili mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "totbili mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = "hb g/dl") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldtotbili_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac totbili",
+       x = "Dose Group",
+       y = "totbili mg/dl") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for ap #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_ap <- left_join(ldap_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_ap %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_ap,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of ap for both gender",
+       x = "dailydose in mg",
+       y = "ap u/l") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "ap u/l",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(25,50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "ap u/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "ap u/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "attribute",
+       y = "ap u/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "ap u/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = "ap u/l") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldap_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac totbili",
+       x = "Dose Group",
+       y = "ap u/l") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for creatinine #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_krea <- left_join(ldkrea_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_krea %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_krea,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of ap for both gender",
+       x = "dailydose in mg",
+       y = "creatinine mg/dl") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "creatinine mg/dl",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(25,50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "creatinine mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "creatinine mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "attribute",
+       y = "creatinine mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "creatinine mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = "creatinine mg/dl") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldkrea_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac totbili",
+       x = "Dose Group",
+       y = "creatinine mg/dl") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for crp #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_crp <- left_join(ldcrp_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_crp %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_crp,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of ap for both gender",
+       x = "dailydose in mg",
+       y = "crp mg/l") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "crp mg/l",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(25,50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "crp mg/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "crp mg/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "attribute",
+       y = "crp mg/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "crp mg/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = "crp mg/l") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldcrp_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac totbili",
+       x = "Dose Group",
+       y = "crp mg/l") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for urea #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_hst <- left_join(ldhst_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_hst %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_hst,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of ap for both gender",
+       x = "dailydose in mg",
+       y = "urea mg/dl") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "urea mg/dl",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(25,50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "urea mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "urea mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "attribute",
+       y = "urea mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "crp mg/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = "urea mg/dl") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldhst_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac totbili",
+       x = "Dose Group",
+       y = "urea mg/dl") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```
+
+##### 
+#####
+#####
+#####
+#####
+# all graphs new for Erythrocytes #
+#####
+#####
+#####
+#####
+
+```{r}
+lvdiclo_dosedata_ery <- left_join(ldery_data,lvdiclo_dosedata, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!7)
+
+```
+
+```{r}
+dd_amount <- lvdiclo_dosedata_ery %>%
+  filter(Kathegorie == "Häufigkeit der Einnahme pro Tag")%>%
+  rename("numberofdose" = "Dose_mg") %>%  dplyr::select(1,8,10)
+
+dd_amount
+```
+
+```{r}
+
+dose_result <- left_join(lvdiclo_dosedata_ery,dd_amount, by = ("Edited_BfArM Nummer2")) %>%
+  filter(Kathegorie.x == "Dosis (Mg/Verabreichung)" & Treatment == "Diclofenac") %>%
+  mutate(totaldose_mg = Dose_mg*numberofdose,
+   Dose_mg = as.factor(Dose_mg)) %>%
+  group_by(Dose_mg) %>%
+  distinct()
+  #drop_na(numberofdose)
+
+dose_result1 <- dose_result[dose_result$`Edited_BfArM Nummer2` != "93008468", ]
+
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 200, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 25, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 10, 50, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 175, 150, totaldose_mg))
+dose_result1 <- mutate(dose_result1, totaldose_mg = ifelse(totaldose_mg == 187.5, 150, totaldose_mg))
+
+
+
+print(dose_result1)
+
+
+```
+
+################################################################################
+
+```{r}
+
+dose_summary_data <- dose_result  %>% #filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n())
+  )
+max_value <- max(dose_summary_data$mean_labread + dose_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+```
+
+```{r}
+
+dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg)) %>% 
+  ggplot(aes(x = totaldose_mg, y = labreads))+
+  geom_boxplot()+
+  labs(title = "Boxplot of ap for both gender",
+       x = "dailydose in mg",
+       y = "Erythrocytes cells/ul") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45)
+  )+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+  
+```
+
+```{r}
+library(dplyr)
+
+# Filter and prepare data
+filtered_data <- dose_result %>% 
+  filter(totaldose_mg %in% c(50, 75, 100, 150, 200)) %>%
+  mutate(totaldose_mg = as.factor(totaldose_mg))
+
+# Perform ANOVA
+anova_result <- aov(labreads ~ totaldose_mg, data = filtered_data)
+
+# Print summary of the ANOVA result
+summary(anova_result)
+# Perform Tukey's HSD post-hoc test
+tukey_result <- TukeyHSD(anova_result)
+
+# Print summary of the Tukey's HSD result
+print(tukey_result)
+
+
+
+```
+
+```{r}
+library(ggthemes)
+
+dd <- dose_result %>% 
+  filter(totaldose_mg %in% c(50,75, 100, 150,200)) %>% 
+  group_by(totaldose_mg)
+
+pp <- ggbetweenstats(
+  data = dd,
+  x = totaldose_mg,
+  y = labreads,
+  type = "np",
+  ylab = "Erythrocytes cells/ul",
+  xlab = "dailydose (mg)")
+
+extract_stats(pp)
+print(pp)
+```
+
+##########################################
+## dose time series for 50mg####
+
+```{r}
+dd_50mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(25,50)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_50mg$Attribute <- factor(dd_50mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", "GPT Day6", "GPT Day11","GPT Day12", "GPT Day16", "GPT Day26"))
+
+ggplot(dd_50mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 50mg drug",
+       x = "attribute",
+       y = "urea mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 100mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(75,100)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 100mg drug",
+       x = "attribute",
+       y = "urea mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+## line plot for 150mg####
+```{r}
+dd_100mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(150)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE))
+  
+### for lineplot
+#dd_100mg$Attribute <- 
+#  factor(dd_100mg$Attribute,levels = c( "GPT Day1", "GPT Day2", "GPT Day3", 
+#                                          "GPT Day4","GPT Day5", "GPT Day6",
+#                                          "GPT Day7","GPT Day8", "GPT Day9", 
+#                                          "GPT Day10","GPT Day11","GPT Day12",
+#                                          "GPT Day17","GPT Day20","GPT Day26",
+#"GPT Day_Unknown"))
+
+
+ggplot(dd_100mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 150mg drug",
+       x = "attribute",
+       y = "urea mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+###line plot for 200mg#### 
+```{r}
+
+dd_200mg <- dose_result %>% 
+  filter(totaldose_mg %in% c(200,1000)) %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE)) #%>% 
+ # filter(!is.na(mean_labread) & is.finite(mean_labread) & is.finite(sd_labread))
+  
+### for lineplot
+#  dd_200mg$Attribute <- 
+#    factor(dd_200mg$Attribute,levels = c( "GPT Day5","GPT Day11", 
+#                                            "GPT Day26"))
+
+
+ggplot(dd_200mg, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  labs(title = "Line Plot for 200mg drug",
+       x = "attribute",
+       y = "crp mg/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+##### linear regression###
+
+```{r}
+ww <- dose_result %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  distinct(`Edited_BfArM Nummer2`, .keep_all = TRUE) %>% 
+  group_by(totaldose_mg)
+
+ww
+```
+
+```{r}
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth()
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ totaldose_mg, data = dose_result1)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(dose_result1, aes(x = totaldose_mg, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "linerar regression for Diclofenac",
+       x = "daily dose in mg",
+       y = "urea mg/dl") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 100, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 100, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+```{r}
+CD_liverdiclo_labreadsall <- left_join(CD_liverdiclo,ldhst_data, by = "Edited_BfArM Nummer2") %>% 
+  drop_na(count) %>% 
+  dplyr::select(1,2,3,7,8,9,11,12,13)
+
+CD_liverdiclo_labreadsall
+```
+
+
+```{r}
+CD_liverdiclo_labreadsall %>% 
+  mutate(Dose_Group = as.factor(Dose_Group)) %>% 
+  ggplot(aes(x = Dose_Group, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+
+  labs(title = "Diclofenac totbili",
+       x = "Dose Group",
+       y = "urea mg/dl") +
+  theme_classic() +
+  theme(
+    plot.title = element_text(margin = margin(b = 10), color = "black", face = "bold", hjust = 0.5),
+    axis.text.x = element_text(face = "bold", angle = 45, hjust = 1)
+  ) +
+  scale_y_continuous(limits = c(0, max(CD_liverdiclo_labreadsall$labreads)))
+```

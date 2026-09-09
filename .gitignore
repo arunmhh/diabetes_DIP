@@ -1,0 +1,13 @@
+# Ignore local environment history and project cache
+echo ".Rhistory" >> .gitignore
+echo ".RData" >> .gitignore
+echo ".Rproj.user/" >> .gitignore
+
+# Ignore renv package library (keep renv.lock and activate.R)
+echo "renv/library/" >> .gitignore
+echo "renv/local/" >> .gitignore
+
+# Protect patient-level/clinical raw and processed data
+echo "Rawdata/" >> .gitignore
+echo "processed_data/" >> .gitignore
+echo "old_data/" >> .gitignore

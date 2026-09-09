@@ -1,0 +1,35 @@
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- ck_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+ckcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+ckdata_with_counts <- filtered_data %>%
+  left_join(ckcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ ckfiltered_data_with_min_counts <- ckdata_with_counts %>%
+  filter(count >= 3) %>%              ####NEW####
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(ckfiltered_data_with_min_counts)
+
+  
+```

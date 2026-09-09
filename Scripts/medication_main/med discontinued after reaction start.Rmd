@@ -1,0 +1,316 @@
+---
+title: "Untitled"
+output: html_document
+date: "2026-03-14"
+---
+
+```{r} 
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+library(ggstatsplot)
+library(dplyr)
+library(ggplot2)
+library(performance)
+library(car)
+library(flextable)
+library(GGally)
+library(scales)
+```
+
+```{r}
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/med withdrawl")
+
+dose_data_withdrawl <- read_excel("Dose table_withdrawl.xlsx", sheet = 2)  
+
+dose_data_withdrawl
+```
+
+
+```{r}
+# Neue Tabelle mit Status erstellen
+dose_data_withdrawl_status <- dose_data_withdrawl %>%
+  # Fokus auf die Kategorie „Einnahme nach Krankheitsbeginn (Tage)“
+  filter(Kathegorie == "Einnahme nach Krankheitsbeginn (Tage)") %>%
+  # Neue Status-Spalte erstellen
+  mutate(
+    med_status = case_when(
+      is.na(Parameter) ~ "unknown",           # Kein Wert
+      Parameter == 0 ~ "med discontinued",    # Abgesetzt
+      Parameter > 0 ~ "med not discontinued"  # Nicht abgesetzt
+    )
+  ) %>%
+  # Für jeden Patienten nur eine Zeile mit Status behalten
+  group_by(`Edited_BfArM Nummer2`) %>%
+  slice(1) %>%  # falls mehrere Zeilen pro Patient vorhanden
+  ungroup()
+dose_data_withdrawl_status
+```
+
+
+```{r}
+# 1. Status-Spalte erstellen
+dose_data_withdrawl_status <- dose_data_withdrawl %>%
+  filter(str_detect(Attribut, "_Diclo")) %>%
+  filter(Treatment == "Diclofenac") %>%
+  filter(Kathegorie == "Einnahme nach Krankheitsbeginn (Tage)") %>%
+  mutate(
+    med_status = case_when(
+      is.na(Parameter) ~ "unknown",
+      Parameter == 0 ~ "med discontinued",
+      Parameter > 0 ~ "med not discontinued"
+    )
+  ) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  slice(1) %>%   # nur eine Zeile pro Patient behalten
+  ungroup()
+
+# 2. Zusammenfassung pro Gruppe
+status_summary <- dose_data_withdrawl_status %>%
+  count(med_status) %>%
+  mutate(percent = n / sum(n) * 100)
+
+# 3. Kuchendiagramm erstellen
+ggplot(status_summary, aes(x = "", y = n, fill = med_status)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste0(n, " (", round(percent, 1), "%)")),
+            position = position_stack(vjust = 0.5)) +
+  labs(title = "Diclofenac_Medication Status After Disease Onset",
+       fill = "Status") +
+  theme_void() +
+  theme(legend.position = "right")
+```
+
+
+```{r}
+# 1. Status-Spalte erstellen
+dose_data_withdrawl_status <- dose_data_withdrawl %>%
+  filter(str_detect(Attribut, "_Ibu")) %>%
+  filter(Treatment == "Ibuprofen") %>%
+  filter(Kathegorie == "Einnahme nach Krankheitsbeginn (Tage)") %>%
+  mutate(
+    med_status = case_when(
+      is.na(Parameter) ~ "unknown",
+      Parameter == 0 ~ "med discontinued",
+      Parameter > 0 ~ "med not discontinued"
+    )
+  ) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  slice(1) %>%   # nur eine Zeile pro Patient behalten
+  ungroup()
+
+# 2. Zusammenfassung pro Gruppe
+status_summary <- dose_data_withdrawl_status %>%
+  count(med_status) %>%
+  mutate(percent = n / sum(n) * 100)
+
+# 3. Kuchendiagramm erstellen
+ggplot(status_summary, aes(x = "", y = n, fill = med_status)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste0(n, " (", round(percent, 1), "%)")),
+            position = position_stack(vjust = 0.5)) +
+  labs(title = "Ibuprofen_Medication Status After Disease Onset",
+       fill = "Status") +
+  theme_void() +
+  theme(legend.position = "right")
+```
+
+
+```{r}
+# 1. Status-Spalte erstellen
+dose_data_withdrawl_status <- dose_data_withdrawl %>%
+  filter(str_detect(Attribut, "_Para")) %>%
+  filter(Treatment == "Paracetamol") %>%
+  filter(Kathegorie == "Einnahme nach Krankheitsbeginn (Tage)") %>%
+  mutate(
+    med_status = case_when(
+      is.na(Parameter) ~ "unknown",
+      Parameter == 0 ~ "med discontinued",
+      Parameter > 0 ~ "med not discontinued"
+    )
+  ) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  slice(1) %>%   # nur eine Zeile pro Patient behalten
+  ungroup()
+
+# 2. Zusammenfassung pro Gruppe
+status_summary <- dose_data_withdrawl_status %>%
+  count(med_status) %>%
+  mutate(percent = n / sum(n) * 100)
+
+# 3. Kuchendiagramm erstellen
+ggplot(status_summary, aes(x = "", y = n, fill = med_status)) +
+  geom_bar(stat = "identity", width = 1, color = "white") +
+  coord_polar(theta = "y") +
+  geom_text(aes(label = paste0(n, " (", round(percent, 1), "%)")),
+            position = position_stack(vjust = 0.5)) +
+  labs(title = "Paracetamol_Medication Status After Disease Onset",
+       fill = "Status") +
+  theme_void() +
+  theme(legend.position = "right")
+```
+
+
+
+
+```{r}
+plot_data <- dose_data_withdrawl %>%
+  filter(str_detect(Attribut, "_Diclo")) %>%
+  filter(Treatment == "Diclofenac") %>%
+  mutate(Parameter = as.numeric(Parameter)) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(!any(Kathegorie == "Einnahme nach Krankheitsbeginn (Tage)" & Parameter > 0, na.rm = TRUE)) %>%
+  ungroup() %>% 
+  filter(Kathegorie == "Zeitraum: letzte Einnahme bis Krankheitsbeginn (Tage)") %>%
+  mutate(Parameter = as.numeric(Parameter)) %>% 
+  group_by(Parameter) %>%
+  summarise(Anzahl_Patienten = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+
+ggplot(plot_data, aes(x = Parameter, y = Anzahl_Patienten)) +
+  geom_col(fill = "steelblue") +
+  scale_x_continuous(breaks = seq(min(plot_data$Parameter, na.rm = TRUE),
+                                  max(plot_data$Parameter, na.rm = TRUE),
+                                  by = 2)) +
+  labs(
+    x = "Time between last drug intake and disease onset (days)",
+    y = "Number of patients",
+    title = "Diclofenac_Time of drug discontinuation before disease onset"
+  ) +
+  theme_minimal()
+```
+
+
+```{r}
+plot_data <- dose_data_withdrawl %>%
+  filter(str_detect(Attribut, "_Ibu")) %>%
+  filter(Treatment == "Ibuprofen") %>%
+  mutate(Parameter = as.numeric(Parameter)) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(!any(Kathegorie == "Einnahme nach Krankheitsbeginn (Tage)" & Parameter > 0, na.rm = TRUE)) %>%
+  ungroup() %>% 
+  filter(Kathegorie == "Zeitraum: letzte Einnahme bis Krankheitsbeginn (Tage)") %>%
+  mutate(Parameter = as.numeric(Parameter)) %>% 
+  group_by(Parameter) %>%
+  summarise(Anzahl_Patienten = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+
+ggplot(plot_data, aes(x = Parameter, y = Anzahl_Patienten)) +
+  geom_col(fill = "steelblue") +
+  scale_x_continuous(breaks = seq(min(plot_data$Parameter, na.rm = TRUE),
+                                  max(plot_data$Parameter, na.rm = TRUE),
+                                  by = 1)) +
+  labs(
+    x = "Time between last drug intake and disease onset (days)",
+    y = "Number of patients",
+    title = "Ibuprofen_Time of drug discontinuation before disease onset"
+  ) +
+  theme_minimal()
+```
+
+
+
+```{r}
+plot_data <- dose_data_withdrawl %>%
+  filter(str_detect(Attribut, "_Para")) %>%
+  filter(Treatment == "Paracetamol") %>%
+  mutate(Parameter = as.numeric(Parameter)) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(!any(Kathegorie == "Einnahme nach Krankheitsbeginn (Tage)" & Parameter > 0, na.rm = TRUE)) %>%
+  ungroup() %>% 
+  filter(Kathegorie == "Zeitraum: letzte Einnahme bis Krankheitsbeginn (Tage)") %>%
+  mutate(Parameter = as.numeric(Parameter)) %>% 
+  group_by(Parameter) %>%
+  summarise(Anzahl_Patienten = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+
+ggplot(plot_data, aes(x = Parameter, y = Anzahl_Patienten)) +
+  geom_col(fill = "steelblue") +
+  scale_x_continuous(breaks = seq(min(plot_data$Parameter, na.rm = TRUE),
+                                  max(plot_data$Parameter, na.rm = TRUE),
+                                  by = 2)) +
+  labs(
+    x = "Time between last drug intake and disease onset (days)",
+    y = "Number of patients",
+    title = "Paracetamol_Time of drug discontinuation before disease onset"
+  ) +
+  theme_minimal()
+```
+
+
+```{r}
+plot_data <- dose_data_withdrawl %>%
+  filter(str_detect(Attribut, "_Diclo")) %>%
+  filter(Treatment == "Diclofenac") %>%
+  mutate(Parameter = as.numeric(Parameter)) %>%
+  filter(!(Kathegorie == "Einnahme nach Krankheitsbeginn (Tage)" & 
+           (is.na(Parameter) | Parameter == 0))) %>%
+  filter(Kathegorie == "Einnahme nach Krankheitsbeginn (Tage)") %>%
+  group_by(Parameter) %>%
+  summarise(Anzahl_Patienten = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+
+ggplot(plot_data, aes(x = Parameter, y = Anzahl_Patienten)) +
+  geom_col(fill = "steelblue") +
+  scale_x_continuous(breaks = seq(min(plot_data$Parameter, na.rm = TRUE),
+                                  max(plot_data$Parameter, na.rm = TRUE),
+                                  by = 4)) +
+  labs(
+    x = "Time of continuos drug intake after disease onset (days)",
+    y = "Number of patients",
+    title = "Diclofenac_Time of continuos drug intake after disease onset"
+  ) +
+  theme_minimal()
+```
+
+
+```{r}
+plot_data <- dose_data_withdrawl %>%
+  filter(str_detect(Attribut, "_Ibu")) %>%
+  filter(Treatment == "Ibuprofen") %>%
+  mutate(Parameter = as.numeric(Parameter)) %>%
+  filter(!(Kathegorie == "Einnahme nach Krankheitsbeginn (Tage)" & 
+           (is.na(Parameter) | Parameter == 0))) %>%
+  filter(Kathegorie == "Einnahme nach Krankheitsbeginn (Tage)") %>%
+  group_by(Parameter) %>%
+  summarise(Anzahl_Patienten = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+
+ggplot(plot_data, aes(x = Parameter, y = Anzahl_Patienten)) +
+  geom_col(fill = "steelblue") +
+  scale_x_continuous(breaks = seq(min(plot_data$Parameter, na.rm = TRUE),
+                                  max(plot_data$Parameter, na.rm = TRUE),
+                                  by = 4)) +
+  labs(
+    x = "Time of continuos drug intake after disease onset (days)",
+    y = "Number of patients",
+    title = "Ibuprofen_Time of continuos drug intake after disease onset"
+  ) +
+  theme_minimal()
+```
+
+
+
+```{r}
+plot_data <- dose_data_withdrawl %>%
+  filter(str_detect(Attribut, "_Para")) %>%
+  filter(Treatment == "Paracetamol") %>%
+  mutate(Parameter = as.numeric(Parameter)) %>%
+  filter(!(Kathegorie == "Einnahme nach Krankheitsbeginn (Tage)" & 
+           (is.na(Parameter) | Parameter == 0))) %>%
+  filter(Kathegorie == "Einnahme nach Krankheitsbeginn (Tage)") %>%
+  group_by(Parameter) %>%
+  summarise(Anzahl_Patienten = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+
+ggplot(plot_data, aes(x = Parameter, y = Anzahl_Patienten)) +
+  geom_col(fill = "steelblue") +
+  scale_x_continuous(breaks = seq(min(plot_data$Parameter, na.rm = TRUE),
+                                  max(plot_data$Parameter, na.rm = TRUE),
+                                  by = 1)) +
+  labs(
+    x = "Time of continuos drug intake after disease onset (days)",
+    y = "Number of patients",
+    title = "Paracetamol_Time of continuos drug intake after disease onset"
+  ) +
+  theme_minimal()
+```
+
+

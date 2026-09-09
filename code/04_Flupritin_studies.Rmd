@@ -1,0 +1,406 @@
+---
+title: "03_Flupritin"
+author: "Arun_Kumar"
+date: "2026-05-29"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(here)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(rstatix)
+library(tidyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+library(ggprism)
+```
+
+##=========================
+## load Flupritin Function
+##=========================
+
+```{r}
+source(here::here("R/flupritin/flupritin_diabets_boxplots.R")) #Diabetic_flupritin_Treatment(DIP)
+source(here::here("R/flupritin/flupirtin_peak_value_plots.R")) # flupritin peak plots( flu vs non flu)
+
+source(here::here("R/diabetic/export_plot.R"))    # export plots in png svg format
+source(here::here("R/flupritin/flupritin_diabets_cohort_DIP.R")) # diabetic cohort plot
+```
+
+
+##=============================================
+## Flupritin data
+##============================================
+
+
+```{r}
+flupirtin_data <- readxl::read_excel(here::here("Rawdata/flupirtin dosedata.xlsx"), sheet = 3) %>% 
+  janitor::clean_names() %>% 
+  dplyr::rename(bf_ar_m_nummer = edited_bf_ar_m_nummer2) %>% 
+  drop_na()
+flupirtin_data
+```
+
+
+
+`
+
+##==================================================================
+##  Flupirtine-associated liver cases identified in unique patients.
+##==================================================================
+
+
+```{r}
+all_data %>%
+  dplyr::filter(panel_id == "gpt") %>%
+  left_join(flupirtin_data, by = join_by("bf_ar_m_nummer","treatment"),
+            relationship = "many-to-many") %>% 
+  dplyr::filter(grepl("Leber_",treatment)) %>% 
+  drop_na(labreads,days) %>% 
+  mutate(flupirtin = factor(flupirtin)) %>% 
+  group_by(treatment,flupirtin) %>% 
+  summarise(
+    n_rows = n(),
+    n_patients = n_distinct(bf_ar_m_nummer),
+    patient_ids = paste(unique(bf_ar_m_nummer), collapse = ", "),
+    .groups = "drop"
+  )
+```
+
+
+
+##============================================================================
+##  Flupirtine-associated liver cases identified in unique diabetic patients.
+##============================================================================
+
+
+```{r}
+all_data %>%
+  left_join(diabetic_data, by = "bf_ar_m_nummer", 
+            relationship = "many-to-many") %>%
+  left_join(flupirtin_data, by = "bf_ar_m_nummer", 
+            relationship = "many-to-many") %>%
+  #dplyr::filter(panel_id == "gpt") %>%
+  dplyr::filter(grepl("Leber_", treatment.x)) %>%
+  dplyr::filter(diabetes %in% c("Diabetic", "Yes", 1, "1")) %>%
+  group_by(treatment.x, flupirtin) %>%
+  summarise(total_rows = n(), unique_patients = n_distinct(bf_ar_m_nummer), .groups = "drop")
+```
+
+
+
+# ==========================================
+#  flupritin_Treatment(DIP) boxplots 
+# ==========================================
+
+```{r}
+#target_labs <- c("gpt")
+
+target_labs <- c("ck", "keratinkinase", "quick", "inr", "troponin", "prothrombin",
+  "ptt", "tz", "antithrombin", "serummyoglobin", "d", "fibrinogen",
+  "leukozyten", "got", "gpt", "ggt", "ldh", "gldh", "triglyceride",
+  "cholesterin", "hdl", "ldl", "lymphozyten", "hb", "total", "totales",
+  "blut", "bilirubin", "direktes", "indirektes", "gesamteiweiss", "ap",
+  "cholinesterase", "kreatinin", "amylase", "lipase", "crp", "harnstoff",
+  "harnsaure", "erythrozyten", "thrombozyten", "trhombozyten", "haptoglobin",
+  "bsg", "monozyten", "eosinophile", "neutrophile", "stabkernige",
+  "segmentkernige", "basophile", "albumin", "gamma", "alpha", "beta",
+  "hamatokrit", "mcv", "mch", "mchc", "natrium", "kalium", "kalzium",
+  "magnesium", "chlorid", "serum", "transferrin", "ferritin", "fieber",
+  "glucose", "ammoniak", "lactat", "phosphat", "glomarulare", "gfr",
+  "ck_mb", "antithrombin_3", "total_bilirubin", "direct_bilirubin",
+  "indirect_bilirubin", "serum_eisen", "grf")
+
+compact_diabetic_plots <- generate_diabetic_flupirtin_compact_runs(
+  panel_ids           = target_labs,
+  all_data            = all_data,
+  #diabetic_data       = diabetic_data,
+  flupirtin_data      = flupirtin_data,
+  save_plots_flag     = TRUE,
+  
+  # Folder routing settings
+  export_base_dir     = "output/figure/diabetes/plots_all_labvalues", 
+  export_subfolder    = "Flupirtin/Flupirtin_DIP1",
+  export_dataset_name = "Flupirtin_Compact",
+  
+  # Image sizing adjustments
+  export_width        = 8, 
+  export_height       = 4, 
+  export_dpi          = 600, 
+  export_formats      = c("svg", "png")
+)
+
+compact_diabetic_plots$Plot_GPT
+
+```
+
+##==========================
+## Flupritin_Diabetic_cohort
+##==========================
+
+```{r}
+
+target_labs <- c("ck", "keratinkinase", "quick", "inr", "troponin", "prothrombin",
+  "ptt", "tz", "antithrombin", "serummyoglobin", "d", "fibrinogen",
+  "leukozyten", "got", "gpt", "ggt", "ldh", "gldh", "triglyceride",
+  "cholesterin", "hdl", "ldl", "lymphozyten", "hb", "total", "totales",
+  "blut", "bilirubin", "direktes", "indirektes", "gesamteiweiss", "ap",
+  "cholinesterase", "kreatinin", "amylase", "lipase", "crp", "harnstoff",
+  "harnsaure", "erythrozyten", "thrombozyten", "trhombozyten", "haptoglobin",
+  "bsg", "monozyten", "eosinophile", "neutrophile", "stabkernige",
+  "segmentkernige", "basophile", "albumin", "gamma", "alpha", "beta",
+  "hamatokrit", "mcv", "mch", "mchc", "natrium", "kalium", "kalzium",
+  "magnesium", "chlorid", "serum", "transferrin", "ferritin", "fieber",
+  "glucose", "ammoniak", "lactat", "phosphat", "glomarulare", "gfr",
+  "ck_mb", "antithrombin_3", "total_bilirubin", "direct_bilirubin",
+  "indirect_bilirubin", "serum_eisen", "grf")
+
+#target_labs <- c("gpt","got")
+
+compact_diabetic_plots <- generate_diabetic_flupirtin_compact_runs(
+  panel_ids       = target_labs,
+  all_data        = all_data,
+  diabetic_data   = diabetic_data,
+  flupirtin_data  = flupirtin_data,
+  #save_plots_flag = TRUE
+)
+
+compact_diabetic_plots$Plot_GPT_Diabetic_Flupirtin_5x4
+```
+
+##======================================
+## flupirtin peak vlaue violin box plots
+##======================================
+
+```{r}
+# ==========================================
+# 4. RUN PIPELINE
+# ==========================================
+target_labs <- c("ck", "keratinkinase", "quick", "inr", "troponin", "prothrombin",
+  "ptt", "tz", "antithrombin", "serummyoglobin", "d", "fibrinogen",
+  "leukozyten", "got", "gpt", "ggt", "ldh", "gldh", "triglyceride",
+  "cholesterin", "hdl", "ldl", "lymphozyten", "hb", "total", "totales",
+  "blut", "bilirubin", "direktes", "indirektes", "gesamteiweiss", "ap",
+  "cholinesterase", "kreatinin", "amylase", "lipase", "crp", "harnstoff",
+  "harnsaure", "erythrozyten", "thrombozyten", "trhombozyten", "haptoglobin",
+  "bsg", "monozyten", "eosinophile", "neutrophile", "stabkernige",
+  "segmentkernige", "basophile", "albumin", "gamma", "alpha", "beta",
+  "hamatokrit", "mcv", "mch", "mchc", "natrium", "kalium", "kalzium",
+  "magnesium", "chlorid", "serum", "transferrin", "ferritin", "fieber",
+  "glucose", "ammoniak", "lactat", "phosphat", "glomarulare", "gfr",
+  "ck_mb", "antithrombin_3", "total_bilirubin", "direct_bilirubin",
+  "indirect_bilirubin", "serum_eisen", "grf")
+
+flupirtin_plots <- generate_flupirtin_plots(
+  panel_ids = target_labs,
+  all_data = all_data,
+  flupirtin_data = flupirtin_data,
+  unit_map = unit_map
+)
+
+# 2. SAVE HERE 👇
+save_plots(
+  plots        = flupirtin_plots,
+  names        = names(flupirtin_plots),
+  dataset_name = "flupirtin_diabetes",
+  base_dir     = "output/figure/diabetes/plots_all_labvalues",
+  subfolder    = "flupirtin/flupiritin_peak_plots",
+  width        = 6,
+  height       = 4,
+  dpi          = 600,
+  formats      = c("svg", "png")
+)
+
+# Example view
+flupirtin_plots$gpt
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,408 @@
+---
+title: "T2D_ND"
+author: "Arun Kumar"
+date: "2026-05-22"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(here)
+library(stringr)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+library(ggprism)
+library(ggpubr)
+```
+
+##=======================
+## Call all the functions
+##=======================
+
+```{r}
+source(here::here("R/diabetic/clean_data.R")) # read and clean raw excel data (labvalues)
+source(here::here("R/diabetic/export_plot.R"))    # export plots in png svg format
+#source(here::here("R/diabetic/diabetic_nondiabetic_boxplots.R")) #Diabetiv vs nondiabetic plots
+#source(here::here("R/diabetic/diabetes_nondiabets_male_female_boxplot.R")) ## male_female_boxplot
+#source(here::here("R/diabetic/diabetes_nondiabets_male_female_master_boxplot.R")) ## male_female_boxplot
+#source(here::here("R/diabetic/diabetic_nondiabetic_gender_treatment_sixboxplots.R")) ## Treatment 6boxplots
+
+```
+
+```{r}
+source(here::here("R/diabetic/dip_treatment_claude1.R"))
+source(here::here("R/diabetic/export_plot.R"))
+```
+
+
+##===================
+## Raw data from Excel
+##===================
+
+```{r}
+sheets <- excel_sheets(here::here(
+  "RawData/new_raw_data/ubersicht_Laborwerte_laborwerte_fertig_aktuell_new.xlsx"
+))
+
+sheets <- sheets[
+  sheets %in% c(
+    "Fallberichte")]
+sheets
+
+
+labvalue_data <- map_dfr(
+  sheets,
+  ~ process_sheet(file = here::here("RawData/new_raw_data/ubersicht_Laborwerte_laborwerte_fertig_aktuell_new.xlsx"), .x)
+  )
+labvalue_data
+```
+
+```{r}
+labvalue_data_new <- read_data(
+  file = here::here("RawData/new_raw_data/ubersicht_Laborwerte_control_group_aktuell_new.xlsx"),
+  sheet = "Controlgroup no time"
+) %>% 
+  janitor::clean_names() %>% 
+  rename(
+    bf_ar_m_nummer = edited_bf_ar_m_nummer2) %>% 
+  pivot_longer(
+    cols = -c(bf_ar_m_nummer, treatment),
+    names_to = "attribute",
+    values_to = "labreads"
+  ) %>% 
+  mutate(
+  is_time_series = stringr::str_detect(attribute, "\\d+"),
+
+  days = if_else(
+    is_time_series,
+    readr::parse_number(attribute),
+    NA_real_
+  ),
+
+  day_raw = if_else(
+    !is.na(days),
+    paste0("Day", as.integer(days)),
+    NA_character_
+  ),
+
+  panel_id = if_else(
+    is_time_series,
+    sub("_[^_]+$", "", attribute),
+    attribute
+  ),
+
+  panel = "control_no_time"
+) %>% 
+  dplyr::select(
+    panel, panel_id, bf_ar_m_nummer, treatment,
+    attribute, labreads,
+    day_raw, days
+  )
+labvalue_data_new
+```
+
+```{r}
+labvalue_data_neww <- read_data(
+  file = here::here("RawData/new_raw_data/ubersicht_Laborwerte_control_group_aktuell_new.xlsx"),
+  sheet = "Controlgroup time"
+) %>% 
+  janitor::clean_names() %>% 
+  rename(
+    bf_ar_m_nummer = edited_bf_ar_m_nummer2) %>% 
+  pivot_longer(
+    cols = -c(bf_ar_m_nummer, treatment),
+    names_to = "attribute",
+    values_to = "labreads"
+  ) %>% 
+  mutate(
+  is_time_series = stringr::str_detect(attribute, "\\d+"),
+
+  days = if_else(
+    is_time_series,
+    readr::parse_number(attribute),
+    NA_real_
+  ),
+
+  day_raw = if_else(
+    !is.na(days),
+    paste0("Day", as.integer(days)),
+    NA_character_
+  ),
+
+  panel_id = if_else(
+    is_time_series,
+    sub("_[^_]+$", "", attribute),
+    attribute
+  ),
+    panel = "Controlgroup time"
+  ) %>% 
+  dplyr::select(
+    panel, panel_id, bf_ar_m_nummer, treatment,
+    attribute, labreads,
+    day_raw, days
+  )
+labvalue_data_neww
+```
+
+
+```{r}
+library(dplyr)
+library(readr)
+
+labvalue_data_clean <- labvalue_data %>% 
+  mutate(
+    labreads = parse_number(as.character(labreads)),
+    days     = as.numeric(days)
+  )
+
+labvalue_data_new_clean <- labvalue_data_new %>% 
+  mutate(
+    labreads = parse_number(as.character(labreads)),
+    days     = as.numeric(days)
+  )
+
+labvalue_data_neww_clean <- labvalue_data_neww %>% 
+  mutate(
+    labreads = parse_number(as.character(labreads)),
+    days     = as.numeric(days)
+  )
+
+all_data <- bind_rows(labvalue_data_clean, labvalue_data_new_clean,labvalue_data_neww_clean)
+all_data
+```
+
+
+##=================
+## diabetic_data
+##=================
+
+
+```{r}
+diabetic_data <- read_excel(here::here("RawData/Diabetes rawdata.xlsx"), 
+                            sheet = 2) %>% 
+                            drop_na() %>% 
+  janitor::clean_names() %>% 
+  dplyr::rename("bf_ar_m_nummer" = "edited_bf_ar_m_nummer2")%>% 
+  dplyr::filter(grepl("Leber_", treatment)) %>% 
+  distinct(bf_ar_m_nummer, .keep_all = TRUE) 
+
+diabetic_data
+```
+
+
+##=================
+## gender_data
+##=================
+
+```{r}
+gender_data <- read_excel(here::here("RawData/gender_info_full.xlsx"),
+           sheet = 1, skip = 1)
+
+gender_data1 <- gender_data %>%
+    dplyr::select(1:4) %>%
+    dplyr::mutate(
+    Gender = dplyr::case_when(
+    Male == 1 ~ "Male",
+    Female == 1 ~ "Female")) %>% 
+    dplyr::select(1,2,5)%>% 
+    drop_na() %>% 
+    janitor::clean_names() %>% 
+  dplyr::rename("bf_ar_m_nummer" = "edited_bf_ar_m_nummer2")%>% 
+  distinct(bf_ar_m_nummer, .keep_all = TRUE) 
+gender_data1
+```
+
+
+
+
+
+
+##==================================================
+## target labs
+##==================================================
+
+```{r}
+
+target_labs <- c("ck", "keratinkinase", "quick", "inr", "troponin", "prothrombin",
+  "ptt", "tz", "antithrombin", "serummyoglobin", "d", "fibrinogen",
+  "leukozyten", "got", "gpt", "ggt", "ldh", "gldh", "triglyceride",
+  "cholesterin", "hdl", "ldl", "lymphozyten", "hb", "total", "totales",
+  "blut", "bilirubin", "direktes", "indirektes", "gesamteiweiss", "ap",
+  "cholinesterase", "kreatinin", "amylase", "lipase", "crp", "harnstoff",
+  "harnsaure", "erythrozyten", "thrombozyten", "trhombozyten", "haptoglobin",
+  "bsg", "monozyten", "eosinophile", "neutrophile", "stabkernige",
+  "segmentkernige", "basophile", "albumin", "gamma", "alpha", "beta",
+  "hamatokrit", "mcv", "mch", "mchc", "natrium", "kalium", "kalzium",
+  "magnesium", "chlorid", "serum", "transferrin", "ferritin", "fieber",
+  "glucose", "ammoniak", "lactat", "phosphat", "glomarulare", "gfr",
+  "ck_mb", "antithrombin_3", "total_bilirubin", "direct_bilirubin",
+  "indirect_bilirubin", "serum_eisen", "grf")
+
+
+```
+
+
+
+```{r}
+all_data %>% 
+  select(panel_id) %>% 
+  unique() %>% 
+  pull()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

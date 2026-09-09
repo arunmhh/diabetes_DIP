@@ -1,0 +1,507 @@
+---
+title: "result comparison _between_different_datasets"
+author: "Arun_Kumar"
+date: "2026-09-06"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+```{r}
+library(here)
+library(stringr)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+library(ggprism)
+library(ggpubr)
+```
+
+
+```{r}
+all_data %>% 
+  dplyr::filter(panel_id == "ggt" & treatment == "Leber_Diclo") %>% 
+  full_join(diabetic_data, by = c("bf_ar_m_nummer", "treatment")) %>% 
+  filter(bf_ar_m_nummer %in% c( "99001908","99004067"))
+```
+
+
+```{r}
+library(dplyr)
+
+result_ggt <- all_data %>% 
+  filter(panel_id == "ggt") %>% 
+  filter(grepl("Leber",treatment)) %>% 
+  filter(!grepl("_from_start",attribute)) %>%
+  filter(!grepl("_From Start", attribute)) %>% 
+  full_join(diabetic_data, by = c("bf_ar_m_nummer", "treatment")) %>% 
+  drop_na(labreads)
+result_ggt
+#write.csv(result,"D:/Project R Folder/MyPhD/Doktorarbeit SJS/output/ggt_result_diclo.csv")
+```
+
+
+```{r}
+result_ggt %>% 
+  filter(bf_ar_m_nummer %in% c("5013780","8124816","10030897","11187503","12314941","94003884"))
+```
+
+
+
+```{r}
+library(dplyr)
+
+result_gpt <- all_data %>% 
+  filter(panel_id == "gpt") %>% 
+  filter(grepl("Leber",treatment)) %>% 
+  filter(!grepl("_from_start",attribute)) %>%
+  full_join(diabetic_data, by = c("bf_ar_m_nummer", "treatment")) %>% 
+  drop_na(labreads)
+result_gpt
+write.csv(result_gpt,"D:/Project R Folder/MyPhD/Doktorarbeit SJS/output/Result_Comparison_2020_09_07/gpt_result_diclo.csv")
+```
+
+
+```{r}
+result_gpt %>% 
+  dplyr::filter(bf_ar_m_nummer %in% c("5013780",
+"8055349",
+"8124816",
+"10030897",
+"11014307",
+"11130494",
+"11187503",
+"11231446",
+"12118054",
+"12314941",
+"94003884"))
+```
+
+
+```{r}
+library(dplyr)
+
+result_leuko <- all_data %>% 
+  filter(panel_id == "leukozyten") %>% 
+  filter(grepl("Leber",treatment)) %>% 
+  filter(!grepl("_from_start",attribute)) %>%
+  full_join(diabetic_data, by = c("bf_ar_m_nummer", "treatment")) %>% 
+  drop_na(labreads)
+result_leuko
+
+write.csv(result_leuko,"D:/Project R Folder/MyPhD/Doktorarbeit SJS/output/Result_Comparison_2020_09_07/leuko_result_diclo.csv")
+```
+
+
+```{r}
+result_leuko %>% 
+  dplyr::filter(bf_ar_m_nummer %in% c("9125095"))
+```
+
+
+```{r}
+result_hb <- all_data %>% 
+  filter(panel_id == "hb") %>% 
+  filter(!grepl("_from_start",attribute)) %>%
+  filter(!grepl("_From",attribute)) %>%
+  drop_na(labreads)
+
+result_hb
+
+
+write.csv(result_hb,"D:/Project R Folder/MyPhD/Doktorarbeit SJS/output/Result_Comparison_2020_09_07/hb_result_diclo.csv")
+```
+
+
+
+```{r}
+result_total_bilirubin <- all_data %>% 
+  dplyr::filter(grepl("total", panel_id))%>% 
+  filter(!grepl("_From_start",attribute)) %>%
+  filter(!grepl("_from",attribute)) %>%
+  drop_na(labreads)
+
+result_total_bilirubin
+
+write.csv(result_total_bilirubin,"D:/Project R Folder/MyPhD/Doktorarbeit SJS/output/Result_Comparison_2020_09_07/total_bilirubin_result_diclo.csv")
+```
+
+
+```{r}
+result_thrombozyten <- all_data %>% 
+  dplyr::filter(panel_id == "thrombozyten") %>% 
+  drop_na(labreads)
+
+result_thrombozyten
+
+write.csv(result_thrombozyten,"D:/Project R Folder/MyPhD/Doktorarbeit SJS/output/Result_Comparison_2020_09_07/trrombozyten_result_diclo.csv")
+```
+
+
+```{r}
+result_ap_diabetic_female <- all_data %>% 
+  full_join(diabetic_data, by = c("bf_ar_m_nummer", "treatment")) %>% 
+  full_join(gender_data1, by = c("bf_ar_m_nummer","treatment")) %>% 
+  filter(!grepl("_From", attribute)) %>% 
+  filter(!grepl("_from",attribute)) %>% 
+  filter(gender == "Female") %>% 
+  dplyr::filter(panel_id == "ap") %>% 
+  drop_na(labreads) %>% 
+  drop_na(diabetes)
+
+result_ap_diabetic_female 
+
+write.csv(result_ap_diabetic_female ,"D:/Project R Folder/MyPhD/Doktorarbeit SJS/output/Result_Comparison_2020_09_07/ap_diabetic_female _result_diclo.csv")
+```
+
+```{r}
+result_got_diabetic_female <- all_data %>% 
+  full_join(diabetic_data, by = c("bf_ar_m_nummer", "treatment")) %>% 
+  full_join(gender_data1, by = c("bf_ar_m_nummer","treatment")) %>% 
+  filter(!grepl("_From", attribute)) %>% 
+  filter(!grepl("_from",attribute)) %>% 
+  filter(gender == "Female") %>% 
+  dplyr::filter(panel_id == "got") %>% 
+  drop_na(labreads) %>% 
+  drop_na(diabetes)
+
+result_got_diabetic_female 
+
+write.csv(result_got_diabetic_female ,"D:/Project R Folder/MyPhD/Doktorarbeit SJS/output/Result_Comparison_2020_09_07/got_diabetic_female _result_diclo.csv")
+```
+
+
+```{r}
+result_leukozyte_diabetic_female <- all_data %>% 
+  full_join(diabetic_data, by = c("bf_ar_m_nummer", "treatment")) %>% 
+  full_join(gender_data1, by = c("bf_ar_m_nummer","treatment")) %>% 
+  filter(!grepl("_From", attribute)) %>% 
+  filter(!grepl("_from",attribute)) %>% 
+  filter(gender == "Female") %>% 
+  dplyr::filter(panel_id == "leukozyten") %>% 
+  drop_na(labreads) %>% 
+  drop_na(diabetes)
+
+result_leukozyte_diabetic_female 
+
+write.csv(result_leukozyte_diabetic_female ,"D:/Project R Folder/MyPhD/Doktorarbeit SJS/output/Result_Comparison_2020_09_07/leukozyte_diabetic_female _result_diclo.csv")
+```
+
+
+
+
+```{r}
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(ggprism)
+library(rstatix)
+
+# 1. Assign result_ggt to plot_data
+plot_data <- result_ggt
+
+# 2. Define panel and unit_map required for titles and y-axis labels
+panel <- "ggt"
+unit_map <- list("ggt" = "GGT (U/L)")
+
+# 3. Standardize 'diabetes' values for statistical grouping
+plot_data <- plot_data %>%
+  mutate(
+    diabetes = case_when(
+      diabetes %in% c("Diabetic", "diabetic", "yes", "Yes", TRUE) ~ "Diabetic",
+      diabetes %in% c("Non_Diabetic", "non_diabetic", "Non-Diabetic", "no", "No", FALSE) ~ "Non_Diabetic",
+      TRUE ~ as.character(diabetes)
+    ),
+    diabetes = factor(diabetes, levels = c("Diabetic", "Non_Diabetic"))
+  )
+
+#═══════════════════════════════════════════════════════════════
+# Y AXIS SETTINGS
+#═══════════════════════════════════════════════════════════════
+
+y_max        <- max(plot_data$labreads, na.rm = TRUE)
+y_min        <- min(plot_data$labreads, na.rm = TRUE)
+label_space  <- y_max * 0.20
+
+y_bottom_plot <- y_min - label_space
+y_top_plot    <- y_max * 1.25
+
+#═══════════════════════════════════════════════════════════════
+# N COUNTS (PATIENTS)
+#═══════════════════════════════════════════════════════════════
+
+N_counts <- plot_data %>%
+  group_by(diabetes) %>%
+  summarise(
+    N = n_distinct(bf_ar_m_nummer),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    label = paste0("N=", N),
+    y = y_bottom_plot - label_space * 1.30
+  )
+
+#═══════════════════════════════════════════════════════════════
+# n COUNTS (OBSERVATIONS)
+#═══════════════════════════════════════════════════════════════
+
+n_counts <- plot_data %>%
+  group_by(diabetes) %>%
+  summarise(
+    n = n(),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    label = paste0("label=", "n=", n), # or paste0("n=", n)
+    label = paste0("n=", n),
+    y = y_max * 1.17
+  )
+
+#═══════════════════════════════════════════════════════════════
+# P VALUES
+#═══════════════════════════════════════════════════════════════
+
+counts <- table(plot_data$diabetes)
+
+if (length(counts) < 2 || any(counts < 3)) {
+  message("Skipping p-value — insufficient observations: ", 
+          paste(names(counts), counts, sep = "=", collapse = ", "))
+  pvals <- tibble()
+} else {
+  pvals <- wilcox_test(plot_data, labreads ~ diabetes) %>%
+    mutate(
+      group1     = "Diabetic",
+      group2     = "Non_Diabetic",
+      y.position = y_max * 1.10,
+      p.label    = paste0("p = ", signif(p, 3))
+    )
+}
+
+#═══════════════════════════════════════════════════════════════
+# UNIT LABEL & TITLE
+#═══════════════════════════════════════════════════════════════
+
+y_label <- if (!is.null(unit_map) && panel %in% names(unit_map)) {
+  unit_map[[panel]]
+} else {
+  toupper(panel)
+}
+
+plot_title <- paste0(
+  toupper(panel),
+  ": Diabetic vs Non-Diabetic"
+)
+
+#═══════════════════════════════════════════════════════════════
+# PLOT
+#═══════════════════════════════════════════════════════════════
+
+p <- ggplot(plot_data, aes(x = diabetes, y = labreads, fill = diabetes)) +
+
+  geom_boxplot(
+    width = 0.30, 
+    outlier.shape = NA, 
+    alpha = 0.5, 
+    color = "black"
+  ) +
+
+  geom_jitter(
+    width = 0.15,
+    alpha = 0.3,
+    size  = 1.8,
+    color = "#CC79A7"
+  ) +
+
+  geom_text(
+    data = n_counts,
+    aes(x = diabetes, y = y, label = label),
+    inherit.aes = FALSE,
+    size      = 7,
+    fontface  = "bold"
+  ) +
+
+  geom_text(
+    data = N_counts,
+    aes(x = diabetes, y = y, label = label),
+    inherit.aes = FALSE,
+    size      = 7,
+    fontface  = "bold"
+  ) +
+
+  { if (nrow(pvals) > 0)
+      stat_pvalue_manual(
+        pvals,
+        label      = "p.label",
+        xmin       = "group1",
+        xmax       = "group2",
+        y.position = "y.position",
+        size       = 5,
+        tip.length = 0.01
+      )
+  } +
+
+  scale_y_continuous(
+    expand = expansion(mult = c(0.02, 0.05))
+  ) +
+
+  coord_cartesian(
+    ylim = c(y_bottom_plot, y_top_plot),
+    clip = "off"
+  ) +
+
+  labs(
+    title = plot_title,
+    x     = NULL,
+    y     = y_label
+  ) +
+
+  theme_prism() +
+
+  theme(
+    plot.title   = element_text(size = 26, face = "bold", hjust = 0.5),
+    axis.text.x  = element_text(size = 22, angle = 0, hjust = 0.5, margin = margin(b = 2)),
+    axis.text.y  = element_text(size = 22, face = "bold"),
+    axis.title   = element_text(size = 24, face = "bold"),
+    legend.position = "none",
+    plot.margin  = margin(t = 15, r = 15, b = 40, l = 15)
+  )
+
+print(p)
+
+```
+
+```{r}
+all_data %>% 
+  dplyr::filter(panel_id == "ggt" & treatment == "Leber_Diclo") %>% 
+  full_join(diabetic_data, by = c("bf_ar_m_nummer", "treatment"))%>% 
+  filter(panel_id == "ggt") %>% 
+  filter(grepl("Leber",treatment)) %>% 
+  filter(!grepl("_from_start",attribute)) %>%
+  #full_join(diabetic_data, by = c("bf_ar_m_nummer", "treatment")) %>% 
+  drop_na(labreads)
+```
+
+
+```{r}
+all_data %>%
+  full_join(
+    diabetic_data,
+    by = join_by("bf_ar_m_nummer", "treatment"),
+    relationship = "many-to-many" ) %>% 
+  dplyr::filter(panel_id == "ggt" & treatment == "Leber_Diclo") %>% 
+  filter(grepl("Leber",treatment)) %>% 
+  filter(!grepl("_from_start",attribute)) %>% 
+  filter(!grepl("_From Start",attribute)) %>% 
+  drop_na(labreads)
+```
+
+
+```{r}
+ggt_data1 <- read_excel(here::here("Rawdata/new_raw_data/myggt_test_data.xlsx"),
+           sheet = "maindata",
+           range = "a3:dj342") %>% 
+            pivot_longer(cols = !c(1,2),
+               names_to = "attribute",
+               values_to = "labreads")
+ggt_data1
+```
+
+```{r}
+ggt_data1 <- process_sheet(file = here::here("Rawdata/new_raw_data/myggt_test_data.xlsx"),sheet_name = "maindata")
+ggt_data1
+```
+
+
+```{r}
+ggt_data2 <- read_excel(here::here("Rawdata/new_raw_data/myggt_test_data.xlsx"),
+           sheet = "controlgrouptime",
+           range = "a1:ap22") %>% 
+            pivot_longer(cols = !c(1,2),
+               names_to = "attribute",
+               values_to = "labreads")
+ggt_data2
+```
+
+
+```{r}
+
+ggt_data2 <- process_sheet(file = here::here("Rawdata/new_raw_data/myggt_test_data.xlsx"),
+                           sheet_name = "controlgrouptime")
+ggt_data2
+
+```
+
+
+```{r}
+ggt_all_data <- bind_rows(ggt_data1,ggt_data2) %>% 
+  #full_join(diabetic_data, by = join_by("bf_ar_m_nummer","treatment")) %>% 
+  dplyr::filter(grepl("Leber",treatment)) %>% 
+  dplyr::filter(!grepl("_from_start|dbs", attribute, ignore.case = TRUE)) %>% 
+  drop_na(labreads)
+ggt_all_data
+```
+
+```{r}
+diabetic_data
+```
+
+
+```{r}
+ggt_all_data %>% 
+  filter(grepl("Leber", treatment)) %>% 
+  select(bf_ar_m_nummer, treatment, labreads) %>%
+  group_by(treatment) %>% 
+  summarise(
+    treatment_count = n(),
+    labreads_count  = sum(!is.na(labreads)),
+    patient_count   = n_distinct(bf_ar_m_nummer, na.rm = TRUE)
+  )
+```
+
+
+```{r}
+all_data %>%
+    full_join(diabetic_data,
+              by = join_by("bf_ar_m_nummer", "treatment"),
+              relationship = "many-to-many") %>%
+    full_join(gender_data1,
+              by = join_by("bf_ar_m_nummer", "treatment"),
+              relationship = "many-to-many") %>%
+    filter(
+      panel_id == "gpt",
+      grepl("Leber_", treatment),
+      !str_detect(attribute, "_from_start|dbs"),
+      !is.na(diabetes),
+      !is.na(treatment),
+      !is.na(labreads)
+    )%>% 
+  filter(grepl("Leber", treatment)) %>% 
+  select(bf_ar_m_nummer, treatment, labreads) %>%
+  group_by(treatment) %>% 
+  summarise(
+    treatment_count = n(),
+    labreads_count  = sum(!is.na(labreads)),
+    patient_count   = n_distinct(bf_ar_m_nummer, na.rm = TRUE)
+  )
+```
+
+
+
+
+
+
+
+
+
+
+
+
+

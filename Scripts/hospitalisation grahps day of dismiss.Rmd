@@ -1,0 +1,1281 @@
+---
+title: "hospitalisation labvalues at time of dismiss"
+output: html_document
+date: "2024-12-02"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+```
+
+```{r}
+
+
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/hospitalisation")
+
+hospitalisation_rawdata <- read_excel("time from reaction start to dismiss rawdata.xlsx", sheet = 1) 
+  
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("GPT Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+hospitalisation_data
+```
+
+
+```{r}
+gpt_long
+```
+
+```{r}
+hospitalisation_data <- left_join(gpt_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+hospitalisation_data
+```
+```{r}
+ hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+  hosptialialation_counts
+```
+
+
+
+
+```{r}
+library(ggplot2)
+ hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads ))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+                label= paste0("n = ",n)))+
+  labs(title = "Labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "ALT U/L") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+
+```
+
+
+
+#####################AST################
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("GOT Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+hospitalisation_data
+
+got_hospitalisation_data <- left_join(got_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+got_hospitalisation_data
+
+got_hosptialialation_counts <- got_hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+got_hosptialialation_counts
+
+
+library(ggplot2)
+ got_hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = got_hosptialialation_counts, 
+            aes(x= Treatment, y = max(got_hospitalisation_data$labreads)*1.10, 
+                label= paste0("n = ",n)))+
+  labs(title = "Labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "AST U/L") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+
+```
+
+
+#####################ggt_long################
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("GGT Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+hospitalisation_data
+
+ggt_hospitalisation_data <- left_join(ggt_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+ggt_hospitalisation_data
+
+ggt_hosptialialation_counts <- ggt_hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+ggt_hosptialialation_counts
+
+
+library(ggplot2)
+ ggt_hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = ggt_hosptialialation_counts, 
+            aes(x= Treatment, y = max(ggt_hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "Labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "GGT U/L") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+#####################ck################
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("Ck Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(ck_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "CK u/l") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+
+
+#####################quick################
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("Quick Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(quick_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "quick %") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+#####################inr################
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("INR Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(inr_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "inr") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+#####################ptt###############
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("PTT Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(ptt_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+   geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "ptt sec.") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+#####################ptt###############
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("Leukozyten Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(leukozyten_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "Leucocytes cells/ul") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+#####################ldh###############
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("LDH Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(ldh_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "ldh u/l") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+#####################hb###############
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("Hb Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(hb_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "hb g/dl") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+#####################totbili###############
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("TotalBilirubin Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(total_bilirubin_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "totbili mg/dl") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+#####################AP###############
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("AP Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(ap_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "ap u/l") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+#####################Krea###############
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("Kreatinin Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(kreatinin_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "krea mg/dl") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+
+#####################crp###############
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("CRP Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(crp_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "crp mg/l") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+#####################hst###############
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("Harnstoff Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(harnstoff_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "hst mg/dl") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+#####################Erythrozyten###############
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("Erythrozyten Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(erythrozyten_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "Erys cells/ul") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+#####################Thrombos###############
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("Thrombozyten Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(thrombozyten_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+   geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "Thromb cells/ul") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+#####################hkt###############
+
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("Hämatokrit Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(hämatokrit_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "hkt %") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+
+#####################natrium###############
+
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("Natrium Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(natrium_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "sodium mmol/l") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+
+#####################kalium###############
+
+
+```{r}
+
+hospitalisation_data <- hospitalisation_rawdata %>% 
+    select(`Edited_BfArM Nummer2`,`time from reaction start to dismiss`) %>% 
+    mutate(attribute = paste0("Kalium Day",hospitalisation_rawdata$`time from reaction start to dismiss`)) %>% 
+    drop_na(`time from reaction start to dismiss`)
+
+hospitalisation_data <- left_join(kalium_long,hospitalisation_data, c = "attribute") %>% 
+  drop_na()
+
+hosptialialation_counts <- hospitalisation_data %>% 
+  group_by(Treatment) %>%
+  summarize(n = n(), .groups = "drop")
+hosptialialation_counts
+
+library(ggplot2)
+hospitalisation_data %>% 
+  mutate(Treatment = as.factor(Treatment)) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = hosptialialation_counts, 
+            aes(x= Treatment, y = max(hospitalisation_data$labreads)*1.10, 
+            label= paste0("n = ",n)))+
+  labs(title = "labvalues at day of dismiss", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "potassium mmol/l") +
+  theme_classic() +
+    theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+```
+
+```{r}
+diabetic_data <- read_excel("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/Diabetes/Diabetes rawdata.xlsx", sheet = 2)%>% drop_na() 
+
+diabetic_data
+```
+```{r}
+gpt_long
+```
+
+
+```{r}
+gpt_diabetic <- left_join(gpt_long, diabetic_data, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+  filter(Diabetes == "Yes") %>% 
+  filter(!attribute == "GPT Day_Unknown") %>% 
+  filter(!grepl("_From Start", attribute)) %>% 
+  group_by(Diabetes) 
+#%>% 
+  #summarise(mean_labread = mean(labreads),
+            #(sd_labread = sd(labreads)))
+gpt_diabetic 
+```
+
+### Based on Patient number ###
+
+
+```{r}
+gpt_diabetic %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(mean_labread = mean(labreads)) %>%
+  ggplot(aes(x = `Edited_BfArM Nummer2`, y = mean_labread))+
+  geom_col()+
+  theme_classic()+
+  labs(title = "LiverDiclo_Diabetic", hjust = 0.5)+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+```
+
+
+
+### Based on Patient number ###
+
+```{r}
+gpt_diabetic1 <- left_join(gpt_long, diabetic_data, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+  filter(Diabetes == "Yes") %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  summarise(mean_labread = mean(labreads)) %>% 
+  ggplot(aes(x = `Edited_BfArM Nummer2`, y = mean_labread))+
+  geom_col(width = 0.2)+
+  theme_classic()+
+  labs(title = "Leber_Ibu_Diabetic", hjust = 0.5)+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+gpt_diabetic1
+```
+
+
+
+
+
+### Based on attribute(GPTDay) ###
+gpt_diabetic1$attribute <- 
+   factor(gpt_diabetic$attribute,levels = c( "GPT Day1","GPT Day2","GPT Day3",
+   "GPT Day4","GPT Day5","GPT Day6","GPT Day7","GPT Day8","GPT Day9","GPT Day10",
+   "GPT Day11","GPT Day13","GPT Day14","GPT Day15","GPT Day16","GPT Day17","GPT Day20", "GPT Day21","GPT Day31","GPT Day32","GPT Day37"))
+
+```{r}
+
+
+gpt_diabetic2 <- left_join(gpt_long, diabetic_data, c = "Edited_BfArM Nummer2") %>% drop_na() %>% 
+  filter(Diabetes == "Yes") %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  filter(!grepl("_From Start", attribute))
+
+# gpt_diabetic2$attribute <- 
+#    factor(gpt_diabetic2$attribute,levels = c( "GPT Day1","GPT Day2","GPT Day3",
+#    "GPT Day4","GPT Day5","GPT Day6","GPT Day7","GPT Day8","GPT Day9","GPT Day10",
+#      "GPT Day11","GPT Day13","GPT Day14","GPT Day15","GPT Day16","GPT Day17","GPT Day20", "GPT Day21","GPT Day31","GPT Day32","GPT Day37"))
+
+```
+
+ 
+```{r}
+gpt_diabetic2_counts <- gpt_diabetic2 %>% 
+  group_by(attribute) %>%
+  summarize(n = n(), .groups = "drop")
+gpt_diabetic2_counts
+```
+
+
+
+```{r}
+
+gpt_diabetic2$attribute <-  factor(gpt_diabetic2$attribute, 
+                                   levels = c("GPT Day1","GPT Day2" ,"GPT Day3", 
+                                              "GPT Day4","GPT Day5", "GPT Day6", "GPT Day7" ,
+"GPT Day8" ,"GPT Day9","GPT Day10", "GPT Day11","GPT Day13","GPT Day14", "GPT Day15",
+ "GPT Day16", "GPT Day17","GPT Day20","GPT Day21","GPT Day31","GPT Day32","GPT Day37"))
+gpt_diabetic2 %>%
+  group_by(attribute)%>% 
+  summarise(mean_labread = mean(labreads)) %>% 
+  ggplot(aes(x = attribute, y = mean_labread))+
+  geom_col()+
+  theme_classic()+
+  labs(title = "Leber_Diclo_Diabetic", hjust = 0.5)+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  ) 
+```
+
+
+
+
+```{r}
+gpt_nondiabetic <- left_join(gpt_long, diabetic_data, c = "Edited_BfArM Nummer2") %>% 
+  filter(Diabetes == "No") %>% 
+  filter(!attribute == "GPT Day_Unknown") %>% 
+  filter(!grepl("_From Start", attribute)) %>% 
+  group_by(Diabetes) 
+#%>% 
+  #summarise(mean_labread_non = mean(labreads),
+            #sd_labread_non = sd(labreads))
+gpt_nondiabetic
+```
+
+```{r}
+gpt_nondiabetic %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(mean_labread = mean(labreads)) %>%
+  ggplot(aes(x = `Edited_BfArM Nummer2`, y = mean_labread))+
+  geom_col()+
+  theme_classic()+
+  labs(title = "LiverDiclo_Non_Diabetic", hjust = 0.5)+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+
+```
+
+
+```{r}
+gpt_nondiabetic %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  summarise(mean_labread = mean(labreads)) %>% 
+  ggplot(aes(x = `Edited_BfArM Nummer2`, y = mean_labread))+
+  geom_col()+
+  theme_classic()+
+  labs(title = "Leber_Ibu_Non_Diabetic", hjust = 0.5)+
+  theme(
+    axis.text.x = element_text(angle = 45, hjust = 1)
+  )
+```
+
+```{r}
+gpt_diabitic_yes <- data.frame(Diabetes = "Diabetes", labread = 828.7137	)
+gpt_diabitic_no <- data.frame(Diabetes = "Non_Diabetes",labread = 573.6892	)
+combined_diabetic <- rbind(gpt_diabitic_yes,gpt_diabitic_no)
+```
+
+
+```{r}
+#gpt_nondiabetic[!(gpt_nondiabetic$`Edited_BfArM Nummer2` %in% gpt_diabetic$`Edited_BfArM Nummer2`),]
+
+```
+
+```{r}
+#filter(gpt_nondiabetic, !Diabetes %in% "1")
+```
+
+
+
+
+```{r}
+
+ 
+combined_diabetic %>% 
+  ggplot(aes(x= Diabetes, y = labread))+
+  geom_boxplot(width = 0.6)+
+  theme_classic()+
+  labs(title = "Comparsion of Diabetic Cases", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "Mean_labreads") +
+     theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+  
+```
+
+###########################################################################
+
+```{r}
+P1_diabetic <- left_join(gpt_long, diabetic_data, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+  filter(Diabetes == "Yes") %>% 
+  filter(!attribute == "GPT Day_Unknown") %>% 
+  filter(!grepl("_From Start", attribute)) %>% 
+  group_by(Treatment) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  theme_classic()+
+  labs(title = "Comparsion of Diabetic Cases", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "labreads") +
+     theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+P1_diabetic
+```
+
+```{r}
+P2_nondiabitic <- left_join(gpt_long, diabetic_data, c = "Edited_BfArM Nummer2") %>% 
+  filter(Diabetes == "No") %>% 
+  filter(!attribute == "GPT Day_Unknown") %>% 
+  filter(!grepl("_From Start", attribute)) %>% 
+  filter(grepl("Leber_", Treatment)) %>% 
+  group_by(Treatment) %>% 
+  ggplot(aes(x = Treatment, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  theme_classic()+
+  labs(title = "Comparsion of Non Diabetic Cases", # ALT for labvalue and daily dose",
+       x = "Treatment",
+       y = "labreads") +
+     theme(
+     plot.title = element_text(margin = margin(b=10), color="black", face="bold", hjust = 0.5),
+     axis.text.x = element_text(face="bold", angle = 45, hjust = 1)
+  )
+
+P2_nondiabitic
+```
+
+```{r}
+leber_diabitic <- P1_diabetic+ P2_nondiabitic
+
+print(leber_diabitic)
+```
+
+```{r}
+leber_diabetic <- left_join(gpt_long, diabetic_data, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+  mutate(Diabetes = as.factor(Diabetes)) 
+leber_diabetic
+
+
+library(dlookr)
+leber_diabetic %>% 
+  group_by(Diabetes) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ Diabetes,
+  data = leber_diabetic
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = leber_diabetic,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np"
+)
+```
+
+```{r}
+leber_diabetic %>% 
+  ggplot(aes( x =Diabetes, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  labs(
+    x = "Treatment",
+    y = "ALT U/L",
+    title = "Comaprsion of Diabetic and non diabetic cases" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 20, hjust =0.5)
+  )
+```
+
+```{r}
+p1_diclo <- leber_diabetic %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =Diabetes, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  labs(
+    x = "Treatment",
+    y = "ALT U/L",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+print(p1_diclo)
+```
+
+
+```{r}
+p2_ibu <- leber_diabetic %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =Diabetes, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  labs(
+    x = "Treatment",
+    y = "ALT U/L",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+print(p2_ibu)
+```
+
+
+```{r}
+p3_para <- leber_diabetic %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =Diabetes, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  labs(
+    x = "Treatment",
+    y = "ALT U/L",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+print(p3_para)
+```
+
+```{r}
+all_dibatic <- p1_diclo+p2_ibu+p3_para
+print(all_dibatic)
+```
+
+###### AST ########
+
+```{r}
+leber_diabetic <- left_join(got_long, diabetic_data, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+  mutate(Diabetes = as.factor(Diabetes)) 
+leber_diabetic
+
+
+library(dlookr)
+leber_diabetic %>% 
+  group_by(Diabetes) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ Diabetes,
+  data = leber_diabetic
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = leber_diabetic,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np"
+)
+```
+
+```{r}
+leber_diabetic %>% 
+  ggplot(aes( x =Diabetes, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  labs(
+    x = "Treatment",
+    y = "ALT U/L",
+    title = "Comaprsion of Diabetic and non diabetic cases" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 20, hjust =0.5)
+  )
+```
+
+```{r}
+p1_diclo <- leber_diabetic %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =Diabetes, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  labs(
+    x = "Treatment",
+    y = "ALT U/L",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+print(p1_diclo)
+```
+
+
+```{r}
+p2_ibu <- leber_diabetic %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =Diabetes, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  labs(
+    x = "Treatment",
+    y = "ALT U/L",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+print(p2_ibu)
+```
+
+
+```{r}
+p3_para <- leber_diabetic %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =Diabetes, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  labs(
+    x = "Treatment",
+    y = "ALT U/L",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+print(p3_para)
+```
+
+```{r}
+all_dibatic <- p1_diclo+p2_ibu+p3_para
+print(all_dibatic)
+```
+
+
+```{r}
+library(readxl)
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/flupirtin cases")
+
+flupirtin_data <- read_excel("flupirtin dosedata.xlsx")
+flupirtin_data
+```
+
+```{r}
+gpt_flupirtin <- left_join(gpt_long, flupirtin_data, c = "Edited_BfArM Nummer2")
+
+gpt_flupirtin
+```
+
+
+
+```{r}
+library(dlookr)
+plot_correlate(flupirtin_data[ ,2:5])
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -1,0 +1,890 @@
+---
+title: "SJS"
+author: "Arun Kumar"
+date: "2023-04-06"
+output: html_document
+---
+## load the libraries for data analysis
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+```
+
+```{r, echo=TRUE}
+
+rawdata_cgnt <- read_excel("Übersicht Laborwerte (Control group).xlsx",
+                      sheet = 1)
+```
+
+## convert the data from tibble to data frame.
+```{r}
+rawdf2 <- as.data.frame(rawdata_cgnt)
+# # Remove leading and trailing spaces from column names
+# names(rawdf2) <- trimws(names(rawdf2))
+# rawdf2 <- as.data.frame(rawdf2)
+```
+
+## conversion of  from char to numeric values
+```{r}
+rawdf2$`CK_1` <- as.numeric(rawdf2$`CK_1`)
+```
+## data convert to long_cgnterformat
+
+```{r}
+rawdf2 %>% 
+  select(1:2,3:6) ->ck_rawdata_cgnt
+ck_rawdata_cgnt %>% 
+  pivot_longer(cols = 3:6,
+               names_to = "attribute",
+               values_to = "labreads") %>% 
+  drop_na()->ck_long_cgnt
+```
+
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,8:9)->quick_rawdata_cgnt
+
+quick_rawdata_cgnt$`Quick_1`  <- as.numeric(quick_rawdata_cgnt$`Quick_1`)
+
+quick_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->quick_long_cgnt
+
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,10:10)->inr_rawdata_cgnt
+
+inr_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->inr_long_cgnt
+
+```
+
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,11:11)->prothrombin_rawdata_cgnt
+
+prothrombin_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->prothrombin_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,12:13)->ptt_rawdata_cgnt
+
+ptt_rawdata_cgnt$`PTT_1`  <- as.numeric(ptt_rawdata_cgnt$`PTT_1`)
+
+
+ptt_rawdata_cgnt %>%
+  tidyr::pivot_longer(.,cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->ptt_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,14:14)->tz_rawdata_cgnt
+
+tz_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->tz_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,15:15)->antithrombin_3_rawdata_cgnt
+
+antithrombin_3_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->antithrombin_3_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,16:16)->serummyoglobin_rawdata_cgnt
+
+serummyoglobin_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->serummyoglobin_long_cgnt
+```
+
+
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,17:17)->fibrinogen_rawdata_cgnt
+
+fibrinogen_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->fibrinogen_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,18:20)->leukozyten_rawdata_cgnt
+
+leukozyten_rawdata_cgnt$`Leukozyten_1`  <- as.numeric(leukozyten_rawdata_cgnt$`Leukozyten_1`)
+
+leukozyten_rawdata_cgnt %>%
+  pivot_longer(cols = 3:5,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->leukozyten_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,21:24)->got_rawdata_cgnt
+
+got_rawdata_cgnt$`GOT_1`  <- as.numeric(got_rawdata_cgnt$`GOT_1`)
+
+got_rawdata_cgnt %>%
+  pivot_longer(cols = 3:6,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->got_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,25:28)->gpt_rawdata_cgnt
+
+
+gpt_rawdata_cgnt$`GPT_1`  <- as.numeric(gpt_rawdata_cgnt$`GPT_1`)
+
+
+gpt_rawdata_cgnt %>%
+  pivot_longer(cols = 3:6,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->gpt_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,29:32)->ggt_rawdata_cgnt
+
+ggt_rawdata_cgnt$`GGT_1`  <- as.numeric(ggt_rawdata_cgnt$`GGT_1`)
+#ggt_rawdata_cgnt$`GGT Day34`  <- as.numeric(ggt_rawdata_cgnt$`GGT Day34`)
+
+
+
+ggt_rawdata_cgnt %>%
+  pivot_longer(cols = 3:6,
+               names_to = "attribute",
+                values_to = "labreads")  %>%
+    drop_na()->ggt_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,33:35)->ldh_rawdata_cgnt
+
+ldh_rawdata_cgnt$`LDH_1` <- as.numeric(ldh_rawdata_cgnt$`LDH_1`)
+#ldh_rawdata_cgnt$`LDH Day24` <- as.numeric(ldh_rawdata_cgnt$`LDH Day24`)
+
+ldh_rawdata_cgnt %>%
+  pivot_longer(cols = 3:5,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->ldh_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,36:37)->gldh_rawdata_cgnt
+
+gldh_rawdata_cgnt$`GLDH_1` <- as.numeric(gldh_rawdata_cgnt$`GLDH_1`)
+
+gldh_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->gldh_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,38:38)->triglyceride_rawdata_cgnt
+
+triglyceride_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->triglyceride_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,39:39)->cholesterin_rawdata_cgnt
+
+cholesterin_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->cholesterin_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,40:40)->hdl_rawdata_cgnt
+
+hdl_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->hdl_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,41:41)->ldl_rawdata_cgnt
+
+ldl_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->ldl_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,42:43)->lymphozyten_rawdata_cgnt
+
+lymphozyten_rawdata_cgnt$`Lymphozyten_1` <- as.numeric(lymphozyten_rawdata_cgnt$`Lymphozyten_1`)
+
+lymphozyten_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->lymphozyten_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,44:48)->hb_rawdata_cgnt
+
+hb_rawdata_cgnt$`HB_1` <- as.numeric(hb_rawdata_cgnt$`HB_1`)
+
+hb_rawdata_cgnt %>%
+  pivot_longer(cols = 3:7,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->hb_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,49:52)->total_bilirubin_rawdata_cgnt
+
+total_bilirubin_rawdata_cgnt$`TotalBilirubin_1` <- as.numeric(total_bilirubin_rawdata_cgnt$`TotalBilirubin_1`)
+#total_bilirubin_rawdata_cgnt$`TotalBilirubin Day5` <- as.numeric(total_bilirubin_rawdata_cgnt$`TotalBilirubin Day5`)
+#total_bilirubin_rawdata_cgnt$`TotalBilirubin Day15` <- as.numeric(total_bilirubin_rawdata_cgnt$`TotalBilirubin Day15`)
+
+total_bilirubin_rawdata_cgnt %>%
+  pivot_longer(cols = 3:6,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->total_bilirubin_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,53:54)->direct_bilirubin_rawdata_cgnt
+
+direct_bilirubin_rawdata_cgnt$`DirectBilirubin_1` <- as.numeric(direct_bilirubin_rawdata_cgnt$`DirectBilirubin_1`)
+
+direct_bilirubin_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->direct_bilirubin_long_cgnt
+```
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,55:55)->indirect_bilirubin_rawdata_cgnt
+
+#indirect_bilirubin_rawdata_cgnt$`IndirectBilirubin Day4` <- as.numeric(indirect_bilirubin_rawdata_cgnt$`IndirectBilirubin Day4`)
+
+indirect_bilirubin_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->indirect_bilirubin_long_cgnt
+```
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,56:56)->gesamteiweiß_rawdata_cgnt
+
+#gesamteiweiß_rawdata_cgnt$`Gesamteiweiß Day_Unknown` <- as.numeric(gesamteiweiß_rawdata_cgnt$`Gesamteiweiß Day_Unknown`)
+#gesamteiweiß_rawdata_cgnt$`Gesamteiweiß Day9` <- as.numeric(gesamteiweiß_rawdata_cgnt$`Gesamteiweiß Day9`)
+
+gesamteiweiß_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->gesamteiweiß_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,57:60)->ap_rawdata_cgnt
+
+#ap_rawdata_cgnt$`AP Day13` <- as.numeric(ap_rawdata_cgnt$`AP Day13`)
+#ap_rawdata_cgnt$`AP Day16` <- as.numeric(ap_rawdata_cgnt$`AP Day16`)
+#ap_rawdata_cgnt$`AP Day24` <- as.numeric(ap_rawdata_cgnt$`AP Day24`)
+
+ap_rawdata_cgnt %>%
+  pivot_longer(cols = 3:6,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->ap_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,61:61)->cholinesterase_rawdata_cgnt
+
+#cholinesterase_rawdata_cgnt$`Cholinesterase Day_Unknown` <- as.numeric(cholinesterase_rawdata_cgnt$`Cholinesterase Day_Unknown`)
+
+#cholinesterase_rawdata_cgnt$`Cholinesterase Day2` <- as.numeric(cholinesterase_rawdata_cgnt$`Cholinesterase Day2`)
+
+cholinesterase_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->cholinesterase_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,62:63)->kreatinin_rawdata_cgnt
+
+
+#kreatinin_rawdata_cgnt$`Kreatinin Day_Unknown` <- as.numeric(kreatinin_rawdata_cgnt$`Kreatinin Day_Unknown`)
+
+kreatinin_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->kreatinin_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,64:65)->amylase_rawdata_cgnt
+
+amylase_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->amylase_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,66:67)->lipase_rawdata_cgnt
+
+lipase_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->lipase_long_cgnt
+```
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,68:69)->crp_rawdata_cgnt
+#crp_rawdata_cgnt$`CRP Day2` <- as.numeric(crp_rawdata_cgnt$`CRP Day2`)
+
+crp_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads")%>%
+ drop_na()->crp_long_cgnt
+```
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,70:70)->harnstoff_rawdata_cgnt
+
+harnstoff_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->harnstoff_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,71:71)->harnsäure_rawdata_cgnt
+
+harnsäure_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->harnsäure_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,72:72)->erythrozyten_rawdata_cgnt
+  
+  
+  #erythrozyten_rawdata_cgnt$`Erythrozyten Day18` <- as.numeric(erythrozyten_rawdata_cgnt$v)
+
+erythrozyten_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->erythrozyten_long_cgnt
+```
+
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,73:74)->thrombozyten_rawdata_cgnt
+
+#thrombozyten_rawdata_cgnt$`Thrombozyten Day2` <- as.numeric(thrombozyten_rawdata_cgnt$`Thrombozyten Day2`)
+
+#thrombozyten_rawdata_cgnt$`Thrombozyten Day13` <- as.numeric(thrombozyten_rawdata_cgnt$`Thrombozyten Day13`)
+
+
+
+thrombozyten_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->thrombozyten_long_cgnt
+```
+
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,75:75)->haptoglobin_rawdata_cgnt
+
+haptoglobin_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->haptoglobin_long_cgnt
+```
+
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,76:77)->monozyten_rawdata_cgnt
+
+monozyten_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->monozyten_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,78:80)->eosinophile_rawdata_cgnt
+
+eosinophile_rawdata_cgnt %>%
+  pivot_longer(cols = 3:5,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->eosinophile_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,81:82)->neutrophile_rawdata_cgnt
+
+neutrophile_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->neutrophile_long_cgnt
+```
+
+
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,83:84)->segmentkernige_rawdata_cgnt
+
+segmentkernige_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->segmentkernige_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,85:86)->basophile_rawdata_cgnt
+
+basophile_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->basophile_long_cgnt
+```
+
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,87:87)->albumin_rawdata_cgnt
+
+albumin_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->albumin_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,88:89)->hämatokrit_rawdata_cgnt
+
+hämatokrit_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->hämatokrit_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,90:91)->mcv_rawdata_cgnt
+
+mcv_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->mcv_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,92:93)->mch_rawdata_cgnt
+
+
+#mch_rawdata_cgnt$`MCH Day1` <- as.numeric(mch_rawdata_cgnt$`MCH Day1`)
+#mch_rawdata_cgnt$`MCH Day4` <- as.numeric(mch_rawdata_cgnt$`MCH Day4`)
+
+mch_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->mch_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,94:95)->mchc_rawdata_cgnt
+
+mchc_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na() ->mchc_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,96:96)->natrium_rawdata_cgnt
+
+natrium_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->natrium_long_cgnt
+```
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,97:98)->kalium_rawdata_cgnt
+
+kalium_rawdata_cgnt %>%
+  pivot_longer(cols = 3:4,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->kalium_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,99:99)->kalzium_rawdata_cgnt
+
+kalzium_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->kalzium_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,100:100)->magnesium_rawdata_cgnt
+
+magnesium_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->magnesium_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,101:101)->chlorid_rawdata_cgnt
+
+chlorid_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->chlorid_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,102:102)->serum_eisen_rawdata_cgnt
+
+serum_eisen_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->serum_eisen_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,103:103)->ferritin_rawdata_cgnt
+
+
+#ferritin_rawdata_cgnt$`Ferritin Day4` <- as.numeric(ferritin_rawdata_cgnt$`Ferritin Day4`)
+#ferritin_rawdata_cgnt$`Ferritin Day10` <- as.numeric(ferritin_rawdata_cgnt$`Ferritin Day10`)
+
+ferritin_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->ferritin_long_cgnt
+```
+
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,104:104)->glucose_rawdata_cgnt
+
+glucose_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->glucose_long_cgnt
+```
+
+```{r}
+rawdf2 %>% 
+  select(1:2,105:105)->ammoniak_rawdata_cgnt
+
+ammoniak_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->ammoniak_long_cgnt
+```
+
+```{r}
+rawdf2 %>% 
+  select(1:2,106:106)->lactat_rawdata_cgnt
+
+
+#lactat_rawdata_cgnt$`Lactat Day1` <- as.numeric(lactat_rawdata_cgnt$`Lactat Day1`)
+
+lactat_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->lactat_long_cgnt
+```
+
+```{r}
+rawdf2 %>% 
+  select(1:2,107:107)->phosphat_rawdata_cgnt
+
+phosphat_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->phosphat_long_cgnt
+```
+
+```{r}
+rawdf2 %>% 
+  select(1:2,108:108)->gfr_rawdata_cgnt
+
+gfr_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->gfr_long_cgnt
+```
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,109:109)->blut_IgA_rawdata_cgnt
+
+blut_IgA_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->blut_IgA_long_cgnt
+```
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,110:110)->blut_IgG_rawdata_cgnt
+
+blut_IgG_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->blut_IgG_long_cgnt
+```
+
+
+```{r}
+rawdf2 %>% 
+  select(1:2,111:111)->blut_IgM_rawdata_cgnt
+
+blut_IgM_rawdata_cgnt$`IgM` <- as.numeric(blut_IgM_rawdata_cgnt$`IgM`)
+
+blut_IgM_rawdata_cgnt %>%
+  pivot_longer(cols = 3:3,
+               names_to = "attribute",
+                values_to = "labreads") %>%
+   drop_na()->blut_IgM_long_cgnt
+```

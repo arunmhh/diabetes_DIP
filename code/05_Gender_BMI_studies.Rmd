@@ -1,0 +1,1359 @@
+---
+title: "Gender_bmi"
+author: "Arun_Kumar"
+date: "2026-06-15"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+##===============
+## Function
+##===============
+
+```{r}
+source(here::here("R/diabetic/clean_data.R"))
+source(here::here("R/BMI/BMI_Treatment_gender_obese.R"))
+```
+
+## R Markdown
+
+```{r}
+library(tidyverse)
+library(readxl)
+library(janitor)
+library(ggprism)
+library(here)
+
+```
+
+```{r}
+all_data <- readRDS(here::here("processed_data/all_data.rds"))
+all_data
+```
+
+##==============
+## Gender data
+##==============
+
+```{r}
+gender_data <- read_excel(here::here("RawData/gender_info_full.xlsx"),
+           sheet = 1, skip = 1)
+
+gender_data1 <- gender_data %>%
+    dplyr::select(1:4) %>%
+    dplyr::mutate(
+    Gender = dplyr::case_when(
+    Male == 1 ~ "Male",
+    Female == 1 ~ "Female")) %>% 
+    dplyr::select(1,2,5)%>% 
+    drop_na() %>% 
+    janitor::clean_names() %>% 
+  dplyr::rename("bf_ar_m_nummer" = "edited_bf_ar_m_nummer2")%>% 
+  distinct(bf_ar_m_nummer, .keep_all = TRUE) 
+gender_data1
+```
+
+##============
+## BMI data
+##============
+
+```{r}
+bmi_rawdata <- read_data(
+  file = here::here("RawData/bmi_rawdata.xlsx"),
+  sheet = "bmi_rawdata",
+  range = "A1:C420"
+) %>%
+  janitor::clean_names() %>%
+  rename(bf_ar_m_nummer = edited_bf_ar_m_nummer2) %>% 
+  mutate(bf_ar_m_nummer = as.numeric(bf_ar_m_nummer))
+bmi_rawdata
+```
+
+
+##============
+## Obese data
+##============
+
+
+```{r}
+obesity_rawdata <- read_data(
+  file = here::here("RawData/bmi_rawdata.xlsx"),
+  sheet = "obesity_rawdata",
+  range = "A1:C420"
+) %>%
+  janitor::clean_names() %>% 
+   mutate(
+    obese = case_when(
+      obese == "no"  ~ "no_obese",
+      obese == "yes" ~ "obese",
+      TRUE ~ NA_character_
+    )
+  ) %>% 
+  rename(bf_ar_m_nummer = edited_bf_ar_m_nummer2) %>% 
+  mutate(bf_ar_m_nummer = as.numeric(bf_ar_m_nummer))
+obesity_rawdata
+```
+
+
+```{r}
+gender_bmi_data <- gender_data1 %>% 
+  left_join(.,bmi_rawdata, 
+            by = join_by("bf_ar_m_nummer","treatment"),
+            relationship = "many-to-many") %>% 
+  left_join(.,obesity_rawdata, 
+            by = join_by("bf_ar_m_nummer","treatment"),
+            relationship = "many-to-many") %>% 
+  drop_na()
+gender_bmi_data
+```
+
+
+```{r}
+ gender_bmi_data %>%
+  filter(
+    #treatment == "Leber_Diclo",
+    !is.na(gender),
+    !is.na(bmi)
+  ) %>%
+  group_by(gender) %>%
+  summarise(
+    N = n_distinct(bf_ar_m_nummer),  # subjects
+    n = n(),                         # BMI measurements
+    ymax = max(bmi, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+
+##=====================
+## BMI for all group
+##====================
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(rstatix)
+
+#──────────────────────────────────────────────────────────────
+# Data (IMPORTANT: DO NOT DISTINCT)
+#──────────────────────────────────────────────────────────────
+
+plot_data <- gender_bmi_data %>%
+  filter(
+    #treatment == "Leber_Diclo",
+    !is.na(gender),
+    !is.na(bmi)
+  )
+
+#──────────────────────────────────────────────────────────────
+# N (subjects) and n (measurements)
+#──────────────────────────────────────────────────────────────
+
+count_df <- plot_data %>%
+  group_by(gender) %>%
+  summarise(
+    N = n_distinct(bf_ar_m_nummer),  # subjects
+    n = n(),                         # BMI measurements
+    ymax = max(bmi, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# X labels with N only (cleaner for publication)
+x_labels <- setNames(
+  paste0(count_df$gender, "\nN = ", count_df$N),
+  count_df$gender
+)
+
+#──────────────────────────────────────────────────────────────
+# Statistical test (Wilcoxon)
+#──────────────────────────────────────────────────────────────
+
+pwc <- plot_data %>%
+  wilcox_test(bmi ~ gender) %>%
+  add_significance()
+
+y_max <- max(plot_data$bmi, na.rm = TRUE)
+
+stat_df <- pwc %>%
+  mutate(
+    group1 = unique(plot_data$gender)[1],
+    group2 = unique(plot_data$gender)[2],
+    y.position = y_max * 1.10,
+    label = paste0( signif(p, 3))
+  )
+
+#──────────────────────────────────────────────────────────────
+# Plot positions
+#──────────────────────────────────────────────────────────────
+
+n_label_y <- y_max * 1.03
+plot_top  <- y_max * 1.22
+
+#──────────────────────────────────────────────────────────────
+# Plot
+#──────────────────────────────────────────────────────────────
+
+p_all <- ggplot(
+  plot_data,
+  aes(x = gender, y = bmi, fill = gender)
+) +
+
+  geom_violin(
+    trim = FALSE,
+    alpha = 0.35,
+    linewidth = 0.3
+  ) +
+  geom_boxplot(
+    width = 0.40,
+    outlier.shape = NA,
+    linewidth = 0.4
+  ) +
+  
+  geom_jitter(
+    width = 0.08,
+    size = 1.8,
+    alpha = 0.7
+  ) +
+
+  # n (measurements)
+  # geom_text(
+  #   data = count_df,
+  #   aes(
+  #     x = gender,
+  #     y = n_label_y,
+  #     label = paste0("n = ", n)
+  #   ),
+  #   inherit.aes = FALSE,
+  #   fontface = "bold",
+  #   size = 5
+  # ) +
+
+  # p-value bracket
+  stat_pvalue_manual(
+    stat_df,
+    label = "label",
+    tip.length = 0.01,
+    bracket.size = 0.4,
+    size = 5
+  ) +
+
+  scale_x_discrete(labels = x_labels) +
+  expand_limits(y = plot_top) +
+
+  labs(
+    title = "All groups BMI by Gender",
+    x = NULL,
+    y = "BMI"
+  ) +
+
+  theme_prism(base_size = 10) +
+
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 26,
+      face = "bold",
+      margin = margin(b = 3)
+    ),
+
+    axis.text.x = element_text(
+      size = 22,
+      face = "bold",
+      margin = margin(t = 3)
+    ),
+
+    axis.text.y = element_text(
+      size = 22,
+      face = "bold"
+    ),
+
+    axis.title = element_text(
+      size = 24,
+      face = "bold"
+    ),
+
+    legend.position = "none",
+
+    plot.margin = margin(
+      t = 10,
+      r = 10,
+      b = 30,
+      l = 10,
+      unit = "pt"
+    )
+  )
+
+p_all
+```
+
+
+##==========================
+## BMI for Liver Diclo group
+##==========================
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(rstatix)
+
+#──────────────────────────────────────────────────────────────
+# Data (IMPORTANT: DO NOT DISTINCT)
+#──────────────────────────────────────────────────────────────
+
+plot_data <- gender_bmi_data %>%
+  filter(
+    treatment == "Leber_Diclo",
+    !is.na(gender),
+    !is.na(bmi)
+  )
+
+#──────────────────────────────────────────────────────────────
+# N (subjects) and n (measurements)
+#──────────────────────────────────────────────────────────────
+
+count_df <- plot_data %>%
+  group_by(gender) %>%
+  summarise(
+    N = n_distinct(bf_ar_m_nummer),  # subjects
+    n = n(),                         # BMI measurements
+    ymax = max(bmi, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# X labels with N only (cleaner for publication)
+x_labels <- setNames(
+  paste0(count_df$gender, "\nN = ", count_df$N),
+  count_df$gender
+)
+
+#──────────────────────────────────────────────────────────────
+# Statistical test (Wilcoxon)
+#──────────────────────────────────────────────────────────────
+
+pwc <- plot_data %>%
+  wilcox_test(bmi ~ gender) %>%
+  add_significance()
+
+y_max <- max(plot_data$bmi, na.rm = TRUE)
+
+stat_df <- pwc %>%
+  mutate(
+    group1 = unique(plot_data$gender)[1],
+    group2 = unique(plot_data$gender)[2],
+    y.position = y_max * 1.15,
+    label = paste0( signif(p, 3))
+  )
+
+#──────────────────────────────────────────────────────────────
+# Plot positions
+#──────────────────────────────────────────────────────────────
+
+n_label_y <- y_max * 1.03
+plot_top  <- y_max * 1.22
+
+#──────────────────────────────────────────────────────────────
+# Plot
+#──────────────────────────────────────────────────────────────
+
+p_diclo <- ggplot(
+  plot_data,
+  aes(x = gender, y = bmi, fill = gender)
+) +
+
+  geom_violin(
+    trim = FALSE,
+    alpha = 0.35,
+    linewidth = 0.3
+  ) +
+  geom_boxplot(
+    width = 0.40,
+    outlier.shape = NA,
+    linewidth = 0.4
+  ) +
+  
+  geom_jitter(
+    width = 0.08,
+    size = 1.8,
+    alpha = 0.7
+  ) +
+
+  # n (measurements)
+  # geom_text(
+  #   data = count_df,
+  #   aes(
+  #     x = gender,
+  #     y = n_label_y,
+  #     label = paste0("n = ", n)
+  #   ),
+  #   inherit.aes = FALSE,
+  #   fontface = "bold",
+  #   size = 5
+  # ) +
+
+  # p-value bracket
+  stat_pvalue_manual(
+    stat_df,
+    label = "label",
+    tip.length = 0.01,
+    bracket.size = 0.4,
+    size = 5
+  ) +
+
+  scale_x_discrete(labels = x_labels) +
+  expand_limits(y = plot_top) +
+
+  labs(
+    title = "BMI by Gender (Liver Diclo)",
+    x = NULL,
+    y = "BMI"
+  ) +
+
+  theme_prism(base_size = 10) +
+
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 26,
+      face = "bold",
+      margin = margin(b = 3)
+    ),
+
+    axis.text.x = element_text(
+      size = 22,
+      face = "bold",
+      margin = margin(t = 3)
+    ),
+
+    axis.text.y = element_text(
+      size = 22,
+      face = "bold"
+    ),
+
+    axis.title = element_text(
+      size = 24,
+      face = "bold"
+    ),
+
+    legend.position = "none",
+
+    plot.margin = margin(
+      t = 10,
+      r = 10,
+      b = 30,
+      l = 10,
+      unit = "pt"
+    )
+  )
+
+p_diclo
+```
+
+##==========================
+## BMI for Liver IBU group
+##==========================
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(rstatix)
+
+#──────────────────────────────────────────────────────────────
+# Data (IMPORTANT: DO NOT DISTINCT)
+#──────────────────────────────────────────────────────────────
+
+plot_data <- gender_bmi_data %>%
+  filter(
+    treatment == "Leber_Ibu",
+    !is.na(gender),
+    !is.na(bmi)
+  )
+
+#──────────────────────────────────────────────────────────────
+# N (subjects) and n (measurements)
+#──────────────────────────────────────────────────────────────
+
+count_df <- plot_data %>%
+  group_by(gender) %>%
+  summarise(
+    N = n_distinct(bf_ar_m_nummer),  # subjects
+    n = n(),                         # BMI measurements
+    ymax = max(bmi, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# X labels with N only (cleaner for publication)
+x_labels <- setNames(
+  paste0(count_df$gender, "\nN = ", count_df$N),
+  count_df$gender
+)
+
+#──────────────────────────────────────────────────────────────
+# Statistical test (Wilcoxon)
+#──────────────────────────────────────────────────────────────
+
+pwc <- plot_data %>%
+  wilcox_test(bmi ~ gender) %>%
+  add_significance()
+
+y_max <- max(plot_data$bmi, na.rm = TRUE)
+
+stat_df <- pwc %>%
+  mutate(
+    group1 = unique(plot_data$gender)[1],
+    group2 = unique(plot_data$gender)[2],
+    y.position = y_max * 1.15,
+    label = paste0( signif(p, 3))
+  )
+
+#──────────────────────────────────────────────────────────────
+# Plot positions
+#──────────────────────────────────────────────────────────────
+
+n_label_y <- y_max * 1.03
+plot_top  <- y_max * 1.22
+
+#──────────────────────────────────────────────────────────────
+# Plot
+#──────────────────────────────────────────────────────────────
+
+p_ibu <- ggplot(
+  plot_data,
+  aes(x = gender, y = bmi, fill = gender)
+) +
+
+  geom_violin(
+    trim = FALSE,
+    alpha = 0.35,
+    linewidth = 0.3
+  ) +
+  geom_boxplot(
+    width = 0.40,
+    outlier.shape = NA,
+    linewidth = 0.4
+  ) +
+  
+  geom_jitter(
+    width = 0.08,
+    size = 1.8,
+    alpha = 0.7
+  ) +
+
+  # n (measurements)
+  # geom_text(
+  #   data = count_df,
+  #   aes(
+  #     x = gender,
+  #     y = n_label_y,
+  #     label = paste0("n = ", n)
+  #   ),
+  #   inherit.aes = FALSE,
+  #   fontface = "bold",
+  #   size = 5
+  # ) +
+
+  # p-value bracket
+  stat_pvalue_manual(
+    stat_df,
+    label = "label",
+    tip.length = 0.01,
+    bracket.size = 0.4,
+    size = 5
+  ) +
+
+  scale_x_discrete(labels = x_labels) +
+  expand_limits(y = plot_top) +
+
+  labs(
+    title = "BMI by Gender (Liver Ibu)",
+    x = NULL,
+    y = "BMI"
+  ) +
+
+  theme_prism(base_size = 10) +
+
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 26,
+      face = "bold",
+      margin = margin(b = 3)
+    ),
+
+    axis.text.x = element_text(
+      size = 22,
+      face = "bold",
+      margin = margin(t = 3)
+    ),
+
+    axis.text.y = element_text(
+      size = 22,
+      face = "bold"
+    ),
+
+    axis.title = element_text(
+      size = 24,
+      face = "bold"
+    ),
+
+    legend.position = "none",
+
+    plot.margin = margin(
+      t = 10,
+      r = 10,
+      b = 30,
+      l = 10,
+      unit = "pt"
+    )
+  )
+
+p_ibu
+```
+
+##==========================
+## BMI for Liver Para group
+##==========================
+
+```{r}
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(rstatix)
+
+#──────────────────────────────────────────────────────────────
+# Data (IMPORTANT: DO NOT DISTINCT)
+#──────────────────────────────────────────────────────────────
+
+plot_data <- gender_bmi_data %>%
+  filter(
+    treatment == "Leber_Para",
+    !is.na(gender),
+    !is.na(bmi)
+  )
+
+#──────────────────────────────────────────────────────────────
+# N (subjects) and n (measurements)
+#──────────────────────────────────────────────────────────────
+
+count_df <- plot_data %>%
+  group_by(gender) %>%
+  summarise(
+    N = n_distinct(bf_ar_m_nummer),  # subjects
+    n = n(),                         # BMI measurements
+    ymax = max(bmi, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+# X labels with N only (cleaner for publication)
+x_labels <- setNames(
+  paste0(count_df$gender, "\nN = ", count_df$N),
+  count_df$gender
+)
+
+#──────────────────────────────────────────────────────────────
+# Statistical test (Wilcoxon)
+#──────────────────────────────────────────────────────────────
+
+pwc <- plot_data %>%
+  wilcox_test(bmi ~ gender) %>%
+  add_significance()
+
+y_max <- max(plot_data$bmi, na.rm = TRUE)
+
+stat_df <- pwc %>%
+  mutate(
+    group1 = unique(plot_data$gender)[1],
+    group2 = unique(plot_data$gender)[2],
+    y.position = y_max * 1.15,
+    label = paste0( signif(p, 3))
+  )
+
+#──────────────────────────────────────────────────────────────
+# Plot positions
+#──────────────────────────────────────────────────────────────
+
+n_label_y <- y_max * 1.03
+plot_top  <- y_max * 1.22
+
+#──────────────────────────────────────────────────────────────
+# Plot
+#──────────────────────────────────────────────────────────────
+
+p_para <- ggplot(
+  plot_data,
+  aes(x = gender, y = bmi, fill = gender)
+) +
+
+  geom_violin(
+    trim = FALSE,
+    alpha = 0.35,
+    linewidth = 0.3
+  ) +
+  geom_boxplot(
+    width = 0.40,
+    outlier.shape = NA,
+    linewidth = 0.4
+  ) +
+  
+  geom_jitter(
+    width = 0.08,
+    size = 1.8,
+    alpha = 0.7
+  ) +
+
+  # n (measurements)
+  # geom_text(
+  #   data = count_df,
+  #   aes(
+  #     x = gender,
+  #     y = n_label_y,
+  #     label = paste0("n = ", n)
+  #   ),
+  #   inherit.aes = FALSE,
+  #   fontface = "bold",
+  #   size = 5
+  # ) +
+
+  # p-value bracket
+  stat_pvalue_manual(
+    stat_df,
+    label = "label",
+    tip.length = 0.01,
+    bracket.size = 0.4,
+    size = 5
+  ) +
+
+  scale_x_discrete(labels = x_labels) +
+  expand_limits(y = plot_top) +
+
+  labs(
+    title = "BMI by Gender (Liver Para)",
+    x = NULL,
+    y = "BMI"
+  ) +
+
+  theme_prism(base_size = 10) +
+
+  theme(
+    plot.title = element_text(
+      hjust = 0.5,
+      size = 26,
+      face = "bold",
+      margin = margin(b = 3)
+    ),
+
+    axis.text.x = element_text(
+      size = 22,
+      face = "bold",
+      margin = margin(t = 3)
+    ),
+
+    axis.text.y = element_text(
+      size = 22,
+      face = "bold"
+    ),
+
+    axis.title = element_text(
+      size = 24,
+      face = "bold"
+    ),
+
+    legend.position = "none",
+
+    plot.margin = margin(
+      t = 10,
+      r = 10,
+      b = 30,
+      l = 10,
+      unit = "pt"
+    )
+  )
+
+p_para
+```
+
+
+##=================
+## pathch all plots
+##=================
+
+```{r}
+library(patchwork)
+```
+
+
+```{r}
+(p_all+ p_diclo)/(p_ibu+ p_para) + 
+  plot_layout(guides = "collect") & 
+  theme(legend.position = "none",
+        plot.margin = margin(2, 2, 2, 2, "pt"))
+```
+
+```{r, fig.height=6,fig.width=10}
+combined_bmi_plot <- (p_all + p_diclo) / (p_ibu + p_para) + 
+  plot_layout(
+    guides = "collect", 
+    axes = "collect", 
+    heights = c(1, 1), # Equal height for both rows
+    widths = c(1, 1)   # Equal width for both columns
+  ) & 
+  theme(legend.position = "none",
+        plot.margin = margin(2, 2, 2, 2, "pt"))
+
+combined_bmi_plot
+```
+
+```{r}
+path <- here::here("output/figure/diabetes/plots_all_labvalues/BMI")
+if (!dir.exists(path)) {
+  dir.create(path, recursive = TRUE)
+}
+
+ggsave(file.path(path, "combined_bmi_plot.png"), 
+       plot = combined_bmi_plot, 
+       width = 10, 
+       height = 8, 
+       dpi = 300)
+
+
+
+ggsave(file.path(path,"combined_bmi_plot.svg"), 
+       plot = combined_bmi_plot, 
+       width = 11, 
+       height = 8)
+```
+
+
+##==============================
+## BMI_Treatment_gender_obese
+##==============================
+##==============================
+# Output folder
+##==============================
+
+```{r}
+
+base_dir <- file.path(here::here(
+  "output",
+  "figure",
+  "diabetes",
+  "plots_all_labvalues",
+  "BMI_treatment_gender_obese"
+))
+
+svg_dir <- file.path(base_dir, "svg")
+png_dir <- file.path(base_dir, "png")
+
+dir.create(svg_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(png_dir, recursive = TRUE, showWarnings = FALSE)
+```
+
+
+```{r}
+panel <- "kalium"
+
+p <- plot_liver_treatment_sex_obesity(
+  all_data        = all_data,
+  gender_bmi_data = gender_bmi_data,
+  panel           = panel,
+  y_var           = "labreads",
+  y_label         = unit_map[[panel]],
+  title           = paste0(
+    toupper(panel),
+    " Activity by Treatment, Sex, and Obesity Status"
+  ),
+  max_filter      = 100,
+  y_limits        = c(0, 100),
+  y_breaks        = seq(0, 100, by = 10),
+  pval_steps      = c(8, 14, 20)
+)
+
+p
+```
+
+```{r}
+print(p)
+
+ggsave(
+  filename = file.path(
+    svg_dir,
+    paste0(panel, "_BMI_treatment_gender_obese.svg")
+  ),
+  plot   = p,
+  width  = 10,
+  height = 6,
+  device = svglite::svglite
+)
+
+ggsave(
+  filename = file.path(
+    png_dir,
+    paste0(panel, "_BMI_treatment_gender_obese.png")
+  ),
+  plot   = p,
+  width  = 8,
+  height = 6,
+  dpi    = 600,
+  bg     = "white"
+)
+```
+
+
+##=========================================
+## Fully functional loop for 
+## BMI_Treatment_gender_obese (19062026)
+===========================================
+
+
+```{r}
+library(tidyverse)
+library(rstatix)
+library(ggpubr)
+library(purrr)
+library(glue)
+
+# ════════════════════════════════════════════════════════════════════════════
+# FUNCTION
+# ════════════════════════════════════════════════════════════════════════════
+
+plot_liver_treatment_sex_obesity <- function(
+    all_data,
+    gender_bmi_data,
+    panel,
+    y_var            = "labreads",
+    y_label          = "GPT Activity (U/L)",
+    title            = "GPT Activity by Treatment, Sex, and Obesity Status",
+    max_filter       = 4000,
+    y_limits         = c(0, 6000),
+    y_breaks         = NULL,
+    pval_multipliers = c(0.16, 0.24, 0.32),
+    colors           = c("#0072B2", "#E69F00", "#009E73"),
+    comparisons      = list(
+      c("Liver_Diclo", "Liver_Ibu"),
+      c("Liver_Diclo", "Liver_Para"),
+      c("Liver_Ibu",   "Liver_Para")
+    )
+) {
+
+  # ── auto y_breaks ─────────────────────────────────────────────────────────
+  if (is.null(y_breaks)) {
+    y_breaks <- pretty(c(0, max_filter), n = 6)
+  }
+
+  # ── p-value offset steps (as fractions of y_limits max) ───────────────────
+  # pval_steps[k] = offset ABOVE max_y for the k-th bracket
+  pval_steps <- max(y_limits) * pval_multipliers          # e.g. c(1400, 2100, 2800)
+  step_size  <- pval_steps[2] - pval_steps[1]             # spacing between brackets
+
+  # FIX 1 ── hard-code integer x positions; never use add_xy_position()
+  # step.increase in add_xy_position() nudges xmin/xmax by a fraction,
+  # producing non-integers that cause seq_len() to crash inside stat_pvalue_manual.
+  x_levels <- c("Liver_Diclo" = 1L, "Liver_Ibu" = 2L, "Liver_Para" = 3L)
+
+  # ── 1. Prepare data ───────────────────────────────────────────────────────
+  plot_data <- all_data %>%
+    left_join(
+      gender_bmi_data,
+      by           = join_by("bf_ar_m_nummer", "treatment"),
+      relationship = "many-to-many"
+    ) %>%
+    filter(
+      panel_id == .env$panel,
+      grepl("Leber_", treatment),
+      !str_detect(attribute, "_from_start|dbs|_dbs"),
+      !is.na(bmi),
+      !is.na(treatment),
+      !is.na(.data[[y_var]]),
+      !is.na(days)
+    ) %>%
+    mutate(
+      treatment = recode(treatment,
+        "Leber_Diclo" = "Liver_Diclo",
+        "Leber_Ibu"   = "Liver_Ibu",
+        "Leber_Para"  = "Liver_Para"
+      ),
+      gender = factor(gender, levels = c("Female", "Male")),
+      obese  = factor(
+        recode(obese, "yes" = "obese", "no" = "no_obese"),
+        levels = c("obese", "no_obese")
+      ),
+      facet_group = paste(gender, obese, sep = " "),
+      facet_group = recode(facet_group,
+        "Female no_obese" = "Female / Non-obese",
+        "Female obese"    = "Female / Obese",
+        "Male no_obese"   = "Male / Non-obese",
+        "Male obese"      = "Male / Obese"
+      )
+    ) %>%
+    distinct(bf_ar_m_nummer, .data[[y_var]], .keep_all = TRUE) %>%
+    filter(.data[[y_var]] <= max_filter)
+
+  # ── Guard 1: no data ──────────────────────────────────────────────────────
+  if (nrow(plot_data) == 0) {
+    warning("Panel '", panel, "': no data after filtering.")
+    return(NULL)
+  }
+
+  # ── Guard 2: valid facet groups ───────────────────────────────────────────
+  valid_groups <- plot_data %>%
+    group_by(facet_group) %>%
+    summarise(n_treatments = n_distinct(treatment), .groups = "drop") %>%
+    filter(n_treatments == 3) %>%
+    pull(facet_group)
+
+  if (length(valid_groups) == 0) {
+    warning("Panel '", panel, "': no facet group has all 3 treatments.")
+    return(NULL)
+  }
+
+  plot_data <- filter(plot_data, facet_group %in% valid_groups)
+
+  # ── 2. Statistical tests ──────────────────────────────────────────────────
+  test_formula <- as.formula(paste(y_var, "~ treatment"))
+
+  stat_test <- plot_data %>%
+    group_by(facet_group) %>%
+    group_split() %>%
+    map(\(df) {
+
+      fg    <- unique(df$facet_group)
+      max_y <- max(df[[y_var]], na.rm = TRUE)
+
+      tryCatch({
+        df %>%
+          wilcox_test(test_formula, comparisons = comparisons) %>%
+          adjust_pvalue(method = "BH") %>%
+          add_significance("p.adj") %>%
+          # FIX 1 continued ── attach integer positions here, before bind_rows
+          mutate(
+            facet_group = fg,
+            max_y       = max_y,
+            xmin        = x_levels[group1],   # integer: 1, 2, or 3
+            xmax        = x_levels[group2]    # integer: 1, 2, or 3
+          )
+      }, error = function(e) {
+        warning("Panel '", panel, "', group '", fg, "': Wilcoxon failed – ", conditionMessage(e))
+        NULL
+      })
+    }) %>%
+    compact() %>%
+    bind_rows() %>%
+    filter(!is.na(group1), !is.na(group2), !is.na(xmin), !is.na(xmax))
+
+  if (nrow(stat_test) == 0) {
+    warning("Panel '", panel, "': all statistical tests failed.")
+    return(NULL)
+  }
+
+  # ── 3. p-value positioning ────────────────────────────────────────────────
+  sig_tests <- stat_test %>%
+    group_by(facet_group) %>%
+    mutate(
+      y.position = first(max_y) +
+        pval_steps[1] +
+        (row_number() - 1L) * step_size
+    ) %>%
+    ungroup()
+
+  # FIX 2 ── auto-expand y_limits so brackets are never OOB.
+  # scale_y_continuous(limits=…) uses censor() by default: values outside limits
+  # become NA, then seq_len(NA) crashes inside stat_pvalue_manual.
+  max_annot_y  <- max(sig_tests$y.position, na.rm = TRUE)
+  plot_y_max   <- if (is.finite(max_annot_y) && max_annot_y > y_limits[2]) {
+    max_annot_y * 1.05   # 5% breathing room above the topmost bracket
+  } else {
+    y_limits[2]
+  }
+  plot_y_limits <- c(y_limits[1], plot_y_max)
+
+  # ── 4. Plot ───────────────────────────────────────────────────────────────
+  ggplot(plot_data, aes(x = treatment, y = .data[[y_var]], color = treatment)) +
+    geom_boxplot() +
+    geom_jitter(width = 0.15, alpha = 0.6, size = 2) +
+    facet_wrap(~facet_group) +
+    {
+      if (nrow(sig_tests) > 0)
+        stat_pvalue_manual(
+          sig_tests,
+          label    = "p {p.adj}",
+          size     = 5,
+          hide.ns  = FALSE     # show all comparisons incl. ns
+        )
+    } +
+    scale_y_continuous(limits = plot_y_limits, breaks = y_breaks) +
+    scale_x_discrete(labels = c(
+      "Liver_Diclo" = "Liver_Diclo",
+      "Liver_Ibu"   = "Liver_Ibu",
+      "Liver_Para"  = "Liver_Para"
+    )) +
+    scale_color_manual(values = colors) +
+    labs(y = y_label, title = title) +
+    theme_classic() +
+    theme(
+      strip.text       = element_text(size = 16, face = "bold"),
+      strip.background = element_blank(),
+      legend.position  = "none",
+      plot.title       = element_text(hjust = 0.5, size = 25, face = "bold"),
+      axis.text.x      = element_text(size = 22, face = "bold"),
+      axis.text.y      = element_text(size = 22, face = "bold"),
+      axis.title       = element_text(size = 24, face = "bold")
+    )
+}
+```
+
+
+```{r}
+library(purrr)
+library(ggplot2)
+
+#------------------------------------------------------------
+# Panels
+#------------------------------------------------------------
+
+
+#panels <- c("got", "gpt", "ggt", "ap")
+
+unit_map <- c(
+    "got" = "AST/GOT (U/L)", "gpt" = "ALT/GPT (U/L)", "ggt" = "GGT (U/L)",
+    "ap" = "Alkaline Phosphatase (U/L)", "gldh" = "GLDH (U/L)", "ldh" = "LDH (U/L)",
+    "cholinesterase" = "Cholinesterase (U/L)", "bilirubin" = "Total Bilirubin (mg/dL)",
+    "total_bilirubin" = "Total Bilirubin (mg/dL)", "direktes" = "Direct Bilirubin (mg/dL)",
+    "direct_bilirubin" = "Direct Bilirubin (mg/dL)", "indirektes" = "Indirect Bilirubin (mg/dL)",
+    "indirect_bilirubin" = "Indirect Bilirubin (mg/dL)", "ammoniak" = "Ammonia (µg/dL)",
+    "ck" = "CK (U/L)", "keratinkinase" = "Creatine Kinase (U/L)", "ck_mb" = "CK-MB (U/L)", 
+    "troponin" = "Troponin (ng/L)", "serummyoglobin" = "Myoglobin (µg/L)",
+    "kreatinin" = "Creatinine (mg/dL)", "harnstoff" = "Urea (mg/dL)",
+    "harnsaure" = "Uric Acid (mg/dL)", "gfr" = "eGFR (mL/min/1.73m²)",
+    "grf" = "eGFR (mL/min/1.73m²)", "glomarulare" = "eGFR (mL/min/1.73m²)",
+    "glucose" = "Glucose (mg/dL)", "lactat" = "Lactate (mmol/L)",
+    "cholesterin" = "Cholesterol (mg/dL)", "triglyceride" = "Triglycerides (mg/dL)",
+    "hdl" = "HDL Cholesterol (mg/dL)", "ldl" = "LDL Cholesterol (mg/dL)",
+    "gesamteiweiss" = "Total Protein (g/dL)", "albumin" = "Albumin (g/dL)",
+    "alpha" = "Alpha-Globulin (%)", "beta" = "Beta-Globulin (%)", "gamma" = "Gamma-Globulin (%)",
+    "amylase" = "Amylase (U/L)", "lipase" = "Lipase (U/L)",
+    "crp" = "CRP (mg/L)", "bsg" = "ESR (mm/h)", "leukozyten" = "Leukocytes (G/L)", "fieber" = "Temperature (°C)",
+    "quick" = "Quick (%)", "inr" = "INR", "ptt" = "PTT (s)", "prothrombin" = "Prothrombin Time (s)", 
+    "tz" = "Thrombin Time (s)", "antithrombin" = "Antithrombin III (%)", "antithrombin_3" = "Antithrombin III (%)",
+    "fibrinogen" = "Fibrinogen (mg/dL)", "d" = "D-Dimer (mg/L)",
+    "erythrozyten" = "Erythrocytes (T/L)", "hb" = "Hemoglobin (g/dL)", "hamatokrit" = "Hematocrit (%)", 
+    "mcv" = "MCV (fL)", "mch" = "MCH (pg)", "mchc" = "MCHC (g/dL)", 
+    "thrombozyten" = "Thrombocytes (G/L)", "trhombozyten" = "Thrombocytes (G/L)",
+    "lymphozyten" = "Lymphocytes (%)", "monozyten" = "Monocytes (%)", "eosinophile" = "Eosinophils (%)", 
+    "basophile" = "Basophils (%)", "neutrophile" = "Neutrophils (%)", 
+    "stabkernige" = "Band Neutrophils (%)", "segmentkernige" = "Segmented Neutrophils (%)",
+    "natrium" = "Sodium (mmol/L)", "kalium" = "Potassium (mmol/L)", "kalzium" = "Calcium (mmol/L)", 
+    "magnesium" = "Magnesium (mmol/L)", "chlorid" = "Chloride (mmol/L)", "phosphat" = "Phosphate (mg/dL)",
+    "serum_eisen" = "Serum Iron (µg/dL)", "transferrin" = "Transferrin (mg/dL)",
+    "ferritin" = "Ferritin (µg/L)", "haptoglobin" = "Haptoglobin (mg/dL)",
+    "total" = "Total Value", "totales" = "Total Value", "blut" = "Blood Value", "serum" = "Serum Value"
+  )
+
+
+panels <- all_data %>%
+  dplyr::pull(panel_id) %>%
+  unique() %>%
+  na.omit() %>%
+  trimws() %>%
+  intersect(names(unit_map))
+
+base_dir <- file.path(here::here(
+  "output", "figure", "diabetes",
+  "plots_all_labvalues", "BMI_treatment_gender_obese"
+))
+svg_dir <- file.path(base_dir, "svg")
+png_dir <- file.path(base_dir, "png")
+dir.create(svg_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(png_dir, recursive = TRUE, showWarnings = FALSE)
+
+plot_list <- list()
+
+for (panel in panels) {
+
+  max_filter       <- 7000
+  y_limits         <- c(0, max_filter)
+  pval_multipliers <- c(0.20, 0.30, 0.40)
+
+  p <- plot_liver_treatment_sex_obesity(
+    all_data         = all_data,
+    gender_bmi_data  = gender_bmi_data,
+    panel            = panel,
+    y_var            = "labreads",
+    y_label          = unit_map[[panel]],
+    title            = paste0(
+      toupper(panel),
+      " Activity by Treatment, Sex, and Obesity Status"
+    ),
+    max_filter       = max_filter,
+    y_limits         = y_limits,
+    y_breaks         = seq(0, max_filter, by = 2000),
+    pval_multipliers = pval_multipliers
+  )
+
+  plot_list[[panel]] <- p
+
+  # FIX 3 ── skip ggsave if function returned NULL (empty panel)
+  if (is.null(p)) {
+    message("Skipping save for panel '", panel, "' – NULL plot returned.")
+    next
+  }
+
+  ggsave(
+    filename = file.path(svg_dir, paste0(panel, "_BMI_treatment_gender_obese.svg")),
+    plot     = p,
+    width    = 12,
+    height   = 8
+  )
+  ggsave(
+    filename = file.path(png_dir, paste0(panel, "_BMI_treatment_gender_obese.png")),
+    plot     = p,
+    width    = 12,
+    height   = 8,
+    dpi      = 300
+  )
+}
+
+plot_list[["got"]]
+plot_list[["gpt"]]
+plot_list[["ggt"]]
+plot_list[["ap"]]
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

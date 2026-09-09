@@ -1,0 +1,64 @@
+```{r}
+ast_summary_data <- ldast_data  %>% filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(Attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(ast_summary_data$mean_labread + ast_summary_data$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 600, by = 200)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 500) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(ast_summary_data, aes(x = Attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + #####NEW##### # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "Mean ALT in time course for female",	####NEW####
+       x = "Day of measurement",   ####NEW####
+       y = "ALT U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+ 
+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(ast_summary_data$mean_labread + ast_summary_data$sem_labread, na.rm = TRUE)
+max_value <- 3000
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+
+
+ldast_data %>% 
+  mutate(Attribute = as.factor(Attribute)) %>% 
+  group_by(Attribute) %>% 
+  ggplot(aes(x = Attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "Boxplot of AST by day of measurement",      ###NEW###
+       x = "day of measurement",                            ###NEW###
+       y = "AST U/L") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                    limits = c(0, max_value))
+
+
+```

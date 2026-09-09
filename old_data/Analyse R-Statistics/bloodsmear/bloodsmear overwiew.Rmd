@@ -1,0 +1,398 @@
+---
+title: "Untitled"
+author: "Arun Kumar"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r}
+
+
+library(dplyr)
+library(purrr)
+
+# List of file paths
+file_paths <- list(
+  "data for R/basophile_long.csv",
+  "data for R/eosinophile_long.csv",
+  "data for R/lymphozyten_long.csv",
+  "data for R/monozyten_long.csv",
+  "data for R/neutrophile_long.csv"
+)
+
+# Function to read CSV files and convert the specific column to character
+read_and_convert <- function(file) {
+  data <- read.csv(file)
+  data$`Edited_BfArM.Nummer2` <- as.character(data$`Edited_BfArM.Nummer2`)
+  return(data)
+}
+
+# Reading and combining all CSV files into one dataframe
+combined_data <- file_paths %>%
+  map_dfr(read_and_convert)
+
+# View the combined data
+print(combined_data)
+
+
+combined_data_clean <- combined_data %>% 
+  mutate(attribute = gsub("\\s.*$", "", attribute)) %>% 
+  filter(Treatment == "SJS_Diclo")
+
+combined_data_clean %>% 
+  ggplot(aes(x = Edited_BfArM.Nummer2, y = attribute, fill = attribute)) +
+  geom_dotplot(binaxis = "x", stackdir = "center", dotsize = 0.1, binwidth = 1) +
+  labs(
+    title = "Bloodsmear in SJS_Diclo ",
+    x = "PatientID",
+    y = "Parameter",
+    fill = "Blood Cells"  # Custom legend title for fill
+  ) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+```{r}
+
+
+library(dplyr)
+library(purrr)
+
+# List of file paths
+file_paths <- list(
+  "data for R/basophile_long.csv",
+  "data for R/eosinophile_long.csv",
+  "data for R/lymphozyten_long.csv",
+  "data for R/monozyten_long.csv",
+  "data for R/neutrophile_long.csv"
+)
+
+# Function to read CSV files and convert the specific column to character
+read_and_convert <- function(file) {
+  data <- read.csv(file)
+  data$`Edited_BfArM.Nummer2` <- as.character(data$`Edited_BfArM.Nummer2`)
+  return(data)
+}
+
+# Reading and combining all CSV files into one dataframe
+combined_data <- file_paths %>%
+  map_dfr(read_and_convert)
+
+# View the combined data
+print(combined_data)
+
+
+combined_data_clean <- combined_data %>% 
+  mutate(attribute = gsub("\\s.*$", "", attribute)) %>% 
+  filter(Treatment == "SJS_Ibu")
+
+combined_data_clean %>% 
+  ggplot(aes(x = Edited_BfArM.Nummer2, y = attribute, fill = attribute)) +
+  geom_dotplot(binaxis = "x", stackdir = "center", dotsize = 0.05, binwidth = 1) +
+  labs(
+    title = "Bloodsmear in SJS_Ibu ",
+    x = "PatientID",
+    y = "Parameter",
+    fill = "Blood Cells"  # Custom legend title for fill
+  ) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+```{r}
+
+
+library(dplyr)
+library(purrr)
+
+# List of file paths
+file_paths <- list(
+  "data for R/basophile_long.csv",
+  "data for R/eosinophile_long.csv",
+  "data for R/lymphozyten_long.csv",
+  "data for R/monozyten_long.csv",
+  "data for R/neutrophile_long.csv"
+)
+
+# Function to read CSV files and convert the specific column to character
+read_and_convert <- function(file) {
+  data <- read.csv(file)
+  data$`Edited_BfArM.Nummer2` <- as.character(data$`Edited_BfArM.Nummer2`)
+  return(data)
+}
+
+# Reading and combining all CSV files into one dataframe
+combined_data <- file_paths %>%
+  map_dfr(read_and_convert)
+
+# View the combined data
+print(combined_data)
+
+
+combined_data_clean <- combined_data %>% 
+  mutate(attribute = gsub("\\s.*$", "", attribute)) %>% 
+  filter(Treatment == "SJS_Para")
+
+combined_data_clean %>% 
+  ggplot(aes(x = Edited_BfArM.Nummer2, y = attribute, fill = attribute)) +
+  geom_dotplot(binaxis = "x", stackdir = "center", dotsize = 0.2, binwidth = 1) +
+  labs(
+    title = "Bloodsmear in SJS_Para ",
+    x = "PatientID",
+    y = "Parameter",
+    fill = "Blood Cells"  # Custom legend title for fill
+  ) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+
+
+######################################################################################
+
+##Haut_Diclo##
+```{r}
+
+library(dplyr)
+library(purrr)
+
+# List of file paths
+file_paths <- list(
+  "data for R/basophile_long.csv",
+  "data for R/eosinophile_long.csv",
+  "data for R/lymphozyten_long.csv",
+  "data for R/monozyten_long.csv",
+  "data for R/neutrophile_long.csv"
+)
+
+# Function to read CSV files and convert the specific column to character
+read_and_convert <- function(file) {
+  data <- read.csv(file)
+  data$`Edited_BfArM.Nummer2` <- as.character(data$`Edited_BfArM.Nummer2`)
+  return(data)
+}
+
+# Reading and combining all CSV files into one dataframe
+combined_data <- file_paths %>%
+  map_dfr(read_and_convert)
+
+# View the combined data
+print(combined_data)
+
+
+combined_data_clean <- combined_data %>% 
+  mutate(attribute = gsub("\\s.*$", "", attribute)) %>% 
+  filter(Treatment == "Haut_Diclo")
+
+combined_data_clean %>% 
+  ggplot(aes(x = Edited_BfArM.Nummer2, y = attribute, fill = attribute)) +
+  geom_dotplot(binaxis = "x", stackdir = "center", dotsize = 0.1, binwidth = 1) +
+  labs(
+    title = "Bloodsmear in Haut_Diclo",
+    x = "PatientID",
+    y = "Parameter",
+    fill = "Blood Cells"  # Custom legend title for fill
+  ) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+```{r}
+
+library(dplyr)
+library(purrr)
+
+# List of file paths
+file_paths <- list(
+  "data for R/basophile_long.csv",
+  "data for R/eosinophile_long.csv",
+  "data for R/lymphozyten_long.csv",
+  "data for R/monozyten_long.csv",
+  "data for R/neutrophile_long.csv"
+)
+
+# Function to read CSV files and convert the specific column to character
+read_and_convert <- function(file) {
+  data <- read.csv(file)
+  data$`Edited_BfArM.Nummer2` <- as.character(data$`Edited_BfArM.Nummer2`)
+  return(data)
+}
+
+# Reading and combining all CSV files into one dataframe
+combined_data <- file_paths %>%
+  map_dfr(read_and_convert)
+
+# View the combined data
+print(combined_data)
+
+
+combined_data_clean <- combined_data %>% 
+  mutate(attribute = gsub("\\s.*$", "", attribute)) %>% 
+  filter(Treatment == "Haut_Ibu")
+
+combined_data_clean %>% 
+  ggplot(aes(x = Edited_BfArM.Nummer2, y = attribute, fill = attribute)) +
+  geom_dotplot(binaxis = "x", stackdir = "center", dotsize = 0.1, binwidth = 1) +
+  labs(
+    title = "Bloodsmear in Haut_Ibu",
+    x = "PatientID",
+    y = "Parameter",
+    fill = "Blood Cells"  # Custom legend title for fill
+  ) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+```{r}
+
+library(dplyr)
+library(purrr)
+
+# List of file paths
+file_paths <- list(
+  "data for R/basophile_long.csv",
+  "data for R/eosinophile_long.csv",
+  "data for R/lymphozyten_long.csv",
+  "data for R/monozyten_long.csv",
+  "data for R/neutrophile_long.csv"
+)
+
+# Function to read CSV files and convert the specific column to character
+read_and_convert <- function(file) {
+  data <- read.csv(file)
+  data$`Edited_BfArM.Nummer2` <- as.character(data$`Edited_BfArM.Nummer2`)
+  return(data)
+}
+
+# Reading and combining all CSV files into one dataframe
+combined_data <- file_paths %>%
+  map_dfr(read_and_convert)
+
+# View the combined data
+print(combined_data)
+
+
+combined_data_clean <- combined_data %>% 
+  mutate(attribute = gsub("\\s.*$", "", attribute)) %>% 
+  filter(Treatment == "Haut_Para")
+
+combined_data_clean %>% 
+  ggplot(aes(x = Edited_BfArM.Nummer2, y = attribute, fill = attribute)) +
+  geom_dotplot(binaxis = "x", stackdir = "center", dotsize = 0.1, binwidth = 1) +
+  labs(
+    title = "Bloodsmear in Haut_Para",
+    x = "PatientID",
+    y = "Parameter",
+    fill = "Blood Cells"  # Custom legend title for fill
+  ) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+## Append files##
+
+```{r}
+combined_data_clean <- combined_data %>% 
+  mutate(attribute = gsub("\\s.*$", "", attribute)) %>% 
+  filter(Treatment == "Leber_Diclo")
+
+combined_data_clean %>% 
+  ggplot(aes(x = Edited_BfArM.Nummer2, y = attribute, fill = attribute)) +
+  geom_dotplot(binaxis = "x", stackdir = "center", dotsize = 0.3, binwidth = 1) +
+  labs(
+    title = "Bloodsmear in Leber_Diclo",
+    x = "PatientID",
+    y = "Number of blood cells tested",
+    fill = "Blood Cells"  # Custom legend title for fill
+  ) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+combined_data_clean <- combined_data %>% 
+  mutate(attribute = gsub("\\s.*$", "", attribute)) %>% 
+  filter(Treatment == "Leber_Ibu")
+
+combined_data_clean %>% 
+  ggplot(aes(x = Edited_BfArM.Nummer2, y = attribute, fill = attribute)) +
+  geom_dotplot(binaxis = "x", stackdir = "center", dotsize = 0.2, binwidth = 1) +
+  labs(
+    title = "Bloodsmear in Leber_Ibu",
+    x = "PatientID",
+    y = "Number of blood cells tested",
+    fill = "Blood Cells"  # Custom legend title for fill
+  ) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+```{r}
+combined_data_clean <- combined_data %>% 
+  mutate(attribute = gsub("\\s.*$", "", attribute)) %>% 
+  filter(Treatment == "Leber_Para")
+
+combined_data_clean %>% 
+  ggplot(aes(x = Edited_BfArM.Nummer2, y = attribute, fill = attribute)) +
+  geom_dotplot(binaxis = "x", stackdir = "center", dotsize = 0.2, binwidth = 1) +
+  labs(
+    title = "Bloodsmear in Leber_Para",
+    x = "PatientID",
+    y = "Number of blood cells tested",
+    fill = "Blood Cells"  # Custom legend title for fill
+  ) +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

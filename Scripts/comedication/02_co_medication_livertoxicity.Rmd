@@ -1,0 +1,28 @@
+---
+title: "Untitled"
+output: html_document
+date: "2026-02-22"
+---
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+```
+
+
+```{r}
+comedicationdata <- read_csv("comedication_with_livertoxicity literature only.csv")
+comedicationdata1 <- comedicationdata #%>% 
+ # dplyr::rename( "patient_group" = "treatment",
+  #               "parameter_co" = "labreads",
+  #               "kathegorie_co" = "kathegorie",
+  #               "drug_group_co" = "drug_group")
+
+comedicationdata1
+```

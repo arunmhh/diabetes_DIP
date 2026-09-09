@@ -1,0 +1,471 @@
+---
+title: "Liver_Para"
+author: "Arun Kumar"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## R Markdown
+
+
+
+```{r}
+got_para_value_dose <- inner_join(got_long,dosetreatment, by="Edited_BfArM Nummer2")
+
+got_para_value_dose$patient_dose <- paste0(got_para_value_dose$Treatment2, got_para_value_dose$`Edited_BfArM Nummer2`)
+
+
+got_para_value_dose %>% mutate(Paracetamol_Cumulative_Dosis = as.factor(Paracetamol_Cumulative_Dosis)) %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  select(patient_dose,Paracetamol_Cumulative_Dosis,labreads) %>% 
+  group_by(patient_dose) %>% 
+  drop_na() %>% 
+  ggplot(aes(x = Paracetamol_Cumulative_Dosis, y= labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+    labs(
+    x = "Cumulative dose (mg)",
+    y = "GOT Lab Values",
+    title = "GOT in Liver Paracetamol", hjust = 0.5)+
+  #scale_y_continuous(limits = c(0,6000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+
+
+ggsave( "Visual_para/liverpara_got_cumulative1.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+
+
+```
+
+
+
+```{r, echo=FALSE}
+view(got_para_value_dose)
+
+```
+
+
+
+
+```{r, echo=FALSE}
+gpt_para_value_dose <- inner_join(gpt_long,dosetreatment, by="Edited_BfArM Nummer2")
+
+gpt_para_value_dose$patient_dose <- paste0(gpt_para_value_dose$Treatment2, gpt_para_value_dose$`Edited_BfArM Nummer2`)
+
+
+gpt_para_value_dose %>% mutate(Paracetamol_Cumulative_Dosis = as.factor(Paracetamol_Cumulative_Dosis)) %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  select(patient_dose,Paracetamol_Cumulative_Dosis,labreads) %>% 
+  group_by(patient_dose) %>% 
+  drop_na() %>% 
+  ggplot(aes(x = Paracetamol_Cumulative_Dosis, y= labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+    labs(
+    x = "Cumulative dose (mg)",
+    y = "GPT Lab Values",
+    title = "GPT in Liver Paracetamol", hjust = 0.5)+
+
+  #scale_y_continuous(limits = c(0,6000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+
+
+ggsave( "Visual_para/liverpara_gpt_cumulative1.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+```
+
+
+
+
+```{r, echo=FALSE}
+ldh_para_value_dose <- inner_join(ldh_long,dosetreatment, by="Edited_BfArM Nummer2")
+
+ldh_para_value_dose$patient_dose <- paste0(ldh_para_value_dose$Treatment2, ldh_para_value_dose$`Edited_BfArM Nummer2`)
+
+
+ldh_para_value_dose %>% mutate(Paracetamol_Cumulative_Dosis = as.factor(Paracetamol_Cumulative_Dosis)) %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  select(patient_dose,Paracetamol_Cumulative_Dosis,labreads) %>% 
+  group_by(patient_dose) %>% 
+  drop_na() %>% 
+  ggplot(aes(x = Paracetamol_Cumulative_Dosis, y= labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+    labs(
+    x = "Cumulative dose (mg)",
+    y = "LDH Lab Values",
+    title = "LDH in Liver Paracetamol", hjust = 0.5)+
+
+  #scale_y_continuous(limits = c(0,6000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+
+
+ggsave( "Visual_para/liverpara_ldh_cumulative1.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+```
+
+```{r, echo=FALSE}
+leukozyten_para_value_dose <- inner_join(leukozyten_long,dosetreatment, by="Edited_BfArM Nummer2")
+
+leukozyten_para_value_dose$patient_dose <- paste0(leukozyten_para_value_dose$Treatment2, leukozyten_para_value_dose$`Edited_BfArM Nummer2`)
+
+
+leukozyten_para_value_dose %>% mutate(Paracetamol_Cumulative_Dosis = as.factor(Paracetamol_Cumulative_Dosis)) %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  select(patient_dose,Paracetamol_Cumulative_Dosis,labreads) %>% 
+  group_by(patient_dose) %>% 
+  drop_na() %>% 
+  ggplot(aes(x = Paracetamol_Cumulative_Dosis, y= labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+    labs(
+    x = "Cumulative dose (mg)",
+    y = "Leukozyten Lab Values",
+    title = "Leukozyten in Liver Paracetamol", hjust = 0.5)+
+
+  #scale_y_continuous(limits = c(0,6000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+
+
+ggsave( "Visual_para/liverpara_leukozyten_cumulative1.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+```
+
+
+
+```{r, echo=FALSE}
+lymphozyten_para_value_dose <- inner_join(lymphozyten_long,dosetreatment, by="Edited_BfArM Nummer2")
+
+lymphozyten_para_value_dose$patient_dose <- paste0(lymphozyten_para_value_dose$Treatment2, lymphozyten_para_value_dose$`Edited_BfArM Nummer2`)
+
+
+lymphozyten_para_value_dose %>% mutate(Paracetamol_Cumulative_Dosis = as.factor(Paracetamol_Cumulative_Dosis)) %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  select(patient_dose,Paracetamol_Cumulative_Dosis,labreads) %>% 
+  group_by(patient_dose) %>% 
+  drop_na() %>% 
+  ggplot(aes(x = Paracetamol_Cumulative_Dosis, y= labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+    labs(
+    x = "Cumulative dose (mg)",
+    y = "Lymphozyten Lab Values",
+    title = "Lymphozyten in Liver Paracetamol", hjust = 0.5)+
+
+  #scale_y_continuous(limits = c(0,6000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+
+
+ggsave( "Visual_para/liverpara_lymphozyten_cumulative1.png", plot=last_plot(), width = 8, height = 7, dpi = 600)
+```
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+
+
+
+```{r, echo=FALSE}
+
+```
+
+
+
+
+

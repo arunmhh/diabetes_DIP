@@ -1,0 +1,116 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-05-14"
+---
+
+
+```{r}
+
+gpt_long_filtered <- gpt_long %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+  filter(!grepl("_From Start", attribute))
+gpt_long_filtered
+```
+
+
+
+```{r}
+
+got_long_filtered <- got_long %>% 
+#  filter(Treatment == "Leber_Diclo") %>%
+  filter(!grepl("_From Start", attribute))
+got_long_filtered
+```
+
+
+```{r}
+gpt_got_combined <- left_join(got_long_filtered,gpt_long_filtered,by = "Edited_BfArM Nummer2") %>% 
+  drop_na()
+gpt_got_combined
+```
+
+
+
+```{r}
+library(dplyr)
+
+# Schritt 1: Extrahiere eindeutige Patienten-IDs aus beiden Tabellen
+gpt_patienten <- gpt_long_filtered %>%
+  distinct(`Edited_BfArM Nummer2`) %>%
+  mutate(messung = "GPT")
+
+got_patienten <- got_long_filtered %>%
+  distinct(`Edited_BfArM Nummer2`) %>%
+  mutate(messung = "GOT")
+
+# Schritt 2: Alle Patienten zusammenführen
+alle_patienten <- bind_rows(gpt_patienten, got_patienten)
+
+# Schritt 3: Gruppierung nach Anzahl und Art der Messungen
+gruppen_einteilung <- alle_patienten %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(
+    messungen = list(unique(messung)),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    gruppe = case_when(
+      identical(messungen[[1]], "GPT") ~ "nur GPT",
+      identical(messungen[[1]], "GOT") ~ "nur GOT",
+      all(c("GPT", "GOT") %in% messungen[[1]]) ~ "GPT und GOT",
+      TRUE ~ "unklar"
+    )
+  )
+
+# Ergebnis ansehen
+gruppen_einteilung
+```
+
+```{r}
+library(dplyr)
+
+# Schritt 1: Patienten aus beiden Tabellen extrahieren
+gpt_patienten <- gpt_long_filtered %>%
+  distinct(`Edited_BfArM Nummer2`) %>%
+  mutate(messung = "GPT")
+
+got_patienten <- got_long_filtered %>%
+  distinct(`Edited_BfArM Nummer2`) %>%
+  mutate(messung = "GOT")
+
+# Schritt 2: Patienten kombinieren
+alle_patienten <- bind_rows(gpt_patienten, got_patienten)
+
+# Schritt 3: Gruppenzuweisung
+gruppen_einteilung <- alle_patienten %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(
+    messungen = list(messung),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    gruppe = case_when(
+      length(messungen[[1]]) == 1 & messungen[[1]][1] == "GPT" ~ "nur GPT",
+      length(messungen[[1]]) == 1 & messungen[[1]][1] == "GOT" ~ "nur GOT",
+      setequal(messungen[[1]], c("GPT", "GOT")) ~ "GPT und GOT",
+      TRUE ~ "unklar"
+    )
+  )
+
+# Ergebnis prüfen
+table(gruppen_einteilung$gruppe)
+
+```
+
+
+
+
+
+
+
+
+
+
+
+

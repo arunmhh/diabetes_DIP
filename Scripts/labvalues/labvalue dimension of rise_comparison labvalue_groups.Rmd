@@ -1,0 +1,70 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-09-01"
+---
+
+```{r}
+gpt_full_filtered_set <- gpt_full_filtered %>%
+  mutate(
+    Labvalue_Group = case_when(
+      peak_labread <= 127.9 ~ "<6 times ULN",
+      peak_labread >= 128 ~ ">6 times ULN",
+      TRUE ~ NA_character_
+    )
+  )
+gpt_full_filtered_set
+```
+
+
+```{r}
+# Lade das dplyr-Paket
+library(dplyr)
+
+gpt_full_after_start <- gpt_full %>%
+filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+
+# Führe den Left Join durch
+gpt_full_set <- left_join(
+  gpt_full_filtered_set,
+  gpt_full_after_start,
+  by = "Edited_BfArM Nummer2"
+)
+gpt_full_set
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- gpt_full_set %>%
+  distinct(`Edited_BfArM Nummer2`, Labvalue_Group) %>%  # nur einzigartige Patienten
+  count(Labvalue_Group, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = gpt_full_set,
+  x = "Labvalue_Group",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "all groups_gpt_full_violin plot for labvalue-groups",
+  xlab = "Patient group",
+  ylab = "GPT U/L",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+gpt_all_groups_full_violin_plot_for_labvalue_groups <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Labvalue_Group, 
+        y = max(gpt_full_set$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+gpt_all_groups_full_violin_plot_for_labvalue_groups
+#dir.create("plots", showWarnings = FALSE)
+#svg("plots/ck_all groups_full_violin plot for patients with and without suicide attempt.svg", height = 6, width = 8)
+#print(ck_all_groups_full_violin_plot_for_patients_with_and_without_suicide_attempt)
+#dev.off()
+```

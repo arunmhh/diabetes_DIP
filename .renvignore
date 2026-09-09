@@ -1,0 +1,53 @@
+# Ignore data directories
+data/
+raw_data/
+results/
+output/
+exports/
+cache/
+temp/
+tmp/
+old_data/
+Rawdata/
+output/
+processed_data/
+
+# Ignore Excel files
+*.xlsx
+*.xls
+
+# Ignore CSV and text files
+*.csv
+*.txt
+*.tsv
+
+# Ignore other data formats
+*.rds
+*.rda
+*.RData
+*.feather
+*.parquet
+
+# Ignore images
+*.png
+*.jpg
+*.jpeg
+*.svg
+*.pdf
+
+# Ignore logs
+*.log
+
+# Ignore compressed files
+*.zip
+*.gz
+*.tar
+*.7z
+
+# Ignore notebooks
+*.ipynb
+
+# Ignore Quarto output
+_site/
+.quarto/
+

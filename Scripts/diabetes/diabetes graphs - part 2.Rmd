@@ -1,0 +1,6534 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+```
+
+
+### run code "diabetes graphs" first for rawdata!!!!!!!!!!!!!!!!
+
+
+### GPT ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- gpt_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of ALT for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ALT (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_gpt_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_gpt_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_gpt_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- gpt_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of ALT for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ALT (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_gpt_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_gpt_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_gpt_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- gpt_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of ALT for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ALT (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_gpt_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_gpt_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_gpt_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- gpt_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "GPT (U/L)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- gpt_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "GPT (U/L)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- gpt_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "GPT (U/L)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_gpt_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_gpt_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_gpt_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### got ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- got_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of got for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "got (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_got_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_got_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_got_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- got_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of got for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "got (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_got_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_got_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_got_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- got_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of got for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "got (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_got_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_got_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_got_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- got_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "got (U/L)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- got_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "got (U/L)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- got_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "got (U/L)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_got_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_got_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_got_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### gpt ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- gpt_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of gpt for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "gpt (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_gpt_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_gpt_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_gpt_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- gpt_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of gpt for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "gpt (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_gpt_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_gpt_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_gpt_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- gpt_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of gpt for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "gpt (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_gpt_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_gpt_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_gpt_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- gpt_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "gpt (U/L)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- gpt_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "gpt (U/L)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- gpt_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "gpt (U/L)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_gpt_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_gpt_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_gpt_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+
+### ldh ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- ldh_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of ldh for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ldh (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ldh_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ldh_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ldh_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- ldh_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of ldh for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ldh (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ldh_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ldh_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ldh_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- ldh_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of ldh for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ldh (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ldh_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ldh_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ldh_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- ldh_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ldh (U/L)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- ldh_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ldh (U/L)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- ldh_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ldh (U/L)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_ldh_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_ldh_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_ldh_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### ck ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- ck_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of ck for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ck (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ck_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ck_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ck_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- ck_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of ck for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ck (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ck_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ck_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ck_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- ck_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of ck for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ck (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ck_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ck_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ck_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- ck_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ck (U/L)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- ck_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ck (U/L)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- ck_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ck (U/L)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_ck_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_ck_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_ck_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### ap ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- ap_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of ap for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ap (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ap_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ap_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ap_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- ap_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of ap for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ap (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ap_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ap_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ap_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- ap_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of ap for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ap (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ap_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ap_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ap_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- ap_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ap (U/L)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- ap_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ap (U/L)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- ap_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ap (U/L)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_ap_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_ap_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_ap_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+
+### ptt ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- ptt_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of ptt for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ptt (Sec.)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ptt_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ptt_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ptt_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- ptt_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of ptt for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ptt (Sec.)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ptt_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ptt_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ptt_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- ptt_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of ptt for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ptt (Sec.)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ptt_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ptt_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ptt_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- ptt_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ptt (Sec.)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- ptt_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ptt (Sec.)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- ptt_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ptt (Sec.)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_ptt_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_ptt_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_ptt_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+
+### leukozyten ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- Leukozyten_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of leukozyten for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "leukozyten (cells/ul)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_leukozyten_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_leukozyten_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_leukozyten_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- Leukozyten_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of leukozyten for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "leukozyten (cells/ul)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_leukozyten_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_leukozyten_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_leukozyten_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- Leukozyten_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of leukozyten for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "leukozyten (cells/ul)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_leukozyten_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_leukozyten_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_leukozyten_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- Leukozyten_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "leukozyten (cells/ul)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- Leukozyten_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "leukozyten (cells/ul)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- Leukozyten_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "leukozyten (cells/ul)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_leukozyten_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_leukozyten_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_leukozyten_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### Erythrozyten ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- Erythrozyten_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of Erythrozyten for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "Erythrozyten (cells/ul)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_Erythrozyten_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_Erythrozyten_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_Erythrozyten_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- Erythrozyten_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of Erythrozyten for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "Erythrozyten (cells/ul)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_Erythrozyten_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_Erythrozyten_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_Erythrozyten_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- Erythrozyten_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of Erythrozyten for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "Erythrozyten (cells/ul)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_Erythrozyten_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_Erythrozyten_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_Erythrozyten_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- Erythrozyten_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "Erythrozyten (cells/ul)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- Erythrozyten_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "Erythrozyten (cells/ul)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- Erythrozyten_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "Erythrozyten (cells/ul)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_Erythrozyten_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_Erythrozyten_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_Erythrozyten_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+
+### Thrombozyten ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- Thrombozyten_diabetic%>% 
+  filter(Treatment == "Leber_Diclo") %>% filter(!grepl("_1|_2|_3|_4|_d", attribute)) 
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of Thrombozyten for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "Thrombozyten (cells/ul)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_Thrombozyten_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_Thrombozyten_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_Thrombozyten_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- Thrombozyten_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of Thrombozyten for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "Thrombozyten (cells/ul)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_Thrombozyten_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_Thrombozyten_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_Thrombozyten_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- Thrombozyten_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of Thrombozyten for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "Thrombozyten (cells/ul)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_Thrombozyten_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_Thrombozyten_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_Thrombozyten_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- Thrombozyten_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")%>% filter(!grepl("_1|_2|_3|_4|_d", attribute)) 
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "Thrombozyten (cells/ul)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- Thrombozyten_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "Thrombozyten (cells/ul)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- Thrombozyten_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "Thrombozyten (cells/ul)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_Thrombozyten_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_Thrombozyten_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_Thrombozyten_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### hb ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- hb_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of hb for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "hb (g/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_hb_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_hb_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_hb_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- hb_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of hb for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "hb (g/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_hb_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_hb_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_hb_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- hb_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of hb for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "hb (g/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_hb_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_hb_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_hb_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- hb_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "hb (g/dl)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- hb_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "hb (g/dl)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- hb_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "hb (g/dl)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_hb_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_hb_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_hb_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### Gesamteiweiß ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- Gesamteiweiß_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of Gesamteiweiß for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "Gesamteiweiß (g/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_Gesamteiweiß_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_Gesamteiweiß_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_Gesamteiweiß_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- Gesamteiweiß_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of Gesamteiweiß for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "Gesamteiweiß (g/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_Gesamteiweiß_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_Gesamteiweiß_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_Gesamteiweiß_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- Gesamteiweiß_diabetic%>% 
+  filter(Treatment == "Leber_Para")%>% filter(!grepl("_1|_2|_3|_4|_d", attribute)) 
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of Gesamteiweiß for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "Gesamteiweiß (g/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_Gesamteiweiß_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_Gesamteiweiß_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_Gesamteiweiß_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- Gesamteiweiß_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "Gesamteiweiß (g/dl)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- Gesamteiweiß_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "Gesamteiweiß (g/dl)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- Gesamteiweiß_diabetic %>% 
+  filter(Treatment == "Leber_Para")%>% filter(!grepl("_1|_2|_3|_4|_d", attribute)) 
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "Gesamteiweiß (g/dl)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_Gesamteiweiß_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_Gesamteiweiß_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_Gesamteiweiß_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+
+### total_bilirubin ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- total_bilirubin_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of total_bilirubin for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "total_bilirubin (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_total_bilirubin_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_total_bilirubin_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_total_bilirubin_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- total_bilirubin_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of total_bilirubin for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "total_bilirubin (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_total_bilirubin_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_total_bilirubin_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_total_bilirubin_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- total_bilirubin_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of total_bilirubin for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "total_bilirubin (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_total_bilirubin_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_total_bilirubin_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_total_bilirubin_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- total_bilirubin_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "total_bilirubin (mg/dl)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- total_bilirubin_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "total_bilirubin (mg/dl)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- total_bilirubin_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "total_bilirubin (mg/dl)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_total_bilirubin_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_total_bilirubin_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_total_bilirubin_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### direct_bilirubin ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- direct_bilirubin_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of direct_bilirubin for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "direct_bilirubin (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_direct_bilirubin_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_direct_bilirubin_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_direct_bilirubin_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- direct_bilirubin_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of direct_bilirubin for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "direct_bilirubin (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_direct_bilirubin_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_direct_bilirubin_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_direct_bilirubin_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- direct_bilirubin_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of direct_bilirubin for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "direct_bilirubin (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_direct_bilirubin_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_direct_bilirubin_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_direct_bilirubin_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- direct_bilirubin_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "direct_bilirubin (mg/dl)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- direct_bilirubin_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "direct_bilirubin (mg/dl)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- direct_bilirubin_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "direct_bilirubin (mg/dl)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_direct_bilirubin_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_direct_bilirubin_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_direct_bilirubin_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### kreatinin ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- kreatinin_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of kreatinin for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "kreatinin (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_kreatinin_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_kreatinin_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_kreatinin_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- kreatinin_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of kreatinin for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "kreatinin (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_kreatinin_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_kreatinin_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_kreatinin_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- kreatinin_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of kreatinin for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "kreatinin (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_kreatinin_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_kreatinin_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_kreatinin_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- kreatinin_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "kreatinin (mg/dl)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- kreatinin_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "kreatinin (mg/dl)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- kreatinin_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "kreatinin (mg/dl)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_kreatinin_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_kreatinin_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_kreatinin_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### harnstoff ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- harnstoff_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of harnstoff for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "harnstoff (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_harnstoff_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_harnstoff_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_harnstoff_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- harnstoff_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of harnstoff for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "harnstoff (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_harnstoff_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_harnstoff_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_harnstoff_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- harnstoff_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of harnstoff for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "harnstoff (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_harnstoff_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_harnstoff_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_harnstoff_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- harnstoff_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "harnstoff (mg/dl)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- harnstoff_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "harnstoff (mg/dl)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- harnstoff_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "harnstoff (mg/dl)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_harnstoff_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_harnstoff_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_harnstoff_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### crp ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- crp_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of crp for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "crp (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_crp_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_crp_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_crp_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- crp_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of crp for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "crp (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_crp_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_crp_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_crp_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- crp_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of crp for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "crp (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_crp_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_crp_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_crp_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- crp_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "crp (mg/dl)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- crp_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "crp (mg/dl)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- crp_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "crp (mg/dl)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_crp_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_crp_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_crp_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### crp ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- crp_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of crp for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "crp (mg/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_crp_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_crp_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_crp_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- crp_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of crp for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "crp (mg/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_crp_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_crp_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_crp_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- crp_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of crp for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "crp (mg/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_crp_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_crp_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_crp_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- crp_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "crp (mg/l)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- crp_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "crp (mg/l)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- crp_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "crp (mg/l)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_crp_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_crp_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_crp_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### natrium ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- natrium_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")%>% filter(!grepl("_1|_2|_3|_4|_d", attribute)) 
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of natrium for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "natrium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_natrium_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_natrium_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_natrium_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- natrium_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of natrium for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "natrium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_natrium_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_natrium_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_natrium_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- natrium_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of natrium for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "natrium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_natrium_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_natrium_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_natrium_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- natrium_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")%>% filter(!grepl("_1|_2|_3|_4|_d", attribute)) 
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "natrium (mmol/l)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- natrium_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "natrium (mmol/l)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- natrium_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "natrium (mmol/l)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_natrium_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_natrium_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_natrium_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### kalium ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- kalium_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of kalium for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "kalium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_kalium_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_kalium_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_kalium_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- kalium_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of kalium for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "kalium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_kalium_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_kalium_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_kalium_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- kalium_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of kalium for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "kalium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_kalium_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_kalium_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_kalium_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- kalium_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "kalium (mmol/l)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- kalium_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "kalium (mmol/l)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- kalium_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "kalium (mmol/l)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_kalium_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_kalium_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_kalium_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+
+### kalzium ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- kalzium_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of kalzium for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "kalzium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_kalzium_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_kalzium_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_kalzium_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- kalzium_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of kalzium for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "kalzium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_kalzium_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_kalzium_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_kalzium_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- kalzium_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of kalzium for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "kalzium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_kalzium_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_kalzium_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_kalzium_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- kalzium_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "kalzium (mmol/l)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- kalzium_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "kalzium (mmol/l)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- kalzium_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "kalzium (mmol/l)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_kalzium_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_kalzium_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_kalzium_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+### inr ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- inr_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of inr for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "inr ",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_inr_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_inr_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_inr_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- inr_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of inr for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "inr ",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_inr_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_inr_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_inr_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- inr_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of inr for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "inr ",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_inr_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_inr_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_inr_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- inr_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "inr ",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- inr_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "inr ",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- inr_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "inr ",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_inr_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_inr_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_inr_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+
+### quick ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- quick_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of quick for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "quick (%)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_quick_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_quick_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_quick_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- quick_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of quick for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "quick (%)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_quick_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_quick_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_quick_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- quick_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of quick for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "quick (%)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_quick_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_quick_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_quick_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- quick_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "quick (%)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- quick_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "quick (%)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- quick_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "quick (%)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_quick_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_quick_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_quick_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+
+### hämatokrit ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- hämatokrit_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of hämatokrit for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "hämatokrit (%)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_hämatokrit_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_hämatokrit_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_hämatokrit_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- hämatokrit_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of hämatokrit for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "hämatokrit (%)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_hämatokrit_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_hämatokrit_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_hämatokrit_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- hämatokrit_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of hämatokrit for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "hämatokrit (%)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_hämatokrit_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_hämatokrit_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_hämatokrit_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- hämatokrit_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "hämatokrit (%)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- hämatokrit_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "hämatokrit (%)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- hämatokrit_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "hämatokrit (%)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_hämatokrit_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_hämatokrit_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_hämatokrit_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+
+
+### ggt ########################################################################
+### violin plot ###
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_diclo <- ggt_diabetic%>% 
+  filter(Treatment == "Leber_Diclo")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_diclo %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_diclo,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_diclo Comparison of ggt for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ggt (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ggt_full_diclo_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ggt_full_diclo_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ggt_full_diclo_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_ibu <- ggt_diabetic%>% 
+  filter(Treatment == "Leber_Ibu")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_ibu %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_ibu,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_ibu Comparison of ggt for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ggt (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ggt_full_ibu_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_ibu$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ggt_full_ibu_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ggt_full_ibu_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+leber_diabetic_para <- ggt_diabetic%>% 
+  filter(Treatment == "Leber_Para")
+
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leber_diabetic_para %>%
+  distinct(`Edited_BfArM Nummer2`, Diabetes) %>%  # nur einzigartige Patienten
+  count(Diabetes, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leber_diabetic_para,
+  x = "Diabetes",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "liver_para Comparison of ggt for Diabetic vs. Non-Diabetic Patients",
+  xlab = "Patient group",
+  ylab = "ggt (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues/seperated by nsaid - violin einfügen
+liver_ggt_full_para_comparison_diabetic_vs_nondiabetic <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Diabetes, 
+        y = max(leber_diabetic_para$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/seperated by nsaid - violin", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - violin/liver_ggt_full_para_comparison_diabetic_vs_nondiabetic.svg", height = 8, width = 6.5)
+print(liver_ggt_full_para_comparison_diabetic_vs_nondiabetic)
+dev.off()
+
+
+```
+
+
+### boxplot ###
+
+```{r}
+p1_diclo <- ggt_diabetic %>% 
+  filter(Treatment == "Leber_Diclo")
+
+p1_diclo_counts <- p1_diclo %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_diclo_plot <- p1_diclo %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_diclo_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ggt (U/L)",
+    title = "Liver Diclo"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_ibu <- ggt_diabetic %>% 
+  filter(Treatment == "Leber_Ibu")
+
+p1_ibu_counts <- p1_ibu %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_ibu_plot <- p1_ibu %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_ibu_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ggt (U/L)",
+    title = "Liver Ibu"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+
+```{r}
+p1_para <- ggt_diabetic %>% 
+  filter(Treatment == "Leber_Para")
+
+p1_para_counts <- p1_para %>% 
+  group_by(Diabetes) %>%
+  summarize(
+    n_patients = n_distinct(`Edited_BfArM Nummer2`),
+    ymax = max(labreads, na.rm = TRUE),
+    .groups = "drop"
+  )
+
+p1_para_plot <- p1_para %>% 
+  ggplot(aes(x = Diabetes, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter(color = "red", width = 0.2, height = 0) +
+  geom_text(data = p1_para_counts, 
+            aes(x = Diabetes, 
+                y = ymax, 
+                label = paste0("n=", n_patients)), 
+            color = "red", 
+            vjust = -0.5) +  # leicht über dem Maximum
+  labs(
+    x = "Patient group",
+    y = "ggt (U/L)",
+    title = "Liver Para"
+  ) +
+  theme_classic() +
+  theme(
+    plot.title = element_text(size = 10, hjust = 0.5)
+  )
+```
+
+```{r}
+liver_ggt_full_boxplot_diabetic_vs_nondiabetic <- p1_diclo_plot+p1_ibu_plot+p1_para_plot
+
+
+dir.create("plots_all_labvalues/seperated by nsaid - box", showWarnings = FALSE)
+svg("plots_all_labvalues/seperated by nsaid - box/liver_ggt_full_boxplot diabetic vs. nondiabetic.svg", height = 7, width = 12)
+print(liver_ggt_full_boxplot_diabetic_vs_nondiabetic)
+dev.off()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

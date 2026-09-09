@@ -1,0 +1,214 @@
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+```
+
+```{r}
+comedicationdata <- read_excel("Co-medication excel long.xlsx",sheet = 1)
+comedicationdata
+```
+
+
+after reading file, just copy and paste following code for .
+
+## frequeny of medication ##
+```{r}
+comedicationdata %>% 
+  mutate( treatment = as.factor(treatment),
+          Medication = as.factor(Medication),
+          kathegorie = as.factor(kathegorie)) %>% 
+  dplyr::select(treatment,Medication, labreads) %>% 
+  group_by(Medication)%>% 
+  summarise(count = n()) %>%   
+  dplyr::arrange(desc(count))
+```
+
+## treatment and medication together for frequency##
+
+
+```{r}
+comedicationdata %>% 
+  mutate( treatment = as.factor(treatment),
+          Medication = as.factor(Medication),
+          kathegorie = as.factor(kathegorie)) %>% 
+  dplyr::select(treatment,Medication, labreads) %>% 
+  group_by(treatment,Medication)%>% 
+  summarise(count = n(), .groups = "drop") %>%   
+  dplyr::arrange(desc(count))
+```
+## for pie chat based on comedication frequency ###
+
+```{r, fig.width=100, fig.height= 20}
+library(dplyr)
+library(ggplot2)
+
+# Summarize counts by Medication
+med_counts <- comedicationdata %>%
+  mutate(Medication = as.factor(Medication)) %>%
+  group_by(Medication) %>%
+  summarise(count = n(), .groups = "drop")
+
+# Create pie chart
+ggplot(med_counts, aes(x = "", y = count, fill = Medication)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  labs(title = "Medication Frequency (Pie Chart)", y = "", x = "") +
+  theme_void() +
+  theme(legend.position = "right")
+
+```
+
+```{r}
+library(readxl)
+#setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Exceltabellen")
+medication_headline <- read_excel("medication_headlines.xlsx", sheet = 3)
+medication_headline_long <- medication_headline %>% 
+  separate_rows(group_code, sep = ",") %>%
+  mutate(drug_group = as.integer(group_code)) %>% 
+  dplyr::rename("group_name" = "medication_headline")
+
+medication_headline
+
+medication_headline_long
+
+```
+
+```{r,fig.width=8, fig.height= 6}
+left_join(medication_headline_long,comedicationdata,by = "drug_group") %>% 
+  drop_na() %>% 
+  group_by(group_name) %>% 
+summarise(count = n()) %>% 
+  arrange(desc(count)) %>% 
+  mutate(prop = count / sum(count),
+         label = paste0(group_name, " (", round(prop * 100, 1), "%)")) %>% 
+  ggplot(aes(x = "", y = count, fill = group_name)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  labs(title = "Pie Chart of Co-medication") +
+  theme_void() +  # Clean theme for pie chart
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 1.5),
+    legend.title = element_blank()) +
+  geom_text(aes(label = label), 
+            position = position_stack(vjust = 0.5), size = 3)
+  
+```
+
+
+```{r}
+library(ggrepel)
+
+left_join(medication_headline_long, comedicationdata, by = "drug_group") %>% 
+  drop_na() %>% 
+  group_by(group_name) %>% 
+  summarise(count = n()) %>% 
+  arrange(desc(count)) %>% 
+  mutate(prop = count / sum(count),
+         label = paste0(group_name, "\n", round(prop * 100, 1), "%"),
+         ypos = cumsum(prop) - 0.5 * prop) %>%
+  ggplot(aes(x = "", y = prop, fill = group_name)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  labs(title = "Pie Chart of Co-medication") +
+  theme_void() +
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    legend.position = "none") +
+  geom_text_repel(aes(y = ypos, label = label), 
+                  size = 4, 
+                  nudge_x = 1,
+                  show.legend = FALSE,
+                  segment.color = "grey50",
+                  direction = "y")
+
+```
+
+
+```{r}
+library(dplyr)
+library(ggplot2)
+
+# Generate pie chart with simplified percentage labels
+left_join(medication_headline_long, comedicationdata, by = "drug_group") %>% 
+  drop_na() %>% 
+  group_by(group_name) %>% 
+  summarise(count = n()) %>% 
+  arrange(desc(count)) %>% 
+  mutate(prop = count / sum(count),
+         label = paste0(round(prop * 100, 1), "%")) %>% 
+  ggplot(aes(x = "", y = count, fill = group_name)) +
+  geom_bar(stat = "identity", width = 1) +
+  coord_polar("y") +
+  labs(title = "Pie Chart of Co-medication") +
+  theme_void() +
+  theme(legend.title = element_blank()) +
+  geom_text(aes(label = label), 
+            position = position_stack(vjust = 1), 
+            size = 4)
+
+```
+
+###Korrelation Anzahl der Co-Medikation und Laborwerte
+
+```{r}
+comedicationdata <- read_excel("Co-medication excel long.xlsx",sheet = 1)
+comedicationdata1 <- comedicationdata %>% 
+  dplyr::rename( "patient_group" = "treatment")
+
+comedicationdata1
+```
+```{r}
+library(readxl)
+main_medication <-  read_excel("~/Abc/Doktorarbeit SJS/Analyse R-Statistics/Ergebnis Vergleich dosis_labvalues/Dose table.xlsx", sheet = 2)
+
+main_medication_data <- janitor::clean_names(main_medication)
+
+main_medication_data <-  main_medication_data %>% 
+  dplyr::rename("bfarm_nummer" = "bf_ar_m_nummer_2" )
+
+main_medication_data
+
+
+```
+
+
+
+
+```{r}
+main_data_comed <- left_join(main_medication_data,comedicationdata1, by = "bfarm_nummer")
+main_data_comed
+```
+
+
+```{r}
+gpt_long1 <- gpt_long %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>% 
+  filter(!grepl("_From Start", attribute))
+
+gpt_long1 
+
+```
+
+
+
+```{r}
+main_data_comed_gpt <- left_join(main_data_comed,gpt_long1 ,by = "bfarm_nummer")
+main_data_comed_gpt
+```
+
+
+
+
+
+
+

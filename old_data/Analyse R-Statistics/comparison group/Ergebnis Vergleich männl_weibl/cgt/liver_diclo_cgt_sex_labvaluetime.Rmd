@@ -1,0 +1,1960 @@
+---
+title: "boxplot and lineplot"
+author: "Arun Kumar"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r} 
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+library(ggstatsplot)
+```
+### labels##
+```{r}
+# Create a vector with the x-axis labels in the desired order
+### for lineplot as prof as to make####
+### need to write all days name manually
+
+   gpt_summary_data_cgt$Attribute <- 
+   factor(gpt_summary_data_cgt$Attribute,levels = c("GPT_d1", "GPT_d2", "GPT_d3","GPT_d4","GPT_d5", "GPT_d6","GPT_d7","GPT_d8","GPT_d9","GPT_d10", "GPT_d11","GPT_d12","GPT_d13","GPT_d14","GPT_d14 (guess)","GPT_d15","GPT_d16","GPT_d17","GPT_d18","GPT_d19","GPT_d20","GPT_d21","GPT_d21 (guess)","GPT_d22","GPT_d23","GPT_d24","GPT_d25","GPT_d26","GPT_d27","GPT_d28","GPT_d29","GPT_d30","GPT_d31","GPT_d32","GPT_d33","GPT_d34","GPT_d35","GPT_d36","GPT_d37","GPT_d38","GPT_d39","GPT_d40","GPT_d41","GPT_d42","GPT_d43","GPT_d44","GPT_d45","GPT_d46","GPT_d47","GPT_d48","GPT_d49","GPT_d50","GPT_d51","GPT_d52","GPT_d53","GPT_d54","GPT_d55","GPT_d56","GPT_d57","GPT_d58","GPT_d59","GPT_d60","GPT_d61","GPT_d62","GPT_d63","GPT_d64","GPT_d65","GPT_d66","GPT_d67","GPT_d68","GPT_d69","GPT_d70","GPT_d71","GPT_d72","GPT_d73","GPT_d74","GPT_d75","GPT_d76","GPT_d77","GPT_d78","GPT_d79","GPT_d80","GPT_d81","GPT_d82","GPT_d83","GPT_d84","GPT_d85","GPT_d86","GPT_d87","GPT_d88","GPT_d89","GPT_d90","GPT_d91","GPT_d92","GPT_d93","GPT_d94","GPT_d95","GPT_d96","GPT_d97","GPT_d98","GPT_d99","GPT_d100","GPT_d131","GPT_d580 (guess)"))
+
+### for lineplot
+ldalt_data_cgt$Attribute <- factor(ldalt_data_cgt$Attribute,levels = c( "GPT_d1", "GPT_d2", "GPT_d3","GPT_d4","GPT_d5", "GPT_d6","GPT_d7","GPT_d8","GPT_d9","GPT_d10", "GPT_d11","GPT_d12","GPT_d13","GPT_d14","GPT_d14 (guess)","GPT_d15","GPT_d16","GPT_d17","GPT_d18","GPT_d19","GPT_d20","GPT_d21","GPT_d21 (guess)","GPT_d22","GPT_d23","GPT_d24","GPT_d25","GPT_d26","GPT_d27","GPT_d28","GPT_d29","GPT_d30","GPT_d31","GPT_d32","GPT_d33","GPT_d34","GPT_d35","GPT_d36","GPT_d37","GPT_d38","GPT_d39","GPT_d40","GPT_d41","GPT_d42","GPT_d43","GPT_d44","GPT_d45","GPT_d46","GPT_d47","GPT_d48","GPT_d49","GPT_d50","GPT_d51","GPT_d52","GPT_d53","GPT_d54","GPT_d55","GPT_d56","GPT_d57","GPT_d58","GPT_d59","GPT_d60","GPT_d61","GPT_d62","GPT_d63","GPT_d64","GPT_d65","GPT_d66","GPT_d67","GPT_d68","GPT_d69","GPT_d70","GPT_d71","GPT_d72","GPT_d73","GPT_d74","GPT_d75","GPT_d76","GPT_d77","GPT_d78","GPT_d79","GPT_d80","GPT_d81","GPT_d82","GPT_d83","GPT_d84","GPT_d85","GPT_d86","GPT_d87","GPT_d88","GPT_d89","GPT_d90","GPT_d91","GPT_d92","GPT_d93","GPT_d94","GPT_d95","GPT_d96","GPT_d97","GPT_d98","GPT_d99","GPT_d100","GPT_d131","GPT_d580 (guess)"))
+
+# ##for boxplt change last data##
+```
+
+
+```{r}
+ ##### Make the line plot of labreads for male and female####
+ ##### filter the male and female for individual plot #####
+###############################################################################
+gpt_summary_data_cgt <- ldalt_data_cgt  %>% filter(gender == "Male") %>% ## change (male and female for data to make graph)
+  group_by(Attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+    )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(gpt_summary_data_cgt$mean_labread + gpt_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot as prof as to make####
+### need to write all days name manually
+
+ggplot(gpt_summary_data_cgt, aes(x = Attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread),       ##width = 0.2, color = "blue") + 
+  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), 
+                width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + 
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  # SEM error bars in red
+  labs(title = "liver_diclo mean ALT in time course for male with patient count",    ###NEW###
+       x = "Day of measurement",                     ###NEW###
+       y = "ALT U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, 1300))
+
+```
+
+##### code for boxplot ####
+
+
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(gpt_summary_data_cgt$mean_labread + gpt_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldalt_data_cgt %>% 
+  mutate(Attribute = as.factor(Attribute)) %>% 
+  group_by(Attribute) %>% 
+  ggplot(aes(x = Attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        ####NEW#####
+  labs(title = "liver_diclo boxplot for ALT by day of measurement",      ###NEW###
+       x = "day of measurement",                            ###NEW###
+       y = "ALT U/L") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+   scale_y_continuous(breaks = all_breaks,
+                      limits = c(0, 1300))
+
+
+```
+######################################################################
+###AST###
+### labels##
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+ast_summary_data_cgt$Attribute <- factor(ast_summary_data_cgt$Attribute,
+                                     levels = c("GOT_d1", "GOT_d2", "GOT_d3","GOT_d4","GOT_d5", "GOT_d6","GOT_d7","GOT_d8","GOT_d9","GOT_d10", "GOT_d11","GOT_d12","GOT_d13","GOT_d14","GOT_d14 (guess)","GOT_d15","GOT_d16","GOT_d17","GOT_d18","GOT_d19","GOT_d20","GOT_d21","GOT_d21 (guess)","GOT_d22","GOT_d23","GOT_d24","GOT_d25","GOT_d26","GOT_d27","GOT_d28","GOT_d29","GOT_d30","GOT_d31","GOT_d32","GOT_d33","GOT_d34","GOT_d35","GOT_d36","GOT_d37","GOT_d38","GOT_d39","GOT_d40","GOT_d41","GOT_d42","GOT_d43","GOT_d44","GOT_d45","GOT_d46","GOT_d47","GOT_d48","GOT_d49","GOT_d50","GOT_d51","GOT_d52","GOT_d53","GOT_d54","GOT_d55","GOT_d56","GOT_d57","GOT_d58","GOT_d59","GOT_d60","GOT_d61","GOT_d62","GOT_d63","GOT_d64","GOT_d65","GOT_d66","GOT_d67","GOT_d68","GOT_d69","GOT_d70","GOT_d71","GOT_d72","GOT_d73","GOT_d74","GOT_d75","GOT_d76","GOT_d77","GOT_d78","GOT_d79","GOT_d80","GOT_d81","GOT_d82","GOT_d83","GOT_d84","GOT_d85","GOT_d86","GOT_d87","GOT_d88","GOT_d89","GOT_d90","GOT_d91","GOT_d92","GOT_d93","GOT_d94","GOT_d95","GOT_d96","GOT_d97","GOT_d98","GOT_d99","GOT_d100","GOT_d131","GOT_d580 (guess)"))
+# 
+# ##for boxplt change last data##
+ ldast_data_cgt$Attribute <- factor(ldast_data_cgt$Attribute,levels = c( "GOT_d1", "GOT_d2", "GOT_d3","GOT_d4","GOT_d5", "GOT_d6","GOT_d7","GOT_d8","GOT_d9","GOT_d10", "GOT_d11","GOT_d12","GOT_d13","GOT_d14","GOT_d14 (guess)","GOT_d15","GOT_d16","GOT_d17","GOT_d18","GOT_d19","GOT_d20","GOT_d21","GOT_d21 (guess)","GOT_d22","GOT_d23","GOT_d24","GOT_d25","GOT_d26","GOT_d27","GOT_d28","GOT_d29","GOT_d30","GOT_d31","GOT_d32","GOT_d33","GOT_d34","GOT_d35","GOT_d36","GOT_d37","GOT_d38","GOT_d39","GOT_d40","GOT_d41","GOT_d42","GOT_d43","GOT_d44","GOT_d45","GOT_d46","GOT_d47","GOT_d48","GOT_d49","GOT_d50","GOT_d51","GOT_d52","GOT_d53","GOT_d54","GOT_d55","GOT_d56","GOT_d57","GOT_d58","GOT_d59","GOT_d60","GOT_d61","GOT_d62","GOT_d63","GOT_d64","GOT_d65","GOT_d66","GOT_d67","GOT_d68","GOT_d69","GOT_d70","GOT_d71","GOT_d72","GOT_d73","GOT_d74","GOT_d75","GOT_d76","GOT_d77","GOT_d78","GOT_d79","GOT_d80","GOT_d81","GOT_d82","GOT_d83","GOT_d84","GOT_d85","GOT_d86","GOT_d87","GOT_d88","GOT_d89","GOT_d90","GOT_d91","GOT_d92","GOT_d93","GOT_d94","GOT_d95","GOT_d96","GOT_d97","GOT_d98","GOT_d99","GOT_d100","GOT_d131","GOT_d580 (guess)"))
+```
+
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+```{r}
+ast_summary_data_cgt <- ldast_data_cgt  %>% filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(Attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(ast_summary_data_cgt$mean_labread + ast_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 600, by = 200)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 500) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(ast_summary_data_cgt, aes(x = Attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "liver_diclo_cgt mean AST in time course for Female",
+       x = "Day of measurement",
+       y = "AST U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+ 
+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, 1700))
+
+```
+
+
+
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(ast_summary_data_cgt$mean_labread + ast_summary_data_cgt$sem_labread, na.rm = TRUE)
+max_value <- 3000
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+
+
+ldast_data_cgt %>% 
+  mutate(Attribute = as.factor(Attribute)) %>% 
+  group_by(Attribute) %>% 
+  ggplot(aes(x = Attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        ####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of AST by day of measurement",      ###NEW###
+       x = "day of measurement",                            ###NEW###
+       y = "AST U/L") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                    limits = c(0, 2100))
+
+
+```
+
+######################################################################
+###CK###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+got_summary_data_cgt$Attribute <- factor(got_summary_data_cgt$Attribute,levels = c( "GOT Day2_From Start","GOT Day1_From Start","GOT Day1","GOT Day2","GOT Day3","GOT Day4","GOT Day5","GOT Day6","GOT Day7","GOT Day8","GOT Day9","GOT Day11","GOT Day12","GOT Day14","GOT Day15","GOT Day_Unknown"))
+
+##for boxplt change last data##
+ldast_data_cgt$Attribute <- factor(ldgot_data_cgt$Attribute,levels = c( "GOT Day2_From Start","GOT Day1_From Start","GOT Day1","GOT Day2","GOT Day3","GOT Day4","GOT Day5","GOT Day6","GOT Day7","GOT Day8","GOT Day9","GOT Day11","GOT Day12","GOT Day14","GOT Day15","GOT Day_Unknown"))
+```
+
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+ck_summary_data_cgt <- ldck_data_cgt  %>% filter(gender == "Male") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(ck_summary_data_cgt$mean_labread + ck_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 200)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 1000) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(ck_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "Line Plot of Mean CK for male",
+       x = "Day of measurement",
+       y = "CK U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(ck_summary_data_cgt$mean_labread + ck_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 200)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldck_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+ 
+  labs(title = "liver_diclo_cgt Boxplot of CK by day of measurement",
+       x = "day of measurement",
+       y = "CK U/L") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+   scale_y_continuous(breaks = all_breaks,
+                      limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###quick###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+quick_summary_data_cgt$attribute <- factor(quick_summary_data_cgt$attribute,levels = c("Quick Day1","Quick Day2","Quick Day3","Quick Day4","Quick Day5","Quick Day6","Quick Day8","Quick Day9","Quick Day10","Quick Day20"))
+
+##for boxplt change last data##
+ldquick_data_cgt$attribute <- factor(ldquick_data_cgt$attribute,levels = c( "Quick Day1","Quick Day2","Quick Day3","Quick Day4","Quick Day5","Quick Day6","Quick Day8","Quick Day9","Quick Day10","Quick Day20"))
+```
+
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+quick_summary_data_cgt <- ldquick_data_cgt  %>% filter(gender == "Male") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(quick_summary_data_cgt$mean_labread + quick_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 10)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(quick_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels  
+  labs(title = "Line Plot of Mean quick for male",
+       x = "Day of measurement",
+       y = "quick %",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(quick_summary_data_cgt$mean_labread + quick_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 10)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldquick_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+   geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of quick by day of measurement",
+       x = "day of measurement",
+       y = "quick %") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###inr###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+inr_summary_data_cgt$attribute <- factor(inr_summary_data_cgt$attribute,levels = c( "INR Day1","INR Day2","INR Day3","INR Day4","INR Day5","INR Day6","INR Day8","INR Day9","INR Day10","INR Day11"))
+
+##for boxplt change last data##
+ldinr_data_cgt$attribute <- factor(ldinr_data_cgt$attribute,levels = c( "INR Day1","INR Day2","INR Day3","INR Day4","INR Day5","INR Day6","INR Day8","INR Day9","INR Day10","INR Day11"))
+```
+
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+inr_summary_data_cgt <- ldinr_data_cgt  %>% filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(inr_summary_data_cgt$mean_labread + inr_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 1)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(inr_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+   geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "Line Plot of Mean INR for female",
+       x = "Day of measurement",
+       y = "INR",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(inr_summary_data_cgt$mean_labread + inr_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 1)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldinr_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of INR by day of measurement",
+       x = "day of measurement",
+       y = "INR") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###ptt###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+quick_summary_data_cgt$Attribute <- factor(quick_summary_data_cgt$Attribute,levels = c( "GOT Day2_From Start","GOT Day1_From Start","GOT Day1","GOT Day2","GOT Day3","GOT Day4","GOT Day5","GOT Day6","GOT Day7","GOT Day8","GOT Day9","GOT Day11","GOT Day12","GOT Day14","GOT Day15","GOT Day_Unknown"))
+
+##for boxplt change last data##
+ldast_data_cgt$Attribute <- factor(ldast_data_cgt$Attribute,levels = c( "GOT Day2_From Start","GOT Day1_From Start","GOT Day1","GOT Day2","GOT Day3","GOT Day4","GOT Day5","GOT Day6","GOT Day7","GOT Day8","GOT Day9","GOT Day11","GOT Day12","GOT Day14","GOT Day15","GOT Day_Unknown"))
+```
+
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+ptt_summary_data_cgt <- ldptt_data_cgt  %>% filter(gender == "Male") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(ptt_summary_data_cgt$mean_labread + ptt_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 10)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(ptt_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "Line Plot of Mean PTT for Male",
+       x = "Day of measurement",
+       y = "PTT Sec.",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(ptt_summary_data_cgt$mean_labread + ptt_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 10)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldptt_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of PTT by day of measurement",
+       x = "day of measurement",
+       y = "PTT Sec.") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###Leukozyten###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+leukozyten_summary_data_cgt$Attribute <- factor(leukozyten_summary_data_cgt$attribute,levels = c("Leukozyten Day1", "Leukozyten Day2", "Leukozyten Day3", "Leukozyten Day4", "Leukozyten Day5","Leukozyten Day6","Leukozyten Day8",
+"Leukozyten Day9","Leukozyten Day10", "Leukozyten Day11","Leukozyten Day12","Leukozyten Day13","Leukozyten Day15","Leukozyten Day26"))
+
+##for boxplt change last data##
+ldleukozyten_data_cgt$attribute <- factor(ldleukozyten_data_cgt$attribute,levels = c("Leukozyten Day1", "Leukozyten Day2", "Leukozyten Day3", "Leukozyten Day4", "Leukozyten Day5","Leukozyten Day6","Leukozyten Day8",
+"Leukozyten Day9","Leukozyten Day10", "Leukozyten Day11","Leukozyten Day12","Leukozyten Day13","Leukozyten Day15","Leukozyten Day26"))
+```
+
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+leukozyten_summary_data_cgt <- ldleukozyten_data_cgt  %>% filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(leukozyten_summary_data_cgt$mean_labread + leukozyten_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, 14000, by = 1000) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(leukozyten_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "Line Plot of Mean Leukocytes for Female",
+       x = "Day of measurement",
+       y = "Leukocytes Cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, 14000))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(leukozyten_summary_data_cgt$mean_labread + leukozyten_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 600) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldleukozyten_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of Leucocytes by day of measurement",
+       x = "day of measurement",
+       y = "Leukocytes Cells/ul") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, 14000))
+
+
+```
+
+######################################################################
+###GGT###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+ggt_summary_data_cgt$Attribute <- factor(ggt_summary_data_cgt$attribute,levels = c("GGT_d1", "GGT_d2", "GGT_d3","GGT_d4","GGT_d5", "GGT_d6","GGT_d7","GGT_d8","GGT_d9","GGT_d10", "GGT_d11","GGT_d12","GGT_d13","GGT_d14","GGT_d14 (guess)","GGT_d15","GGT_d16","GGT_d17","GGT_d18","GGT_d19","GGT_d20","GGT_d21","GGT_d21 (guess)","GGT_d22","GGT_d23","GGT_d24","GGT_d25","GGT_d26","GGT_d27","GGT_d28","GGT_d29","GGT_d30","GGT_d31","GGT_d32","GGT_d33","GGT_d34","GGT_d35","GGT_d36","GGT_d37","GGT_d38","GGT_d39","GGT_d40","GGT_d41","GGT_d42","GGT_d43","GGT_d44","GGT_d45","GGT_d46","GGT_d47","GGT_d48","GGT_d49","GGT_d50","GGT_d51","GGT_d52","GGT_d53","GGT_d54","GGT_d55","GGT_d56","GGT_d57","GGT_d58","GGT_d59","GGT_d60","GGT_d61","GGT_d62","GGT_d63","GGT_d64","GGT_d65","GGT_d66","GGT_d67","GGT_d68","GGT_d69","GGT_d70","GGT_d71","GGT_d72","GGT_d73","GGT_d74","GGT_d75","GGT_d76","GGT_d77","GGT_d78","GGT_d79","GGT_d80","GGT_d81","GGT_d82","GGT_d83","GGT_d84","GGT_d85","GGT_d86","GGT_d87","GGT_d88","GGT_d89","GGT_d90","GGT_d91","GGT_d92","GGT_d93","GGT_d94","GGT_d95","GGT_d96","GGT_d97","GGT_d98","GGT_d99","GGT_d100","GGT_d131","GGT_d244 (guess)","GGT_d488 (guess)","GGT_d549 (guess)","GGT_d580 (guess)"))
+
+##for boxplt change last data##
+ldggt_data_cgt$attribute <- factor(ldggt_data_cgt$attribute,levels = c("GGT_d1", "GGT_d2", "GGT_d3","GGT_d4","GGT_d5", "GGT_d6","GGT_d7","GGT_d8","GGT_d9","GGT_d10", "GGT_d11","GGT_d12","GGT_d13","GGT_d14","GGT_d14 (guess)","GGT_d15","GGT_d16","GGT_d17","GGT_d18","GGT_d19","GGT_d20","GGT_d21","GGT_d21 (guess)","GGT_d22","GGT_d23","GGT_d24","GGT_d25","GGT_d26","GGT_d27","GGT_d28","GGT_d29","GGT_d30","GGT_d31","GGT_d32","GGT_d33","GGT_d34","GGT_d35","GGT_d36","GGT_d37","GGT_d38","GGT_d39","GGT_d40","GGT_d41","GGT_d42","GGT_d43","GGT_d44","GGT_d45","GGT_d46","GGT_d47","GGT_d48","GGT_d49","GGT_d50","GGT_d51","GGT_d52","GGT_d53","GGT_d54","GGT_d55","GGT_d56","GGT_d57","GGT_d58","GGT_d59","GGT_d60","GGT_d61","GGT_d62","GGT_d63","GGT_d64","GGT_d65","GGT_d66","GGT_d67","GGT_d68","GGT_d69","GGT_d70","GGT_d71","GGT_d72","GGT_d73","GGT_d74","GGT_d75","GGT_d76","GGT_d77","GGT_d78","GGT_d79","GGT_d80","GGT_d81","GGT_d82","GGT_d83","GGT_d84","GGT_d85","GGT_d86","GGT_d87","GGT_d88","GGT_d89","GGT_d90","GGT_d91","GGT_d92","GGT_d93","GGT_d94","GGT_d95","GGT_d96","GGT_d97","GGT_d98","GGT_d99","GGT_d100","GGT_d131","GGT_d244 (guess)","GGT_d488 (guess)","GGT_d549 (guess)","GGT_d580 (guess)"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+ggt_summary_data_cgt <- ldggt_data_cgt  %>% filter(gender == "Male") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(ggt_summary_data_cgt$mean_labread + ggt_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 600, by = 50)
+#additional_breaks <- if (max_value > 500) seq(600, max_value, by = 1000) else numeric(0)
+all_breaks <- c(breaks_up_to_500)
+
+ggplot(ggt_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "Line Plot of Mean GGT for male",
+       x = "Day of measurement",
+       y = "GGT U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, 800))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(ggt_summary_data_cgt$mean_labread + ggt_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+#additional_breaks <- if (max_value > 500) seq(600, max_value, by = 600) else numeric(0)
+all_breaks <- c(breaks_up_to_500)
+
+## use the last joined data gender with labreads##
+ldggt_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+    
+  labs(title = "liver_diclo_cgt Boxplot of GGT by day of measurement",
+       x = "day of measurement",
+       y = "GGT U/L") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###LDH###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+ldh_summary_data_cgt$attribute <- factor(ldh_summary_data_cgt$attribute,levels = c( "LDH Day1","LDH Day2","LDH Day4","LDH Day5","LDH Day6","LDH Day8","LDH Day10"))
+
+##for boxplt change last data##
+ldldh_data_cgt$attribute <- factor(ldldh_data_cgt$attribute,levels = c("LDH Day1","LDH Day2","LDH Day4","LDH Day5","LDH Day6","LDH Day8","LDH Day10"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+ldh_summary_data_cgt <- ldldh_data_cgt  %>% filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(ldh_summary_data_cgt$mean_labread + ldh_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 1000) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(ldh_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+   geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "Line Plot of Mean LDH for female",
+       x = "Day of measurement",
+       y = "LDH U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(ldh_summary_data_cgt$mean_labread + ldh_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldldh_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of LDH by day of measurement",
+       x = "day of measurement",
+       y = "LDH U/L") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###HB###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+hb_summary_data_cgt$attribute <- factor(hb_summary_data_cgt$attribute,levels = c("Hb Day1", "Hb Day2", "Hb Day3", "Hb Day4", "Hb Day5","Hb Day6", "Hb Day7","Hb Day8","Hb Day9","Hb Day10", "Hb Day12","Hb Day14","Hb Day15", "Hb Day16"))
+
+##for boxplt change last data##
+ldhb_data_cgt$attribute <- factor(ldhb_data_cgt$attribute,levels = c("Hb Day1", "Hb Day2", "Hb Day3", "Hb Day4", "Hb Day5","Hb Day6", "Hb Day7","Hb Day8","Hb Day9","Hb Day10", "Hb Day12","Hb Day14","Hb Day15", "Hb Day16"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+hb_summary_data_cgt <- ldhb_data_cgt  %>% filter(gender == "Male") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(hb_summary_data_cgt$mean_labread + hb_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 1)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 1) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(hb_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "Line Plot of Mean HB for Male",
+       x = "Day of measurement",
+       y = "HB g/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(hb_summary_data_cgt$mean_labread + hb_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 5)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldhb_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+      
+  labs(title = "liver_diclo_cgt Boxplot of HB by day of measurement",
+       x = "day of measurement",
+       y = "HB g/dl") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###totales Bilirubin###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+totbili_summary_data_cgt$attribute <- factor(totbili_summary_data_cgt$attribute,levels = c("TotalBilirubin_d1", "TotalBilirubin_d2", "TotalBilirubin_d3","TotalBilirubin_d4","TotalBilirubin_d5", "TotalBilirubin_d6","TotalBilirubin_d7","TotalBilirubin_d7 (guess)","TotalBilirubin_d8","TotalBilirubin_d9","TotalBilirubin_d10", "TotalBilirubin_d11","TotalBilirubin_d12","TotalBilirubin_d13","TotalBilirubin_d14","TotalBilirubin_d14 (guess)","TotalBilirubin_d15","TotalBilirubin_d16","TotalBilirubin_d17","TotalBilirubin_d18","TotalBilirubin_d19","TotalBilirubin_d20","TotalBilirubin_d21","TotalBilirubin_d21 (guess)","TotalBilirubin_d22","TotalBilirubin_d23","TotalBilirubin_d24","TotalBilirubin_d25","TotalBilirubin_d26","TotalBilirubin_d27","TotalBilirubin_d28","TotalBilirubin_d29","TotalBilirubin_d30","TotalBilirubin_d31","TotalBilirubin_d32","TotalBilirubin_d33","TotalBilirubin_d34","TotalBilirubin_d35","TotalBilirubin_d36","TotalBilirubin_d37","TotalBilirubin_d38","TotalBilirubin_d39","TotalBilirubin_d40","TotalBilirubin_d41","TotalBilirubin_d42","TotalBilirubin_d43","TotalBilirubin_d44","TotalBilirubin_d45","TotalBilirubin_d46","TotalBilirubin_d47","TotalBilirubin_d48","TotalBilirubin_d49","TotalBilirubin_d50","TotalBilirubin_d51","TotalBilirubin_d52","TotalBilirubin_d53","TotalBilirubin_d54","TotalBilirubin_d55","TotalBilirubin_d56","TotalBilirubin_d57","TotalBilirubin_d58","TotalBilirubin_d59","TotalBilirubin_d60","TotalBilirubin_d61","TotalBilirubin_d62","TotalBilirubin_d63","TotalBilirubin_d64","TotalBilirubin_d65","TotalBilirubin_d66","TotalBilirubin_d67","TotalBilirubin_d68","TotalBilirubin_d69","TotalBilirubin_d70","TotalBilirubin_d71","TotalBilirubin_d72","TotalBilirubin_d73","TotalBilirubin_d74","TotalBilirubin_d75","TotalBilirubin_d76","TotalBilirubin_d77","TotalBilirubin_d78","TotalBilirubin_d79","TotalBilirubin_d80","TotalBilirubin_d81","TotalBilirubin_d82","TotalBilirubin_d83","TotalBilirubin_d84","TotalBilirubin_d85","TotalBilirubin_d86","TotalBilirubin_d87","TotalBilirubin_d88","TotalBilirubin_d89","TotalBilirubin_d90","TotalBilirubin_d91","TotalBilirubin_d92","TotalBilirubin_d93","TotalBilirubin_d94","TotalBilirubin_d95","TotalBilirubin_d96","TotalBilirubin_d97","TotalBilirubin_d98","TotalBilirubin_d99","TotalBilirubin_d100"))
+
+##for boxplt change last data##
+ldtotbili_data_cgt$attribute <- factor(ldtotbili_data_cgt$attribute,levels = c("TotalBilirubin_d1", "TotalBilirubin_d2", "TotalBilirubin_d3","TotalBilirubin_d4","TotalBilirubin_d5", "TotalBilirubin_d6","TotalBilirubin_d7","TotalBilirubin_d7 (guess)","TotalBilirubin_d8","TotalBilirubin_d9","TotalBilirubin_d10", "TotalBilirubin_d11","TotalBilirubin_d12","TotalBilirubin_d13","TotalBilirubin_d14","TotalBilirubin_d14 (guess)","TotalBilirubin_d15","TotalBilirubin_d16","TotalBilirubin_d17","TotalBilirubin_d18","TotalBilirubin_d19","TotalBilirubin_d20","TotalBilirubin_d21","TotalBilirubin_d21 (guess)","TotalBilirubin_d22","TotalBilirubin_d23","TotalBilirubin_d24","TotalBilirubin_d25","TotalBilirubin_d26","TotalBilirubin_d27","TotalBilirubin_d28","TotalBilirubin_d29","TotalBilirubin_d30","TotalBilirubin_d31","TotalBilirubin_d32","TotalBilirubin_d33","TotalBilirubin_d34","TotalBilirubin_d35","TotalBilirubin_d36","TotalBilirubin_d37","TotalBilirubin_d38","TotalBilirubin_d39","TotalBilirubin_d40","TotalBilirubin_d41","TotalBilirubin_d42","TotalBilirubin_d43","TotalBilirubin_d44","TotalBilirubin_d45","TotalBilirubin_d46","TotalBilirubin_d47","TotalBilirubin_d48","TotalBilirubin_d49","TotalBilirubin_d50","TotalBilirubin_d51","TotalBilirubin_d52","TotalBilirubin_d53","TotalBilirubin_d54","TotalBilirubin_d55","TotalBilirubin_d56","TotalBilirubin_d57","TotalBilirubin_d58","TotalBilirubin_d59","TotalBilirubin_d60","TotalBilirubin_d61","TotalBilirubin_d62","TotalBilirubin_d63","TotalBilirubin_d64","TotalBilirubin_d65","TotalBilirubin_d66","TotalBilirubin_d67","TotalBilirubin_d68","TotalBilirubin_d69","TotalBilirubin_d70","TotalBilirubin_d71","TotalBilirubin_d72","TotalBilirubin_d73","TotalBilirubin_d74","TotalBilirubin_d75","TotalBilirubin_d76","TotalBilirubin_d77","TotalBilirubin_d78","TotalBilirubin_d79","TotalBilirubin_d80","TotalBilirubin_d81","TotalBilirubin_d82","TotalBilirubin_d83","TotalBilirubin_d84","TotalBilirubin_d85","TotalBilirubin_d86","TotalBilirubin_d87","TotalBilirubin_d88","TotalBilirubin_d89","TotalBilirubin_d90","TotalBilirubin_d91","TotalBilirubin_d92","TotalBilirubin_d93","TotalBilirubin_d94","TotalBilirubin_d95","TotalBilirubin_d96","TotalBilirubin_d97","TotalBilirubin_d98","TotalBilirubin_d99","TotalBilirubin_d100"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+totbili_summary_data_cgt <- ldtotbili_data_cgt  %>% filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(totbili_summary_data_cgt$mean_labread + totbili_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 1)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(totbili_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "liver_diclo_cgt mean total Bilirubin in time course for female",
+       x = "Day of measurement",
+       y = "total Bilirubin mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, 20))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(totbili_summary_data_cgt$mean_labread + totbili_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 1)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldtotbili_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of total bilirubin by day of measurement",
+       x = "day of measurement",
+       y = "total Bilirubin mg/dl") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, 20))
+
+
+```
+
+######################################################################
+###AP###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+ap_summary_data_cgt$attribute <- factor(ap_summary_data_cgt$attribute,levels = c("AP_d1", "AP_d2", "AP_d3","AP_d4","AP_d5", "AP_d6","AP_d7","AP_d8","AP_d9","AP_d10", "AP_d11","AP_d12","AP_d13","AP_d14","AP_d15","AP_d16","AP_d17","AP_d18","AP_d19","AP_d20","AP_d21","AP_d22","AP_d23","AP_d24","AP_d25","AP_d26","AP_d27","AP_d28","AP_d29","AP_d30","AP_d31","AP_d32","AP_d33","AP_d34","AP_d35","AP_d36","AP_d37","AP_d38","AP_d39","AP_d40","AP_d41","AP_d42","AP_d43","AP_d44","AP_d45","AP_d46","AP_d47","AP_d48","AP_d49","AP_d50","AP_d51","AP_d52","AP_d53","AP_d54","AP_d55","AP_d56","AP_d57","AP_d58","AP_d59","AP_d60","AP_d61","AP_d62","AP_d63","AP_d64","AP_d65","AP_d66","AP_d67","AP_d68","AP_d69","AP_d70","AP_d71","AP_d72","AP_d73","AP_d74","AP_d75","AP_d76","AP_d77","AP_d78","AP_d79","AP_d80","AP_d81","AP_d82","AP_d83","AP_d84","AP_d85","AP_d86","AP_d87","AP_d88","AP_d89","AP_d90","AP_d91","AP_d92","AP_d93","AP_d94","AP_d95","AP_d96","AP_d97","AP_d98","AP_d99","AP_d100"))
+
+##for boxplt change last data##
+ldap_data_cgt$attribute <- factor(ldap_data_cgt$attribute,levels = c("AP_d1", "AP_d2", "AP_d3","AP_d4","AP_d5", "AP_d6","AP_d7","AP_d8","AP_d9","AP_d10", "AP_d11","AP_d12","AP_d13","AP_d14","AP_d15","AP_d16","AP_d17","AP_d18","AP_d19","AP_d20","AP_d21","AP_d22","AP_d23","AP_d24","AP_d25","AP_d26","AP_d27","AP_d28","AP_d29","AP_d30","AP_d31","AP_d32","AP_d33","AP_d34","AP_d35","AP_d36","AP_d37","AP_d38","AP_d39","AP_d40","AP_d41","AP_d42","AP_d43","AP_d44","AP_d45","AP_d46","AP_d47","AP_d48","AP_d49","AP_d50","AP_d51","AP_d52","AP_d53","AP_d54","AP_d55","AP_d56","AP_d57","AP_d58","AP_d59","AP_d60","AP_d61","AP_d62","AP_d63","AP_d64","AP_d65","AP_d66","AP_d67","AP_d68","AP_d69","AP_d70","AP_d71","AP_d72","AP_d73","AP_d74","AP_d75","AP_d76","AP_d77","AP_d78","AP_d79","AP_d80","AP_d81","AP_d82","AP_d83","AP_d84","AP_d85","AP_d86","AP_d87","AP_d88","AP_d89","AP_d90","AP_d91","AP_d92","AP_d93","AP_d94","AP_d95","AP_d96","AP_d97","AP_d98","AP_d99","AP_d100"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+ap_summary_data_cgt <- ldap_data_cgt  %>% filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(ap_summary_data_cgt$mean_labread + ap_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(ap_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "liver_diclo_cgt mean AP in time course for female",
+       x = "Day of measurement",
+       y = "AP U/L",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, 2000))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(ap_summary_data_cgt$mean_labread + ap_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldap_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of AP by day of measurement",
+       x = "day of measurement",
+       y = "AP U/L") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###Kreatinin###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+krea_summary_data_cgt$attribute <- factor(krea_summary_data_cgt$attribute,levels = c("Kreatinin Day1","Kreatinin Day2","Kreatinin Day3", "Kreatinin Day4","Kreatinin Day5","Kreatinin Day6","Kreatinin Day7","Kreatinin Day8","Kreatinin Day9","Kreatinin Day10","Kreatinin Day13","Kreatinin Day15","Kreatinin Day22"))
+
+##for boxplt change last data##
+ldkrea_data_cgt$attribute <- factor(ldkrea_data_cgt$attribute,levels = c("Kreatinin Day1","Kreatinin Day2","Kreatinin Day3", "Kreatinin Day4","Kreatinin Day5","Kreatinin Day6","Kreatinin Day7","Kreatinin Day8","Kreatinin Day9","Kreatinin Day10","Kreatinin Day13","Kreatinin Day15","Kreatinin Day22"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+krea_summary_data_cgt <- ldkrea_data_cgt  %>% filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(krea_summary_data_cgt$mean_labread + krea_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 1)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(krea_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+   geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "liver_diclo_cgt mean Creatinine in time course for female",
+       x = "Day of measurement",
+       y = "Creatinine mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(krea_summary_data_cgt$mean_labread + krea_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldkrea_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of Creatinine by day of measurement",
+       x = "day of measurement",
+       y = "Creatinine mg/dl") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###CRP###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+crp_summary_data_cgt$attribute <- factor(crp_summary_data_cgt$attribute,levels = c("CRP Day1","CRP Day2","CRP Day3","CRP Day4","CRP Day5","CRP Day6","CRP Day10","CRP Day15"))
+
+##for boxplt change last data##
+ldcrp_data_cgt$attribute <- factor(ldcrp_data_cgt$attribute,levels = c("CRP Day1","CRP Day2","CRP Day3","CRP Day4","CRP Day5","CRP Day6","CRP Day10","CRP Day15"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+crp_summary_data_cgt <- ldcrp_data_cgt  %>% filter(gender == "Male") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(crp_summary_data_cgt$mean_labread + crp_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 20)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(crp_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "liver_diclo_cgt mean CRP in time course for male",
+       x = "Day of measurement",
+       y = "CRP mg/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0,45))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(crp_summary_data_cgt$mean_labread + crp_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 20)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldcrp_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of CRP by day of measurement",
+       x = "day of measurement",
+       y = "CRP mg/l") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, 45))
+
+
+```
+
+######################################################################
+###Harnstoff###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+hst_summary_data_cgt$attribute <- factor(hst_summary_data_cgt$attribute,levels = c( "Harnstoff Day1","Harnstoff Day2","Harnstoff Day3","Harnstoff Day4","Harnstoff Day5","Harnstoff Day6","Harnstoff Day9","Harnstoff Day10","Harnstoff Day13","Harnstoff Day22"))
+
+##for boxplt change last data##
+ldhst_data_cgt$attribute <- factor(ldhst_data_cgt$attribute,levels = c( "Harnstoff Day1","Harnstoff Day2","Harnstoff Day3","Harnstoff Day4","Harnstoff Day5","Harnstoff Day6","Harnstoff Day9","Harnstoff Day10","Harnstoff Day13","Harnstoff Day22"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+hst_summary_data_cgt <- ldhst_data_cgt  %>% filter(gender == "Male") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(hst_summary_data_cgt$mean_labread + hst_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 20)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(hst_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "liver_diclo_cgt mean Urea in time course for male",
+       x = "Day of measurement",
+       y = "Urea mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(hst_summary_data_cgt$mean_labread + hst_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 20)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldhst_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of Urea by day of measurement",
+       x = "Attribute",
+       y = "Urea mg/dl") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###Erythrozyten###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+ery_summary_data_cgt$attribute <- factor(ery_summary_data_cgt$attribute,levels = c( "Erythrozyten Day1","Erythrozyten Day2","Erythrozyten Day3","Erythrozyten Day4","Erythrozyten Day5","Erythrozyten Day6","Erythrozyten Day9","Erythrozyten Day10","Erythrozyten Day11","Erythrozyten Day15"))
+
+##for boxplt change last data##
+ldery_data_cgt$attribute <- factor(ldery_data_cgt$attribute,levels = c( "Erythrozyten Day1","Erythrozyten Day2","Erythrozyten Day3","Erythrozyten Day4","Erythrozyten Day5","Erythrozyten Day6","Erythrozyten Day9","Erythrozyten Day10","Erythrozyten Day11","Erythrozyten Day15"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+ery_summary_data_cgt <- ldery_data_cgt  %>% filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+#max_value <- max(ery_summary_data_cgt$mean_labread + ery_summary_data_cgt$sem_labread, na.rm = TRUE)
+#breaks_up_to_500 <- seq(0, 500, by = 100)
+#additional_breaks <- if (max_value > 500) seq(600, max_value, by = 1000) else numeric(0)
+#all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(ery_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+   geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "liver_diclo_cgt mean Erythrocytes in time course for female",
+       x = "Day of measurement",
+       y = "Erythrocytes Cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+  #scale_y_continuous(breaks = all_breaks,
+                     #limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(ery_summary_data_cgt$mean_labread + ery_summary_data_cgt$sem_labread, na.rm = TRUE)
+#breaks_up_to_500 <- seq(0, 500, by = 20)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 300000) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldery_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of Erythrocytes by day of measurement",
+       x = "day of measurement",
+       y = "Erythrocytes Cells/ul") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###Thrombozyten###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+thromb_summary_data_cgt$attribute <- factor(thromb_summary_data_cgt$attribute,levels = c("Thrombozyten Day1","Thrombozyten Day2","Thrombozyten Day3","Thrombozyten Day4","Thrombozyten Day5","Thrombozyten Day8","Thrombozyten Day9","Thrombozyten Day10","Thrombozyten Day11","Thrombozyten Day12","Thrombozyten Day15","Thrombozyten Day26"))
+
+##for boxplt change last data##
+ldthromb_data_cgt$attribute <- factor(ldthromb_data_cgt$attribute,levels = c("Thrombozyten Day1","Thrombozyten Day2","Thrombozyten Day3","Thrombozyten Day4","Thrombozyten Day5","Thrombozyten Day8","Thrombozyten Day9","Thrombozyten Day10","Thrombozyten Day11","Thrombozyten Day12","Thrombozyten Day15","Thrombozyten Day26"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+thromb_summary_data_cgt <- ldthromb_data_cgt  %>% filter(gender == "Male") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(thromb_summary_data_cgt$mean_labread + thromb_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100000)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100000) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(thromb_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+   geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "liver_diclo_cgt mean thrombocytes in time course for male",
+       x = "Day of measurement",
+       y = "Thrombocytes Cells/ul",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(thromb_summary_data_cgt$mean_labread + thromb_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 100000)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100000) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldthromb_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of thrombocytes by day of measurement",
+       x = "day of measurement",
+       y = "Thrombocytes Cells/ul") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###Hämatokrit###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+hkt_summary_data_cgt$attribute <- factor(hkt_summary_data_cgt$attribute,levels = c( "Hämatokrit Day1","Hämatokrit Day2","Hämatokrit Day3","Hämatokrit Day4","Hämatokrit Day5","Hämatokrit Day6","Hämatokrit Day8","Hämatokrit Day9","Hämatokrit Day10","Hämatokrit Day11","Hämatokrit Day12","Hämatokrit Day13","Hämatokrit Day15","Hämatokrit Day16"))
+
+##for boxplt change last data##
+ldhkt_data_cgt$attribute <- factor(ldhkt_data_cgt$attribute,levels = c("Hämatokrit Day1","Hämatokrit Day2","Hämatokrit Day3","Hämatokrit Day4","Hämatokrit Day5","Hämatokrit Day6","Hämatokrit Day8","Hämatokrit Day9","Hämatokrit Day10","Hämatokrit Day11","Hämatokrit Day12","Hämatokrit Day13","Hämatokrit Day15","Hämatokrit Day16"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+hkt_summary_data_cgt <- ldhkt_data_cgt  %>% filter(gender == "Male") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(hkt_summary_data_cgt$mean_labread + hkt_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 10)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(hkt_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "liver_diclo_cgt mean hematocrit in time course for male",
+       x = "Day of measurement",
+       y = "hematocrit %",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(hkt_summary_data_cgt$mean_labread + hkt_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 10)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100000) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldhkt_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of hematocrit by day of measurement",
+       x = "day of measurement",
+       y = "hematocrit %") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###Natrium###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+leukozyten_summary_data_cgt$Attribute <- factor(leukozyten_summary_data_cgt$Attribute,levels = c( "Leukozyten Day1", "Leukozyten Day2", "Leukozyten Day3", "Leukozyten Day4", "Leukozyten Day5", "Leukozyten Day9", "Leukozyten Day12", "Leukozyten Day_Unknown"))
+
+##for boxplt change last data##
+ldleukozyten_data_cgt$Attribute <- factor(ldleukozyten_data_cgt$Attribute,levels = c("Leukozyten Day1", "Leukozyten Day2", "Leukozyten Day3", "Leukozyten Day4", "Leukozyten Day5", "Leukozyten Day9", "Leukozyten Day12", "Leukozyten Day_Unknown"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+nat_summary_data_cgt <- ldnat_data_cgt  %>% filter(gender == "Male") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(nat_summary_data_cgt$mean_labread + nat_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 10)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(nat_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "liver_diclo_cgt mean sodium in time course for male",
+       x = "Day of measurement",
+       y = "Sodium mmol/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(nat_summary_data_cgt$mean_labread + nat_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 10)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldnat_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of sodium by day of measurement",
+       x = "day of measurement",
+       y = "Sodium mmol/l") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###Kalium###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+kal_summary_data_cgt$attribute <- factor(kal_summary_data_cgt$attribute,levels = c("Kalium Day1","Kalium Day2","Kalium Day3","Kalium Day4","Kalium Day5","Kalium Day6","Kalium Day7","Kalium Day8","Kalium Day9","Kalium Day15"))
+
+##for boxplt change last data##
+ldkal_data_cgt$attribute <- factor(ldkal_data_cgt$attribute,levels = c("Kalium Day1","Kalium Day2","Kalium Day3","Kalium Day4","Kalium Day5","Kalium Day6","Kalium Day7","Kalium Day8","Kalium Day9","Kalium Day15"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+kal_summary_data_cgt <- ldkal_data_cgt  %>% filter(gender == "Male") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(kal_summary_data_cgt$mean_labread + kal_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 1)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(kal_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "liver_diclo_cgt mean potassium in time course for male",
+       x = "Day of measurement",
+       y = "Potassium mmol/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(kal_summary_data_cgt$mean_labread + kal_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 1)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 10) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldkal_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of potassium by day of measurement",
+       x = "day of measurement",
+       y = "Potassium mmol/l") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###Kalzium###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+leukozyten_summary_data_cgt$Attribute <- factor(leukozyten_summary_data_cgt$Attribute,levels = c( "Leukozyten Day1", "Leukozyten Day2", "Leukozyten Day3", "Leukozyten Day4", "Leukozyten Day5", "Leukozyten Day9", "Leukozyten Day12", "Leukozyten Day_Unknown"))
+
+##for boxplt change last data##
+ldleukozyten_data_cgt$Attribute <- factor(ldleukozyten_data_cgt$Attribute,levels = c("Leukozyten Day1", "Leukozyten Day2", "Leukozyten Day3", "Leukozyten Day4", "Leukozyten Day5", "Leukozyten Day9", "Leukozyten Day12", "Leukozyten Day_Unknown"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+cal_summary_data_cgt <- ldcal_data_cgt  %>% filter(gender == "Female") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(cal_summary_data_cgt$mean_labread + cal_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 1)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(cal_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "liver_diclo_cgt mean calcium in time course for female",
+       x = "Day of measurement",
+       y = "Calcium mmol/l",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(cal_summary_data_cgt$mean_labread + cal_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 1)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 10) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldcal_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of Calcium by day of measurement",
+       x = "day of measurement",
+       y = "Calcium mmol/l") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+######################################################################
+###Glucose###
+### labels##
+## run the second code before the firste one, change the names an run the first, then run the second again an the x-axis will be in the correct order###
+```{r}
+# Create a vector with the x-axis labels in the desired order
+
+### for lineplot
+leukozyten_summary_data_cgt$Attribute <- factor(leukozyten_summary_data_cgt$Attribute,levels = c( "Leukozyten Day1", "Leukozyten Day2", "Leukozyten Day3", "Leukozyten Day4", "Leukozyten Day5", "Leukozyten Day9", "Leukozyten Day12", "Leukozyten Day_Unknown"))
+
+##for boxplt change last data##
+ldleukozyten_data_cgt$Attribute <- factor(ldleukozyten_data_cgt$Attribute,levels = c("Leukozyten Day1", "Leukozyten Day2", "Leukozyten Day3", "Leukozyten Day4", "Leukozyten Day5", "Leukozyten Day9", "Leukozyten Day12", "Leukozyten Day_Unknown"))
+```
+
+## code for line plot##
+## in filter choose gender either male or female to make the graph##
+## choose the full joined data of gender with labreads ##
+## when the description of the x-axis ist not readable, adjust the scale by changing the "by=100" to a higher number in the "breaks_up_to_500" line##
+```{r}
+glu_summary_data_cgt <- ldglu_data_cgt  %>% filter(gender == "Male") %>% ## change (male and female for data to make graph)
+  group_by(attribute) %>%
+  summarize(
+    mean_labread = mean(labreads, na.rm = TRUE),
+    sd_labread = sd(labreads, na.rm = TRUE),
+    sem_labread = sd(labreads, na.rm = TRUE) / sqrt(n()),
+    count = n()  # Add counts           ####NEW#####
+  )
+# Create the line plot with rotated x-axis labels and error bars for both SD and SEM
+max_value <- max(glu_summary_data_cgt$mean_labread + glu_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 10)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 100) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+ggplot(glu_summary_data_cgt, aes(x = attribute, y = mean_labread, group = 1)) +
+  geom_line() +
+  geom_point() +
+  # geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "blue") +  # SD error bars in blue
+  geom_errorbar(aes(ymin = mean_labread, ymax = mean_labread + sd_labread), width = 0.2, color = "red") +
+  geom_smooth(method = "loess", color = "lightgrey", size = 1, se = FALSE) + # SEM error bars in red
+  geom_text(aes(label = count), vjust = -1.5, size = 5) +  # Add counts as text labels    ####NEW####
+  labs(title = "liver_diclo_cgt mean glucose in time course for Male",
+       x = "Day of measurement",
+       y = "Glucose mg/dl",
+       caption = "Red error bars: SD") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+```
+
+##### code for boxplot ####
+```{r}
+
+library(ggplot2)
+library(dplyr)
+
+max_value <- max(glu_summary_data_cgt$mean_labread + glu_summary_data_cgt$sem_labread, na.rm = TRUE)
+breaks_up_to_500 <- seq(0, 500, by = 10)
+additional_breaks <- if (max_value > 500) seq(600, max_value, by = 10) else numeric(0)
+all_breaks <- c(breaks_up_to_500, additional_breaks)
+
+## use the last joined data gender with labreads##
+ldglu_data_cgt %>% 
+  mutate(attribute = as.factor(attribute)) %>% 
+  group_by(attribute) %>% 
+  ggplot(aes(x = attribute, y = labreads)) +
+  geom_boxplot() +
+  geom_jitter()+        				####NEW#####
+  labs(title = "liver_diclo_cgt Boxplot of glucose by day of measurement",
+       x = "day of measurement",
+       y = "Glucose mg/dl") + ### label y axis according your sample name
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+  scale_y_continuous(breaks = all_breaks,
+                     limits = c(0, max_value))
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

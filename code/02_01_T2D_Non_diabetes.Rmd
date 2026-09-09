@@ -1,0 +1,987 @@
+---
+title: "02_01_T2D_Non_diabetes"
+author: "Arun_Kumar"
+date: "2026-06-05"
+output: html_document
+editor_options: 
+  chunk_output_type: inline
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+colnames(all_data)
+colnames(diabetic_data)
+colnames(gender_data1)
+```
+
+
+```{r}
+p_bottom <- all_data %>%
+      full_join(
+        diabetic_data,
+        by = c("bf_ar_m_nummer","treatment"),
+        relationship = "many-to-many") %>%
+      full_join(
+        gender_data1,
+        by = join_by("bf_ar_m_nummer","treatment"),
+        relationship = "many-to-many") %>%
+      filter(panel_id == "gpt") %>% 
+  filter(grepl("Leber_", treatment)) %>%
+      filter(
+        !str_detect(
+          attribute,
+          "_krankheitsbeginn|dbs|_from_start"
+        ))%>%
+      filter(
+        !is.na(diabetes)) %>% 
+  ggplot(aes(x = factor(treatment), y = labreads))+
+  geom_boxplot()+
+  geom_jitter(aes(shape = factor(treatment)), width = 0.2, size = 2)+
+  scale_shape_prism()+
+  coord_cartesian(ylim = c(0,3000))+
+  guides(y = "prism_offset_minor")+
+  theme_prism()+
+  theme(
+    legend.position = "none"
+  )
+p_bottom
+```
+
+
+
+
+##====================================================
+## Full working code with scale y continuous liver DIP 
+##====================================================
+
+
+```{r}
+# ── Libraries ──────────────────────────────────────────────────────────────
+library(ggpubr)
+library(dplyr)
+library(stringr)
+library(ggprism)
+
+# ── Function ───────────────────────────────────────────────────────────────
+plot_leber_boxplot <- function(
+    all_data,
+    diabetic_data,
+    gender_data1,
+    panel = "gpt",
+    unit_map = NULL,
+    comparisons = list(
+      c("Liver_Diclo", "Liver_Ibu"),
+      c("Liver_Diclo", "Liver_Para"),
+      c("Liver_Ibu",   "Liver_Para")
+    ),
+    stat_method  = "wilcox.test",
+    stat_label   = "p.format",
+    tip_length   = 0.01,
+    bracket_size = 0.5,
+    n_breaks     = 7,
+    top_margin   = 80,
+    colors = c(
+      "Liver_Diclo" = "#4E79A7",
+      "Liver_Ibu"   = "#F28E2B",
+      "Liver_Para"  = "#59A14F"
+    )
+) {
+
+  # ── Dynamic title & axis label ────────────────────────────────────────────
+  plot_title <- paste(toupper(panel), "Levels by treatment (Liver Cohort)")
+
+  y_label <- if (!is.null(unit_map) &&
+               panel %in% names(unit_map)) {
+  unit_map[[panel]]
+} else if (exists("unit_map", inherits = TRUE)) {
+  unit_map[[panel]]
+} else {
+  toupper(panel)
+}
+
+  # ── Data wrangling ───────────────────────────────────────────────────────
+  plot_data <- all_data %>%
+    full_join(diabetic_data,
+              by = join_by("bf_ar_m_nummer", "treatment"),
+              relationship = "many-to-many") %>%
+    full_join(gender_data1,
+              by = join_by("bf_ar_m_nummer", "treatment"),
+              relationship = "many-to-many") %>%
+    filter(
+      panel_id == .env$panel,
+      grepl("Leber_", treatment),
+      !str_detect(attribute, "_from_start|dbs"),
+      !is.na(diabetes),
+      !is.na(treatment),
+      !is.na(labreads)
+    ) %>%
+    mutate(
+      treatment = recode(
+        treatment,
+        "Leber_Diclo" = "Liver_Diclo",
+        "Leber_Ibu"   = "Liver_Ibu",
+        "Leber_Para"  = "Liver_Para"
+      )
+    )
+
+  if (nrow(plot_data) == 0) {
+    stop("No data remaining after filtering.")
+  }
+
+  # ── Group stats ──────────────────────────────────────────────────────────
+  group_stats <- plot_data %>%
+    group_by(treatment) %>%
+    summarise(
+      N = n_distinct(bf_ar_m_nummer),
+      n = n(),
+      .groups = "drop"
+    )
+
+  # ── X labels (N under group name) ────────────────────────────────────────
+  x_labels <- setNames(
+    paste0(group_stats$treatment, "\nN = ", group_stats$N),
+    group_stats$treatment
+  )
+
+  # ── Y calculations ───────────────────────────────────────────────────────
+  y_max <- max(plot_data$labreads, na.rm = TRUE)
+  n_comp <- length(comparisons)
+
+  label_y_pos <- y_max * (1.10 + seq(0, by = 0.10, length.out = n_comp))
+  plot_top <- max(label_y_pos) * 1.15
+
+  # fixed n position (inside plot)
+  n_y <- y_max * 1.05
+
+  # ── Plot ────────────────────────────────────────────────────────────────
+  p <- ggplot(
+    plot_data,
+    aes(
+      x = treatment,
+      y = labreads,
+      fill = treatment,
+      colour = treatment
+    )
+  ) +
+
+    geom_boxplot(
+      width = 0.6,
+      alpha = 0.35,
+      linewidth = 0.8,
+      outlier.shape = NA
+    ) +
+
+    geom_jitter(
+      aes(shape = treatment),
+      width = 0.2,
+      size = 2,
+      alpha = 0.8
+    ) +
+
+    # n inside plot
+    geom_text(
+      data = group_stats,
+      aes(
+        x = treatment,
+        y = n_y,
+        label = paste0("n = ", n)
+      ),
+      inherit.aes = FALSE,
+      fontface = "bold",
+      size = 4.5
+    ) +
+
+    # statistics
+    stat_compare_means(
+      comparisons = comparisons,
+      method = stat_method,
+      label = stat_label,
+      label.y = label_y_pos,
+      tip.length = tip_length,
+      bracket.size = bracket_size,
+      step.increase = 0,
+      size = 6
+    ) +
+
+    scale_x_discrete(labels = x_labels) +
+    scale_fill_manual(values = colors) +
+    scale_colour_manual(values = colors) +
+    scale_shape_prism() +
+
+    scale_y_continuous(
+      breaks = scales::breaks_pretty(n = n_breaks),
+      expand = expansion(mult = c(0.02, 0.05))
+    ) +
+
+    coord_cartesian(
+      ylim = c(0, plot_top),
+      clip = "off"
+    ) +
+
+    guides(y = "prism_offset_minor") +
+
+    labs(
+      title = plot_title,
+      x = NULL,
+      y = y_label
+    ) +
+
+    theme_prism() +
+
+    theme(
+      text = element_text(family = "sans"),
+
+      legend.position = "none",
+
+      plot.title = element_text(
+        hjust = 0.5,
+        size = 26,
+        face = "bold",
+        margin = margin(b = 4),
+        lineheight = 1.2
+      ),
+
+      axis.text.x = element_text(
+        size = 22,
+        face = "bold",
+        margin = margin(t = 6),
+        hjust = 0.5,
+        vjust = 1
+      ),
+
+      axis.text.y = element_text(
+        size = 22,
+        face = "bold"
+      ),
+
+      axis.title = element_text(
+        size = 24,
+        face = "bold"
+      ),
+
+      axis.title.y = element_text(
+        margin = margin(r = 10, unit = "pt")
+      ),
+
+      axis.text.x.top = element_blank(),
+      axis.ticks.x.top = element_blank(),
+      axis.line.x.top = element_blank(),
+
+      plot.margin = margin(
+        t = ifelse(is.null(top_margin), 80, top_margin),
+        r = 10,
+        b = 10,
+        l = 10,
+        unit = "pt"
+      )
+    )
+
+  return(p)
+}
+```
+
+```{r}
+base_dir <- here::here("output/figure/diabetes/plots_all_labvalues/liver")
+
+svg_dir <- file.path(base_dir, "svg")
+png_dir <- file.path(base_dir, "png")
+
+dir.create(svg_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(png_dir, recursive = TRUE, showWarnings = FALSE)
+```
+
+```{r}
+panel <- "ggt"
+p <- plot_leber_boxplot(
+  all_data,
+  diabetic_data,
+  gender_data1,
+  panel = panel,
+  unit_map = unit_map,
+  top_margin = 20,
+  n_breaks = 6
+)
+p 
+
+```
+
+
+
+```{r}
+print(p)
+panel <- "ggt"
+ggsave(
+  filename = file.path(svg_dir, paste0(panel, "_plot.svg")),
+  plot     = p,
+  width    = 8,
+  height   = 6,
+  device   = svglite::svglite
+)
+
+ggsave(
+  filename = file.path(png_dir, paste0(panel, "_plot.png")),
+  plot     = p,
+  width    = 8,
+  height   = 6,
+  dpi      = 600,
+  bg       = "white"
+)
+```
+
+
+
+##==============================================================================
+##  format code for y axis break when outlier exist.
+##==============================================================================
+
+
+```{r}
+# ── Libraries ──────────────────────────────────────────────────────────────
+library(ggbreak)
+library(ggpubr)
+library(dplyr)
+library(stringr)
+library(ggprism)
+
+# ── Function ───────────────────────────────────────────────────────────────
+plot_liver_boxplot_break <- function(
+    all_data,
+    diabetic_data,
+    gender_data1,
+    panel = "gpt",
+    unit_map = NULL,
+    comparisons = list(
+      c("Liver_Diclo", "Liver_Ibu"),
+      c("Liver_Diclo", "Liver_Para"),
+      c("Liver_Ibu",   "Liver_Para")
+    ),
+    stat_method   = "wilcox.test",
+    stat_label    = "p.format",
+    tip_length    = 0.01,
+    bracket_size  = 0.5,
+    y_break       = c(3000, 4500),
+    y_break_scale = 0.3,
+    top_margin    = 80,
+    colors        = c(
+      "Liver_Diclo" = "#4E79A7",
+      "Liver_Ibu"   = "#F28E2B",
+      "Liver_Para"  = "#59A14F"
+    )
+) {
+
+  # ── Title & label ────────────────────────────────────────────────────────
+  plot_title <- paste(toupper(panel), "Levels by treatment (Liver Cohort)")
+
+  y_label <- if (!is.null(unit_map) && panel %in% names(unit_map)) {
+    unit_map[[panel]]
+  } else {
+    toupper(panel)
+  }
+
+  # ── Data ─────────────────────────────────────────────────────────────────
+  plot_data <- all_data %>%
+    left_join(diabetic_data,
+              by = "bf_ar_m_nummer",
+              relationship = "many-to-many") %>%
+    left_join(gender_data1,
+              by = join_by("bf_ar_m_nummer", "treatment"),
+              relationship = "many-to-many") %>%
+    mutate(
+      kathegorie = recode(
+        kathegorie,
+        "Leber_Diclo" = "Liver_Diclo",
+        "Leber_Ibu"   = "Liver_Ibu",
+        "Leber_Para"  = "Liver_Para"
+      )
+    ) %>%
+    filter(
+      panel_id == .env$panel,
+      grepl("Liver_", kathegorie),
+      !str_detect(attribute, "_krankheitsbeginn|dbs"),
+      !is.na(diabetes),
+      !is.na(kathegorie),
+      !is.na(labreads)
+    )
+
+  if (nrow(plot_data) == 0) {
+    stop("No data remaining after filtering.")
+  }
+
+  # ── Stats ───────────────────────────────────────────────────────────────
+  group_stats <- plot_data %>%
+    group_by(kathegorie) %>%
+    summarise(
+      N = n_distinct(bf_ar_m_nummer),
+      n = n(),
+      y_top = max(labreads, na.rm = TRUE),
+      .groups = "drop"
+    )
+
+  x_labels <- setNames(
+    paste0(group_stats$kathegorie, "\nN = ", group_stats$N),
+    group_stats$kathegorie
+  )
+
+  # ── y scaling ───────────────────────────────────────────────────────────
+  y_max <- max(plot_data$labreads, na.rm = TRUE)
+
+  n_comp <- length(comparisons)
+
+  label_y_pos <- y_max * (1.28 + seq(0, by = 0.10, length.out = n_comp))
+
+  plot_top <- max(label_y_pos) * 1.10
+
+  n_label_y <- y_max * 1.05
+
+  # ── Plot ────────────────────────────────────────────────────────────────
+  p <- ggplot(
+    plot_data,
+    aes(
+      x = kathegorie,
+      y = labreads,
+      fill = kathegorie,
+      colour = kathegorie
+    )
+  ) +
+
+    geom_boxplot(
+      width = 0.6,
+      alpha = 0.35,
+      linewidth = 0.8,
+      outlier.shape = NA
+    ) +
+
+    geom_jitter(
+      aes(shape = kathegorie),
+      width = 0.2,
+      size = 2,
+      alpha = 0.8
+    ) +
+
+    geom_text(
+      data = group_stats,
+      aes(x = kathegorie,
+          y = n_label_y,
+          label = paste0("n = ", n)),
+      inherit.aes = FALSE,
+      fontface = "bold",
+      size = 5
+    ) +
+
+    stat_compare_means(
+      comparisons  = comparisons,
+      method       = stat_method,
+      label        = stat_label,
+      label.y      = label_y_pos,
+      tip.length   = tip_length,
+      bracket.size = bracket_size,
+      step.increase = 0.11,
+      size = 5
+    ) +
+
+    scale_x_discrete(labels = x_labels) +
+    scale_fill_manual(values = colors) +
+    scale_colour_manual(values = colors) +
+    scale_shape_prism() +
+
+    scale_y_break(y_break, scales = y_break_scale) +
+    expand_limits(y = max(label_y_pos) * 1.55) +
+    guides(y = "prism_offset_minor") +
+
+    labs(
+      title = plot_title,
+      x = NULL,
+      y = y_label
+    ) +
+
+    theme_prism() +
+
+    theme(
+      text = element_text(family = "sans"),
+      legend.position = "none",
+
+      plot.title = element_text(
+        hjust = 0.5,
+        size = 26,
+        face = "bold",
+        margin = margin(b = 6)
+      ),
+
+      axis.text.x = element_text(
+        size = 22,
+        face = "bold",
+        margin = margin(t = 6)
+      ),
+
+      axis.text.y = element_text(
+        size = 22,
+        face = "bold"
+      ),
+
+      axis.title = element_text(
+        size = 24,
+        face = "bold"
+      ),
+
+      axis.title.y = element_text(
+        margin = margin(r = -10, unit = "pt")
+      ),
+
+      axis.text.x.top = element_blank(),
+      axis.ticks.x.top = element_blank(),
+      axis.line.x.top = element_blank(),
+
+      plot.margin = margin(
+        t = top_margin,
+        r = 10,
+        b = 10,
+        l = 10,
+        unit = "pt"
+      )
+    )
+
+  return(p)
+}
+```
+
+```{r}
+base_dir <- here::here("output/figure/diabetes/plots_all_labvalues/liver")
+
+svg_dir <- file.path(base_dir, "svg")
+png_dir <- file.path(base_dir, "png")
+
+dir.create(svg_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(png_dir, recursive = TRUE, showWarnings = FALSE)
+```
+
+```{r}
+panel <- "ferritin"
+p <- plot_liver_boxplot_break(
+  all_data,
+  diabetic_data,
+  gender_data1,
+  unit_map = unit_map,
+  panel = panel,
+  top_margin = 10,
+  y_break = c(5000, 7000)
+)
+p 
+```
+
+
+```{r}
+panel <- "ferritin"
+print(p)
+
+ggsave(
+  filename = file.path(svg_dir, paste0(panel, "_plot.svg")),
+  plot     = p,
+  width    = 8,
+  height   = 6,
+  device   = svglite::svglite
+)
+
+ggsave(
+  filename = file.path(png_dir, paste0(panel, "_plot.png")),
+  plot     = p,
+  width    = 8,
+  height   = 6,
+  dpi      = 600,
+  bg       = "white"
+)
+```
+
+
+
+##==============================================================================
+## Diabetic vs non_diabetic boxplots (facet by gender)
+##==============================================================================
+
+
+
+```{r}
+plot_gender_diabetes_boxplot <- function(
+    all_data,
+    diabetic_data,
+    gender_data,
+    panel,
+    unit_map = NULL
+) {
+
+  library(dplyr)
+  library(ggplot2)
+  library(ggpubr)
+  library(rstatix)
+  library(stringr)
+  library(ggprism)
+
+  #═══════════════════════════════════════════════════════════════
+  # DATA
+  #═══════════════════════════════════════════════════════════════
+
+  plot_data <- all_data %>%
+    left_join(
+      diabetic_data,
+      by = join_by("bf_ar_m_nummer", "treatment"),
+      relationship = "many-to-many"
+    ) %>%
+    left_join(
+      gender_data1,
+      by = join_by("bf_ar_m_nummer", "treatment"),
+      relationship = "many-to-many"
+    ) %>%
+    filter(
+      panel_id == .env$panel,
+      grepl("Leber_", treatment),
+      !str_detect(attribute, "_krankheitsbeginn|dbs"),
+      !is.na(diabetes),
+      !is.na(gender),
+      !is.na(treatment),
+      !is.na(labreads)
+    ) %>%
+    mutate(
+      treatment = recode(
+        treatment,
+        "Leber_Diclo" = "Liver_Diclo",
+        "Leber_Ibu"   = "Liver_Ibu",
+        "Leber_Para"  = "Liver_Para"
+      ),
+      diabetes = factor(diabetes, levels = c("Diabetic", "Non_Diabetic")),
+      gender   = factor(gender,   levels = c("Female", "Male"))
+    ) %>%
+    distinct(bf_ar_m_nummer, labreads, .keep_all = TRUE)
+
+  if (nrow(plot_data) == 0) {
+    stop("No data available after filtering.")
+  }
+
+  #═══════════════════════════════════════════════════════════════
+  # Y AXIS SETTINGS
+  #═══════════════════════════════════════════════════════════════
+
+  y_max        <- max(plot_data$labreads, na.rm = TRUE)
+  y_min        <- min(plot_data$labreads, na.rm = TRUE)
+  label_space  <- y_max * 0.20
+
+  # FIX: use additive offset so the bottom label zone is always
+  # inside ylim regardless of whether y values are positive or negative
+  y_bottom_plot <- y_min - label_space
+  y_top_plot    <- y_max * 1.25
+
+  #═══════════════════════════════════════════════════════════════
+  # N COUNTS (PATIENTS)
+  #═══════════════════════════════════════════════════════════════
+
+  N_counts <- plot_data %>%
+  group_by(gender, diabetes) %>%
+  summarise(
+    N = n_distinct(bf_ar_m_nummer),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    label = paste0("N=", N),
+    y = y_bottom_plot - label_space * 1.30   # near the very bottom of ylim
+  )
+
+  #═══════════════════════════════════════════════════════════════
+  # n COUNTS (OBSERVATIONS)
+  #═══════════════════════════════════════════════════════════════
+
+  n_counts <- plot_data %>%
+    group_by(gender, diabetes) %>%
+    summarise(
+      # FIX: n() counts rows (unique patient-labread pairs after distinct()),
+      # NOT n_distinct(labreads) which would collapse identical numeric values
+      # from different patients into one count
+      n = n(),
+      .groups = "drop"
+    ) %>%
+    mutate(
+      label = paste0("n=", n),
+      # place n label just below the p-value bracket zone
+      y = y_max * 1.17
+    )
+
+  #═══════════════════════════════════════════════════════════════
+  # P VALUES
+  #═══════════════════════════════════════════════════════════════
+
+  pvals <- plot_data %>%
+  group_by(gender) %>%
+  group_modify(~ {
+    counts <- table(.x$diabetes)
+    # Need both groups present AND each with at least 3 observations
+    if (length(counts) < 2 || any(counts < 3)) {
+      message("Skipping p-value for gender = ", unique(.x$gender),
+              " — insufficient observations: ", paste(names(counts), counts, sep = "=", collapse = ", "))
+      return(tibble())   # return empty → no bracket drawn for this facet
+    }
+    wilcox_test(.x, labreads ~ diabetes)
+  }) %>%
+  ungroup()
+
+# Only compute positions and draw brackets if any tests succeeded
+if (nrow(pvals) > 0) {
+  pvals <- pvals %>%
+    mutate(
+      group1     = "Diabetic",
+      group2     = "Non_Diabetic",
+      y.position = y_max * 1.10,
+      p.label    = paste0("p = ", signif(p, 3))
+    )
+}
+
+  #═══════════════════════════════════════════════════════════════
+  # UNIT LABEL
+  #═══════════════════════════════════════════════════════════════
+
+  y_label <- if (!is.null(unit_map) && panel %in% names(unit_map)) {
+    unit_map[[panel]]
+  } else {
+    toupper(panel)
+  }
+
+  #═══════════════════════════════════════════════════════════════
+  # TITLE
+  #═══════════════════════════════════════════════════════════════
+
+  plot_title <- paste0(
+    toupper(panel),
+    ": Diabetic vs Non-Diabetic by Gender"
+  )
+
+  #═══════════════════════════════════════════════════════════════
+  # PLOT
+  #═══════════════════════════════════════════════════════════════
+
+  p <- ggplot(plot_data, aes(x = diabetes, y = labreads, fill = diabetes)) +
+
+    geom_boxplot(width = 0.30, 
+                 outlier.shape = NA, 
+                 alpha = 0.5, 
+                 color = "black") +
+
+    geom_jitter(
+      width  = 0.15,
+      alpha  = 0.3,
+      size   = 1.8,
+      color  = "#CC79A7"
+    ) +
+
+    # n label (observations) — sits above the p-value bracket
+    geom_text(
+      data = n_counts,
+      aes(x = diabetes, 
+          y = y, 
+          label = label),
+      inherit.aes = FALSE,
+      size      = 7,
+      fontface  = "bold"
+    ) +
+
+    # N label (patients) — sits in the bottom margin
+    geom_text(
+      data = N_counts,
+      aes(x = diabetes, 
+          y = y, 
+          label = label),
+      inherit.aes = FALSE,
+      size      = 7,
+      fontface  = "bold"
+    ) +
+
+    { if (nrow(pvals) > 0)
+    stat_pvalue_manual(
+      pvals,
+      label      = "p.label",
+      xmin       = "group1",
+      xmax       = "group2",
+      y.position = "y.position",
+      size = 5,
+      tip.length = 0.01
+    )
+} +
+
+    facet_wrap(~gender, nrow = 1) +
+
+    scale_y_continuous(
+      expand = expansion(mult = c(0.02, 0.05))
+    ) +
+
+    coord_cartesian(
+      ylim = c(y_bottom_plot, y_top_plot),
+      clip = "off"
+    ) +
+
+    labs(
+      title = plot_title,
+      x     = NULL,
+      y     = y_label
+    ) +
+
+    theme_prism() +
+
+    theme(
+   plot.title      = element_text(size = 26,face = "bold", hjust = 0.5),
+   strip.text      = element_text(face = "bold", size = 18),
+   axis.text.x     = element_text(size = 22,angle = 0, hjust = 0.5,
+                                 margin = margin(b=2)),
+   axis.text.y = element_text(size = 22,face = "bold"),
+   axis.title = element_text(size = 24,face = "bold" ),
+   legend.position = "none",
+   plot.margin     = margin(t = 15, 
+                           r = 15, 
+                           b = 40, 
+                           l = 15)  # increased b from 55 → 80
+)
+
+  return(p)
+}
+```
+
+```{r}
+plot_gender_diabetes_boxplot(
+  all_data      = all_data,
+  diabetic_data = diabetic_data,
+  gender_data   = gender_data1,
+  panel         = "gpt",
+  unit_map = unit_map
+)
+```
+
+```{r}
+
+base_dir <- here::here("output/figure/diabetes/plots_all_labvalues/liver_diabetic_nondiabitic_gender")
+svg_dir  <- file.path(base_dir, "svg")
+png_dir  <- file.path(base_dir, "png")
+dir.create(svg_dir, recursive = TRUE, showWarnings = FALSE)
+dir.create(png_dir, recursive = TRUE, showWarnings = FALSE)
+
+panels <- c("ck", "keratinkinase", "quick", "inr", "troponin", "prothrombin",
+  "ptt", "tz", "antithrombin", "serummyoglobin", "d", "fibrinogen",
+  "leukozyten", "got", "gpt", "ggt", "ldh", "gldh", "triglyceride",
+  "cholesterin", "hdl", "ldl", "lymphozyten", "hb", "total", "totales",
+  "blut", "bilirubin", "direktes", "indirektes", "gesamteiweiss", "ap",
+  "cholinesterase", "kreatinin", "amylase", "lipase", "crp", "harnstoff",
+  "harnsaure", "erythrozyten", "thrombozyten", "trhombozyten", "haptoglobin",
+  "bsg", "monozyten", "eosinophile", "neutrophile", "stabkernige",
+  "segmentkernige", "basophile", "albumin", "gamma", "alpha", "beta",
+  "hamatokrit", "mcv", "mch", "mchc", "natrium", "kalium", "kalzium",
+  "magnesium", "chlorid", "serum", "transferrin", "ferritin", "fieber",
+  "glucose", "ammoniak", "lactat", "phosphat", "glomarulare", "gfr",
+  "ck_mb", "antithrombin_3", "total_bilirubin", "direct_bilirubin",
+  "indirect_bilirubin", "serum_eisen", "grf")
+
+
+
+for (panel in panels) {
+
+  message("Processing: ", panel)
+
+  p <- tryCatch(
+    plot_gender_diabetes_boxplot(
+      all_data      = all_data,
+      diabetic_data = diabetic_data,
+      gender_data   = gender_data1,
+      panel         = panel,
+      unit_map      = unit_map
+    ),
+    error = function(e) {
+      if (grepl("No data available after filtering", e$message)) {
+        message("Skipping ", panel, " (no data)")
+        return(NULL)
+      }
+      stop(e)
+    }
+  )
+
+  if (is.null(p)) next
+
+  ggsave(
+    file.path(svg_dir, paste0(panel, "_boxplot.svg")),
+    plot = p,
+    width = 10,
+    height = 6
+  )
+
+  ggsave(
+    file.path(png_dir, paste0(panel, "_boxplot.png")),
+    plot = p,
+    width = 10,
+    height = 6,
+    dpi = 300
+  )
+
+  message("Saved: ", panel)
+}
+```
+
+
+##======================================
+## panel id
+##======================================
+
+```{r}
+all_data %>% 
+  select(panel_id) %>% 
+  unique() %>% 
+  pull(panel_id)
+```
+
+
+```{r}
+all_data %>% 
+  filter(panel_id == "mcv")
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

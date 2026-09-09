@@ -1,0 +1,1507 @@
+---
+title: "malefemale"
+output: html_document
+date: "2024-05-27"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r} 
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+library(ggstatsplot)
+```
+
+
+```{r}
+gender_data <- read_excel("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/gender_info.xlsx",
+           sheet = 1, skip = 1)
+```
+
+
+```{r}
+library(dplyr)
+gender_data1 <- gender_data %>% 
+  melt(cols = c("Male", "Female"),
+       variable.name = "Gender") %>% 
+  dplyr::filter(Treatment == "Leber_Diclo")
+
+
+  
+```
+
+## patient data###
+```{r}
+patientidentifier <- read_excel("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/gender_info.xlsx",
+           sheet = 1, skip = 1 ) %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  pivot_longer(cols = 3:4,
+               names_to = "gender",
+               values_to = "numberofpatient") %>% 
+  filter(numberofpatient== 1) 
+
+## unknown gender dataframe
+test <- tibble(`Edited_BfArM Nummer2`=c("9042861","9044899"),
+                     Treatment=c("Leber_Dic``lo","Leber_Diclo"),
+                     gender=c("Unknown","Unknown"),
+                     numberofpatient=c(1,1))
+
+patientidentifier <- rbind(patientidentifier,test)
+  
+
+```
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+gptaltdata_long <- gpt_rawdata %>%
+  tidyr::pivot_longer(cols = -c("Edited_BfArM Nummer2", "Treatment"), 
+               names_to = "Attribute", 
+               values_to = "labreads")
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- gptaltdata_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(Attribute, "_From Start|Day_Unknown")) ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+counts_data <- filtered_data %>%
+  group_by(Attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+gptaltdata_with_counts <- filtered_data %>%
+  left_join(counts_data, by = "Attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ filtered_data_with_min_counts <- gptaltdata_with_counts %>%
+  filter(count >= 3) %>%      ####NEW####
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(filtered_data_with_min_counts)
+
+  
+```
+
+## alt data greater than 5 counts in all attribute###
+```{r}
+ldalt_data <- left_join(patientidentifier,filtered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+
+```{r}
+ldalt_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+
+```{r}
+dd <- ldalt_data %>% 
+  group_by(gender)
+  
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  title = "liver_diclo labvalues of ALT for male, female and unknown gender",  ###NEW###
+  type = "np",
+  ylab = "ALT U/L",
+  ggtheme = theme_classic()
+)
+
+```
+
+
+
+
+##############################################################################
+##ast##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+astaltdata_long <- got_rawdata %>%
+  tidyr::pivot_longer(cols = -c("Edited_BfArM Nummer2", "Treatment"), 
+               names_to = "Attribute", 
+               values_to = "labreads")
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- astaltdata_long %>%
+  filter(Treatment == "Leber_Diclo") %>% 
+  filter(!str_detect(Attribute, "_From Start|Day_Unknown"))
+
+# Step 3: Count occurrences, preserving the identifier
+astcounts_data <- filtered_data %>%
+  group_by(Attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+astdata_with_counts <- filtered_data %>%
+  left_join(astcounts_data, by = "Attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ astfiltered_data_with_min_counts <- astdata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(astfiltered_data_with_min_counts)
+
+  
+```
+
+
+
+
+```{r}
+ldast_data <- left_join(patientidentifier,astfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+ldast_data
+```
+
+
+```{r}
+ldast_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+
+```{r}
+dd <- ldast_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  title = "Comparison between male and female for all labvalues of AST",  ###NEW###
+  type = "np",
+  ylab = "AST U/L",
+  ggtheme = theme_classic()
+)
+
+```
+
+
+
+
+
+##############################################################################
+##ck##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- ck_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+ckcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+ckdata_with_counts <- filtered_data %>%
+  left_join(ckcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ ckfiltered_data_with_min_counts <- ckdata_with_counts %>%
+  filter(count >= 3) %>%              ####NEW####
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(ckfiltered_data_with_min_counts)
+
+  
+```
+
+
+
+```{r}
+ldck_data <- left_join(patientidentifier,ckfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+
+```{r}
+ldck_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+
+```{r}
+dd <- ldck_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  title = "Comparison between male and female for all labvalues of ck",  ###NEW###
+  type = "np",
+  ylab = "CK U/L",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##quick##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- quick_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+quickcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+quickdata_with_counts <- filtered_data %>%
+  left_join(quickcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ quickfiltered_data_with_min_counts <- quickdata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(quickfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldquick_data <- left_join(patientidentifier,quickfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+
+```{r}
+ldquick_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldquick_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "quick %",
+  ggtheme = theme_classic()
+)
+
+```
+
+
+##############################################################################
+##inr##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- inr_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+inrcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+inrdata_with_counts <- filtered_data %>%
+  left_join(inrcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ inrfiltered_data_with_min_counts <- inrdata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(inrfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldinr_data <- left_join(patientidentifier,inrfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+
+```{r}
+ldinr_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldinr_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "INR",
+  ggtheme = theme_classic()
+)
+
+```
+
+
+##############################################################################
+##ptt##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- ptt_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+pttcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+pttdata_with_counts <- filtered_data %>%
+  left_join(pttcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ pttfiltered_data_with_min_counts <- pttdata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(pttfiltered_data_with_min_counts)
+
+  
+```
+
+
+
+
+
+
+```{r}
+pttdata_with_counts
+```
+```{r}
+pttcounts_data
+```
+
+```{r}
+ldptt_data <- left_join(patientidentifier,pttfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+
+```{r}
+ldptt_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+```{r}
+dd <- ldptt_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "PTT Sec.",
+  ggtheme = theme_classic()
+)
+
+```
+##############################################################################
+##Leukozyten##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- leukozyten_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From Start|_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+leukozytencounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+leukozytendata_with_counts <- filtered_data %>%
+  left_join(leukozytencounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ leukozytenfiltered_data_with_min_counts <- leukozytendata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(leukozytenfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldleukozyten_data <- left_join(patientidentifier,leukozytenfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldleukozyten_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldleukozyten_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "Leucocytes Cells/ul",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##ggt##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- ggt_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From Start|_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+ggtcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+ggtdata_with_counts <- filtered_data %>%
+  left_join(ggtcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ ggtfiltered_data_with_min_counts <- ggtdata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(ggtfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldggt_data <- left_join(patientidentifier,ggtfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldggt_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldggt_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "GGT U/L",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##ldh##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- ldh_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+ldhcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+ldhdata_with_counts <- filtered_data %>%
+  left_join(ldhcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ ldhfiltered_data_with_min_counts <- ldhdata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(ldhfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldldh_data <- left_join(patientidentifier,ldhfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldldh_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldldh_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "LDH U/L",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##hb##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- hb_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From Start|_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+hbcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+hbdata_with_counts <- filtered_data %>%
+  left_join(hbcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ hbfiltered_data_with_min_counts <- hbdata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(hbfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldhb_data <- left_join(patientidentifier,hbfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldhb_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldhb_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "HB g/dl",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##totales Bilirubin##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- total_bilirubin_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+totbilicounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+totbilidata_with_counts <- filtered_data %>%
+  left_join(totbilicounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ totbilifiltered_data_with_min_counts <- totbilidata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(totbilifiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldtotbili_data <- left_join(patientidentifier,totbilifiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldtotbili_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldtotbili_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "total Bilirubin mg/dl",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##AP##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- ap_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+apcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+apdata_with_counts <- filtered_data %>%
+  left_join(apcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ apfiltered_data_with_min_counts <- apdata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(apfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldap_data <- left_join(patientidentifier,apfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldap_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldap_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "AP U/L",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##Keratinin##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- kreatinin_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+kreacounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+kreadata_with_counts <- filtered_data %>%
+  left_join(kreacounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ kreafiltered_data_with_min_counts <- kreadata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(kreafiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldkrea_data <- left_join(patientidentifier,kreafiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldkrea_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldkrea_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "Creatinine mg/dl",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##CRP##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- crp_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+crpcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+crpdata_with_counts <- filtered_data %>%
+  left_join(crpcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ crpfiltered_data_with_min_counts <- crpdata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(crpfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldcrp_data <- left_join(patientidentifier,crpfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldcrp_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldcrp_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "CRP mg/l",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##Harnstoff##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- harnstoff_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+hstcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+hstdata_with_counts <- filtered_data %>%
+  left_join(hstcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ hstfiltered_data_with_min_counts <- hstdata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(hstfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldhst_data <- left_join(patientidentifier,hstfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldhst_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldhst_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "Urea mg/dl",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##Erythrozyten##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- erythrozyten_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+erycounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+erydata_with_counts <- filtered_data %>%
+  left_join(erycounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ eryfiltered_data_with_min_counts <- erydata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(eryfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldery_data <- left_join(patientidentifier,eryfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldery_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldery_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "Erythrozyten Cells/ul",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##Thrombozyten##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- thrombozyten_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+thrombcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+thrombdata_with_counts <- filtered_data %>%
+  left_join(thrombcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ thrombfiltered_data_with_min_counts <- thrombdata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(thrombfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldthromb_data <- left_join(patientidentifier,thrombfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldthromb_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldthromb_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "Thrombocytes Cells/ul",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##Hämatokrit##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- hämatokrit_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+hktcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+hktdata_with_counts <- filtered_data %>%
+  left_join(hktcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ hktfiltered_data_with_min_counts <- hktdata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(hktfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldhkt_data <- left_join(patientidentifier,hktfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldhkt_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldhkt_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "Hematokrit %",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##Natrium##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- natrium_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+natcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+natdata_with_counts <- filtered_data %>%
+  left_join(natcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ natfiltered_data_with_min_counts <- natdata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(natfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldnat_data <- left_join(patientidentifier,natfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldnat_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldnat_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "Sodium mmol/l",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##Kalium##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- kalium_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+kalcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+kaldata_with_counts <- filtered_data %>%
+  left_join(kalcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ kalfiltered_data_with_min_counts <- kaldata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(kalfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldkal_data <- left_join(patientidentifier,kalfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldkal_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldkal_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "Potassium mmol/l",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##Kalzium##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- kalzium_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+calcounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+caldata_with_counts <- filtered_data %>%
+  left_join(calcounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ calfiltered_data_with_min_counts <- caldata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(calfiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldcal_data <- left_join(patientidentifier,calfiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldcal_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldcal_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "Calcium mmol/l",
+  ggtheme = theme_classic()
+)
+
+```
+
+##############################################################################
+##Glucose##
+
+```{r}
+
+# gptaltdata <- read_excel("Data/SJS Arun 27.05.24.xlsx", sheet = 2,skip = 2) 
+# gptaltdata$`GPT Day11` <- as.numeric(gptaltdata$`GPT Day11`)
+
+# gptaltdata is raw data from excle
+# Step 1: Pivot the data to long format, preserving the identifier
+
+  
+
+# Step 2: Filter the data for the specified treatment
+filtered_data <- glucose_long %>%
+  filter(Treatment == "Leber_Diclo")%>% 
+  filter(!str_detect(attribute, "_From start|Day_Unknown"))  ####NEW####
+
+# Step 3: Count occurrences, preserving the identifier
+glucounts_data <- filtered_data %>%
+  group_by(attribute) %>%
+  summarize(count = sum(!is.na(labreads)), .groups = 'drop')
+
+# Step 4: Merge the counts back with the original data
+gludata_with_counts <- filtered_data %>%
+  left_join(glucounts_data, by = "attribute")
+
+
+# Step 5: Filter the data where count is equal to or higher than 3
+ glufiltered_data_with_min_counts <- gludata_with_counts %>%
+  filter(count >= 3) %>% 
+  drop_na(labreads)
+
+# Print the updated data with counts equal to or higher than 3
+print(glufiltered_data_with_min_counts)
+
+  
+```
+
+```{r}
+ldglu_data <- left_join(patientidentifier,glufiltered_data_with_min_counts, by = ("Edited_BfArM Nummer2")) %>% 
+  select(1,2,3,6,7,8) %>% drop_na(count)
+```
+
+```{r}
+ldglu_data %>% 
+  group_by(gender) %>% normality(labreads)
+```
+
+```{r}
+dd <- ldglu_data %>% 
+  group_by(gender)
+
+ggbetweenstats(
+  data = dd,
+  x = gender,
+  y = labreads,
+  type = "np",
+  ylab = "Glucose mg/dl",
+  ggtheme = theme_classic()
+)
+
+```
+
+
+####
+

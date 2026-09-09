@@ -1,0 +1,1771 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-11-01"
+---
+
+### crp ##########################################################################
+
+```{r}
+
+crp_diabetic_gender <- left_join(gender_data1,crp_diabetic,by = "Edited_BfArM Nummer2") %>% 
+  filter(!grepl("_From StarBS", attribute)) %>%filter(Diabetes == "Diabetic") %>%
+  drop_na() %>% 
+  filter(str_starts(Treatment.x, "Leber_")) %>% 
+  mutate(Treatment.x = as.factor(Treatment.x),
+         Gender = as.factor(Gender))
+
+crp_diabetic_gender
+```
+ 
+```{r}
+crp_diabetic_gender %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = crp_diabetic_gender)
+```
+
+
+
+# nsaid comparison peak labvlues #
+```{r}
+crp_diabetic_gender_peak <- crp_diabetic_gender %>% 
+  group_by(Treatment.x) %>%  
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+
+crp_diabetic_gender_peak
+```
+
+```{r}
+crp_diabetic_gender_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = crp_diabetic_gender_peak)
+```
+
+
+
+
+## Female ##
+
+```{r}
+crp_diabetic_female <- crp_diabetic_gender %>% 
+  dplyr::filter(Gender == "Female")
+
+crp_diabetic_female
+```
+
+```{r}
+crp_diabetic_female %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = crp_diabetic_female)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- crp_diabetic_female %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = crp_diabetic_female,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "crp (mg/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_crp_all_labvalues_comparison_nsaid_in_diabetic_group_female <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(crp_diabetic_female$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison female", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison female/liver_crp_all_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_crp_all_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+crp_diabetic_male <- crp_diabetic_gender %>% 
+  dplyr::filter(Gender == "Male")
+
+crp_diabetic_male
+```
+
+```{r}
+crp_diabetic_male %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = crp_diabetic_male)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- crp_diabetic_male %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = crp_diabetic_male,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "crp (mg/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_crp_all_labvalues_comparison_nsaid_in_diabetic_group_male <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(crp_diabetic_male$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison male", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison male/liver_crp_all_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_crp_all_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+ 
+
+## Female ##
+
+```{r}
+crp_diabetic_female_peak <- crp_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Female")
+
+crp_diabetic_female_peak
+```
+
+```{r}
+crp_diabetic_female_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = crp_diabetic_female_peak)
+```
+
+```{r}
+liver_crp_peak_labvalues_comparison_nsaid_in_diabetic_group_female <- ggbetweenstats(
+  data = crp_diabetic_female_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "Peak-crp (mg/l)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison female", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison female/liver_crp_peak_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_crp_peak_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+crp_diabetic_male_peak <- crp_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Male")
+
+crp_diabetic_male_peak
+```
+
+```{r}
+crp_diabetic_male_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = crp_diabetic_male_peak)
+```
+
+```{r}
+liver_crp_peak_labvalues_comparison_nsaid_in_diabetic_group_male <- ggbetweenstats(
+  data = crp_diabetic_male_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "Peak-crp (mg/l)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison male", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison male/liver_crp_peak_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_crp_peak_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+
+
+
+### natrium ##########################################################################
+
+```{r}
+
+natrium_diabetic_gender <- left_join(gender_data1,natrium_diabetic,by = "Edited_BfArM Nummer2") %>% 
+  filter(!grepl("_From StarBS", attribute)) %>%filter(Diabetes == "Diabetic") %>%
+  drop_na() %>% 
+  filter(str_starts(Treatment.x, "Leber_")) %>% 
+  filter(!grepl("_1|_2|_3|_4|_d", attribute)) %>% 
+  mutate(Treatment.x = as.factor(Treatment.x),
+         Gender = as.factor(Gender))
+
+natrium_diabetic_gender
+```
+ 
+```{r}
+natrium_diabetic_gender %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = natrium_diabetic_gender)
+```
+
+
+
+# nsaid comparison peak labvlues #
+```{r}
+natrium_diabetic_gender_peak <- natrium_diabetic_gender %>% 
+  group_by(Treatment.x) %>%  
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+
+natrium_diabetic_gender_peak
+```
+
+```{r}
+natrium_diabetic_gender_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = natrium_diabetic_gender_peak)
+```
+
+```{r}
+liver_natrium_peak_labvalues_comparison_nsaid_in_diabetic_group <- ggbetweenstats(
+  data = natrium_diabetic_gender_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group",
+  xlab = "Patient group",
+  ylab = "Peak-natrium (mmol/l)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison/liver_natrium_peak_labvalues_comparison_nsaid_in_diabetic_group.svg", height = 8, width = 6.5)
+print(liver_natrium_peak_labvalues_comparison_nsaid_in_diabetic_group)
+dev.off()
+```
+
+
+## Female ##
+
+```{r}
+natrium_diabetic_female <- natrium_diabetic_gender %>% 
+  dplyr::filter(Gender == "Female")
+
+natrium_diabetic_female
+```
+
+```{r}
+natrium_diabetic_female %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = natrium_diabetic_female)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- natrium_diabetic_female %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = natrium_diabetic_female,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "natrium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_natrium_all_labvalues_comparison_nsaid_in_diabetic_group_female <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(natrium_diabetic_female$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison female", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison female/liver_natrium_all_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_natrium_all_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+natrium_diabetic_male <- natrium_diabetic_gender %>% 
+  dplyr::filter(Gender == "Male")
+
+natrium_diabetic_male
+```
+
+```{r}
+natrium_diabetic_male %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{}
+oneway.test(labreads ~ Treatment.x, data = natrium_diabetic_male)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- natrium_diabetic_male %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = natrium_diabetic_male,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "natrium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_natrium_all_labvalues_comparison_nsaid_in_diabetic_group_male <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(natrium_diabetic_male$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison male", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison male/liver_natrium_all_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_natrium_all_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+ 
+
+## Female ##
+
+```{r}
+natrium_diabetic_female_peak <- natrium_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Female")
+
+natrium_diabetic_female_peak
+```
+
+```{r}
+natrium_diabetic_female_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = natrium_diabetic_female_peak)
+```
+
+```{r}
+liver_natrium_peak_labvalues_comparison_nsaid_in_diabetic_group_female <- ggbetweenstats(
+  data = natrium_diabetic_female_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "Peak-natrium (mmol/l)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison female", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison female/liver_natrium_peak_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_natrium_peak_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+natrium_diabetic_male_peak <- natrium_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Male")
+
+natrium_diabetic_male_peak
+```
+
+```{r}
+natrium_diabetic_male_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{}
+oneway.test(labreads ~ Treatment.x, data = natrium_diabetic_male_peak)
+```
+
+```{r}
+liver_natrium_peak_labvalues_comparison_nsaid_in_diabetic_group_male <- ggbetweenstats(
+  data = natrium_diabetic_male_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "Peak-natrium (mmol/l)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison male", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison male/liver_natrium_peak_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_natrium_peak_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+
+
+
+### kalium ##########################################################################
+
+```{r}
+
+kalium_diabetic_gender <- left_join(gender_data1,kalium_diabetic,by = "Edited_BfArM Nummer2") %>% 
+  filter(!grepl("_From StarBS", attribute)) %>%filter(Diabetes == "Diabetic") %>%
+  drop_na() %>% 
+  filter(str_starts(Treatment.x, "Leber_")) %>% 
+  mutate(Treatment.x = as.factor(Treatment.x),
+         Gender = as.factor(Gender))
+
+kalium_diabetic_gender
+```
+ 
+```{r}
+kalium_diabetic_gender %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = kalium_diabetic_gender)
+```
+
+
+
+# nsaid comparison peak labvlues #
+```{r}
+kalium_diabetic_gender_peak <- kalium_diabetic_gender %>% 
+  group_by(Treatment.x) %>%  
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+
+kalium_diabetic_gender_peak
+```
+
+```{r}
+kalium_diabetic_gender_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = kalium_diabetic_gender_peak)
+```
+
+```{r}
+liver_kalium_peak_labvalues_comparison_nsaid_in_diabetic_group <- ggbetweenstats(
+  data = kalium_diabetic_gender_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group",
+  xlab = "Patient group",
+  ylab = "Peak-kalium (mmol/l)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison/liver_kalium_peak_labvalues_comparison_nsaid_in_diabetic_group.svg", height = 8, width = 6.5)
+print(liver_kalium_peak_labvalues_comparison_nsaid_in_diabetic_group)
+dev.off()
+```
+
+
+## Female ##
+
+```{r}
+kalium_diabetic_female <- kalium_diabetic_gender %>% 
+  dplyr::filter(Gender == "Female")
+
+kalium_diabetic_female
+```
+
+```{r}
+kalium_diabetic_female %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = kalium_diabetic_female)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- kalium_diabetic_female %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = kalium_diabetic_female,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "kalium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_kalium_all_labvalues_comparison_nsaid_in_diabetic_group_female <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(kalium_diabetic_female$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison female", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison female/liver_kalium_all_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_kalium_all_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+kalium_diabetic_male <- kalium_diabetic_gender %>% 
+  dplyr::filter(Gender == "Male")
+
+kalium_diabetic_male
+```
+
+```{r}
+kalium_diabetic_male %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{}
+oneway.test(labreads ~ Treatment.x, data = kalium_diabetic_male)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- kalium_diabetic_male %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = kalium_diabetic_male,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "kalium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_kalium_all_labvalues_comparison_nsaid_in_diabetic_group_male <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(kalium_diabetic_male$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison male", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison male/liver_kalium_all_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_kalium_all_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+ 
+
+## Female ##
+
+```{r}
+kalium_diabetic_female_peak <- kalium_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Female")
+
+kalium_diabetic_female_peak
+```
+
+```{r}
+kalium_diabetic_female_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = kalium_diabetic_female_peak)
+```
+
+```{r}
+liver_kalium_peak_labvalues_comparison_nsaid_in_diabetic_group_female <- ggbetweenstats(
+  data = kalium_diabetic_female_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "Peak-kalium (mmol/l)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison female", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison female/liver_kalium_peak_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_kalium_peak_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+kalium_diabetic_male_peak <- kalium_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Male")
+
+kalium_diabetic_male_peak
+```
+
+```{r}
+kalium_diabetic_male_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{}
+oneway.test(labreads ~ Treatment.x, data = kalium_diabetic_male_peak)
+```
+
+```{r}
+liver_kalium_peak_labvalues_comparison_nsaid_in_diabetic_group_male <- ggbetweenstats(
+  data = kalium_diabetic_male_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "Peak-kalium (mmol/l)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison male", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison male/liver_kalium_peak_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_kalium_peak_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+
+
+
+### kalzium ##########################################################################
+
+```{r}
+
+kalzium_diabetic_gender <- left_join(gender_data1,kalzium_diabetic,by = "Edited_BfArM Nummer2") %>% 
+  filter(!grepl("_From StarBS", attribute)) %>%filter(Diabetes == "Diabetic") %>%
+  drop_na() %>% 
+  filter(str_starts(Treatment.x, "Leber_")) %>% 
+  mutate(Treatment.x = as.factor(Treatment.x),
+         Gender = as.factor(Gender))
+
+kalzium_diabetic_gender
+```
+ 
+```{r}
+kalzium_diabetic_gender %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = kalzium_diabetic_gender)
+```
+
+# nsaid comparison all labvalues #
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- kalzium_diabetic_gender %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = kalzium_diabetic_gender,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group",
+  xlab = "Patient group",
+  ylab = "kalzium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_kalzium_all_labvalues_comparison_nsaid_in_diabetic_group <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(kalzium_diabetic_gender$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison/liver_kalzium_all_labvalues_comparison_nsaid_in_diabetic_group.svg", height = 8, width = 6.5)
+print(liver_kalzium_all_labvalues_comparison_nsaid_in_diabetic_group)
+dev.off()
+```
+
+
+# nsaid comparison peak labvlues #
+```{r}
+kalzium_diabetic_gender_peak <- kalzium_diabetic_gender %>% 
+  group_by(Treatment.x) %>%  
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+
+kalzium_diabetic_gender_peak
+```
+
+```{r}
+kalzium_diabetic_gender_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = kalzium_diabetic_gender_peak)
+```
+
+```{r}
+liver_kalzium_peak_labvalues_comparison_nsaid_in_diabetic_group <- ggbetweenstats(
+  data = kalzium_diabetic_gender_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group",
+  xlab = "Patient group",
+  ylab = "Peak-kalzium (mmol/l)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison/liver_kalzium_peak_labvalues_comparison_nsaid_in_diabetic_group.svg", height = 8, width = 6.5)
+print(liver_kalzium_peak_labvalues_comparison_nsaid_in_diabetic_group)
+dev.off()
+```
+
+
+## Female ##
+
+```{r}
+kalzium_diabetic_female <- kalzium_diabetic_gender %>% 
+  dplyr::filter(Gender == "Female")
+
+kalzium_diabetic_female
+```
+
+```{r}
+kalzium_diabetic_female %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = kalzium_diabetic_female)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- kalzium_diabetic_female %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = kalzium_diabetic_female,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "kalzium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_kalzium_all_labvalues_comparison_nsaid_in_diabetic_group_female <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(kalzium_diabetic_female$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison female", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison female/liver_kalzium_all_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_kalzium_all_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+kalzium_diabetic_male <- kalzium_diabetic_gender %>% 
+  dplyr::filter(Gender == "Male")
+
+kalzium_diabetic_male
+```
+
+```{r}
+kalzium_diabetic_male %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{}
+oneway.test(labreads ~ Treatment.x, data = kalzium_diabetic_male)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- kalzium_diabetic_male %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = kalzium_diabetic_male,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "kalzium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_kalzium_all_labvalues_comparison_nsaid_in_diabetic_group_male <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(kalzium_diabetic_male$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison male", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison male/liver_kalzium_all_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_kalzium_all_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+ 
+
+## Female ##
+
+```{r}
+kalzium_diabetic_female_peak <- kalzium_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Female")
+
+kalzium_diabetic_female_peak
+```
+
+```{r}
+kalzium_diabetic_female_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = kalzium_diabetic_female_peak)
+```
+
+```{r}
+liver_kalzium_peak_labvalues_comparison_nsaid_in_diabetic_group_female <- ggbetweenstats(
+  data = kalzium_diabetic_female_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "Peak-kalzium (mmol/l)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison female", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison female/liver_kalzium_peak_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_kalzium_peak_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+kalzium_diabetic_male_peak <- kalzium_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Male")
+
+kalzium_diabetic_male_peak
+```
+
+```{r}
+kalzium_diabetic_male_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{}
+oneway.test(labreads ~ Treatment.x, data = kalzium_diabetic_male_peak)
+```
+
+```{r}
+liver_kalzium_peak_labvalues_comparison_nsaid_in_diabetic_group_male <- ggbetweenstats(
+  data = kalzium_diabetic_male_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "Peak-kalzium (mmol/l)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison male", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison male/liver_kalzium_peak_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_kalzium_peak_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+
+
+
+### quick ##########################################################################
+
+```{r}
+
+quick_diabetic_gender <- left_join(gender_data1,quick_diabetic,by = "Edited_BfArM Nummer2") %>% 
+  filter(!grepl("_From StarBS", attribute)) %>%filter(Diabetes == "Diabetic") %>%
+  drop_na() %>% 
+  filter(str_starts(Treatment.x, "Leber_")) %>% 
+  mutate(Treatment.x = as.factor(Treatment.x),
+         Gender = as.factor(Gender))
+
+quick_diabetic_gender
+```
+ 
+```{r}
+quick_diabetic_gender %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = quick_diabetic_gender)
+```
+
+
+
+# nsaid comparison peak labvlues #
+```{r}
+quick_diabetic_gender_peak <- quick_diabetic_gender %>% 
+  group_by(Treatment.x) %>%  
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+
+quick_diabetic_gender_peak
+```
+
+```{r}
+quick_diabetic_gender_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = quick_diabetic_gender_peak)
+```
+
+
+
+
+## Female ##
+
+```{r}
+quick_diabetic_female <- quick_diabetic_gender %>% 
+  dplyr::filter(Gender == "Female")
+
+quick_diabetic_female
+```
+
+```{r}
+quick_diabetic_female %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = quick_diabetic_female)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- quick_diabetic_female %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = quick_diabetic_female,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "quick (%)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_quick_all_labvalues_comparison_nsaid_in_diabetic_group_female <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(quick_diabetic_female$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison female", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison female/liver_quick_all_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_quick_all_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+quick_diabetic_male <- quick_diabetic_gender %>% 
+  dplyr::filter(Gender == "Male")
+
+quick_diabetic_male
+```
+
+```{r}
+quick_diabetic_male %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = quick_diabetic_male)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- quick_diabetic_male %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = quick_diabetic_male,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "quick (%)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_quick_all_labvalues_comparison_nsaid_in_diabetic_group_male <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(quick_diabetic_male$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison male", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison male/liver_quick_all_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_quick_all_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+ 
+
+## Female ##
+
+```{r}
+quick_diabetic_female_peak <- quick_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Female")
+
+quick_diabetic_female_peak
+```
+
+```{r}
+quick_diabetic_female_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = quick_diabetic_female_peak)
+```
+
+```{r}
+liver_quick_peak_labvalues_comparison_nsaid_in_diabetic_group_female <- ggbetweenstats(
+  data = quick_diabetic_female_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "Peak-quick (%)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison female", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison female/liver_quick_peak_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_quick_peak_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+quick_diabetic_male_peak <- quick_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Male")
+
+quick_diabetic_male_peak
+```
+
+```{r}
+quick_diabetic_male_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = quick_diabetic_male_peak)
+```
+
+```{r}
+liver_quick_peak_labvalues_comparison_nsaid_in_diabetic_group_male <- ggbetweenstats(
+  data = quick_diabetic_male_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "Peak-quick (%)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison male", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison male/liver_quick_peak_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_quick_peak_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+
+
+
+### hämatokrit ##########################################################################
+
+```{r}
+
+hämatokrit_diabetic_gender <- left_join(gender_data1,hämatokrit_diabetic,by = "Edited_BfArM Nummer2") %>% 
+  filter(!grepl("_From StarBS", attribute)) %>%filter(Diabetes == "Diabetic") %>%
+  drop_na() %>% 
+  filter(str_starts(Treatment.x, "Leber_")) %>% 
+  mutate(Treatment.x = as.factor(Treatment.x),
+         Gender = as.factor(Gender))
+
+hämatokrit_diabetic_gender
+```
+ 
+```{r}
+hämatokrit_diabetic_gender %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = hämatokrit_diabetic_gender)
+```
+
+
+
+# nsaid comparison peak labvlues #
+```{r}
+hämatokrit_diabetic_gender_peak <- hämatokrit_diabetic_gender %>% 
+  group_by(Treatment.x) %>%  
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+
+hämatokrit_diabetic_gender_peak
+```
+
+```{r}
+hämatokrit_diabetic_gender_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = hämatokrit_diabetic_gender_peak)
+```
+
+
+
+
+## Female ##
+
+```{r}
+hämatokrit_diabetic_female <- hämatokrit_diabetic_gender %>% 
+  dplyr::filter(Gender == "Female")
+
+hämatokrit_diabetic_female
+```
+
+```{r}
+hämatokrit_diabetic_female %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = hämatokrit_diabetic_female)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- hämatokrit_diabetic_female %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = hämatokrit_diabetic_female,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "hämatokrit (%)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_hämatokrit_all_labvalues_comparison_nsaid_in_diabetic_group_female <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(hämatokrit_diabetic_female$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison female", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison female/liver_hämatokrit_all_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_hämatokrit_all_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+hämatokrit_diabetic_male <- hämatokrit_diabetic_gender %>% 
+  dplyr::filter(Gender == "Male")
+
+hämatokrit_diabetic_male
+```
+
+```{r}
+hämatokrit_diabetic_male %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{}
+oneway.test(labreads ~ Treatment.x, data = hämatokrit_diabetic_male)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- hämatokrit_diabetic_male %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = hämatokrit_diabetic_male,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "hämatokrit (%)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_hämatokrit_all_labvalues_comparison_nsaid_in_diabetic_group_male <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(hämatokrit_diabetic_male$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison male", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison male/liver_hämatokrit_all_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_hämatokrit_all_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+ 
+
+## Female ##
+
+```{r}
+hämatokrit_diabetic_female_peak <- hämatokrit_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Female")
+
+hämatokrit_diabetic_female_peak
+```
+
+```{r}
+hämatokrit_diabetic_female_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = hämatokrit_diabetic_female_peak)
+```
+
+```{r}
+liver_hämatokrit_peak_labvalues_comparison_nsaid_in_diabetic_group_female <- ggbetweenstats(
+  data = hämatokrit_diabetic_female_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "Peak-hämatokrit (%)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison female", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison female/liver_hämatokrit_peak_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_hämatokrit_peak_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+hämatokrit_diabetic_male_peak <- hämatokrit_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Male")
+
+hämatokrit_diabetic_male_peak
+```
+
+```{r}
+hämatokrit_diabetic_male_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{}
+oneway.test(labreads ~ Treatment.x, data = hämatokrit_diabetic_male_peak)
+```
+
+```{r}
+liver_hämatokrit_peak_labvalues_comparison_nsaid_in_diabetic_group_male <- ggbetweenstats(
+  data = hämatokrit_diabetic_male_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "Peak-hämatokrit (%)",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison male", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison male/liver_hämatokrit_peak_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_hämatokrit_peak_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+
+
+
+### inr ##########################################################################
+
+```{r}
+
+inr_diabetic_gender <- left_join(gender_data1,inr_diabetic,by = "Edited_BfArM Nummer2") %>% 
+  filter(!grepl("_From StarBS", attribute)) %>%filter(Diabetes == "Diabetic") %>%
+  drop_na() %>% 
+  filter(str_starts(Treatment.x, "Leber_")) %>% 
+  mutate(Treatment.x = as.factor(Treatment.x),
+         Gender = as.factor(Gender))
+
+inr_diabetic_gender
+```
+ 
+```{r}
+inr_diabetic_gender %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{}
+oneway.test(labreads ~ Treatment.x, data = inr_diabetic_gender)
+```
+
+
+
+# nsaid comparison peak labvlues #
+```{r}
+inr_diabetic_gender_peak <- inr_diabetic_gender %>% 
+  group_by(Treatment.x) %>%  
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+
+inr_diabetic_gender_peak
+```
+
+```{r}
+inr_diabetic_gender_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{}
+oneway.test(labreads ~ Treatment.x, data = inr_diabetic_gender_peak)
+```
+
+
+
+
+## Female ##
+
+```{r}
+inr_diabetic_female <- inr_diabetic_gender %>% 
+  dplyr::filter(Gender == "Female")
+
+inr_diabetic_female
+```
+
+```{r}
+inr_diabetic_female %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = inr_diabetic_female)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- inr_diabetic_female %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = inr_diabetic_female,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "inr ",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_inr_all_labvalues_comparison_nsaid_in_diabetic_group_female <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(inr_diabetic_female$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison female", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison female/liver_inr_all_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_inr_all_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+inr_diabetic_male <- inr_diabetic_gender %>% 
+  dplyr::filter(Gender == "Male")
+
+inr_diabetic_male
+```
+
+```{r}
+inr_diabetic_male %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{}
+oneway.test(labreads ~ Treatment.x, data = inr_diabetic_male)
+```
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- inr_diabetic_male %>%
+  distinct(`Edited_BfArM Nummer2`, Treatment.x) %>%  # nur einzigartige Patienten
+  count(Treatment.x, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = inr_diabetic_male,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_all labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "inr ",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+liver_inr_all_labvalues_comparison_nsaid_in_diabetic_group_male <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Treatment.x, 
+        y = max(inr_diabetic_male$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots_all_labvalues/nsaid comparison male", showWarnings = FALSE)
+svg("plots_all_labvalues/nsaid comparison male/liver_inr_all_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_inr_all_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+ 
+
+## Female ##
+
+```{r}
+inr_diabetic_female_peak <- inr_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Female")
+
+inr_diabetic_female_peak
+```
+
+```{r}
+inr_diabetic_female_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{r}
+oneway.test(labreads ~ Treatment.x, data = inr_diabetic_female_peak)
+```
+
+```{r}
+liver_inr_peak_labvalues_comparison_nsaid_in_diabetic_group_female <- ggbetweenstats(
+  data = inr_diabetic_female_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for female",
+  xlab = "Patient group",
+  ylab = "Peak-inr ",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison female", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison female/liver_inr_peak_labvalues_comparison_nsaid_in_diabetic_group_female.svg", height = 8, width = 6.5)
+print(liver_inr_peak_labvalues_comparison_nsaid_in_diabetic_group_female)
+dev.off()
+```
+
+
+## Male ##
+
+```{r}
+inr_diabetic_male_peak <- inr_diabetic_gender_peak %>% 
+  dplyr::filter(Gender == "Male")
+
+inr_diabetic_male_peak
+```
+
+```{r}
+inr_diabetic_male_peak %>% 
+  group_by(Treatment.x) %>% 
+  normality(labreads)
+```
+
+```{}
+oneway.test(labreads ~ Treatment.x, data = inr_diabetic_male_peak)
+```
+
+```{r}
+liver_inr_peak_labvalues_comparison_nsaid_in_diabetic_group_male <- ggbetweenstats(
+  data = inr_diabetic_male_peak,
+  x = "Treatment.x",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver_peak labvalues_comparison nsaid in diabetic group for male",
+  xlab = "Patient group",
+  ylab = "Peak-inr ",
+  messages = FALSE
+)
+
+dir.create("plots_peak/nsaid comparison male", showWarnings = FALSE)
+svg("plots_peak/nsaid comparison male/liver_inr_peak_labvalues_comparison_nsaid_in_diabetic_group_male.svg", height = 8, width = 6.5)
+print(liver_inr_peak_labvalues_comparison_nsaid_in_diabetic_group_male)
+dev.off()
+```
+
+
+
