@@ -1,0 +1,122 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-05-14"
+---
+
+```{r}
+gender_data <- read_excel("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/gender plots - bmi/gender_info_full.xlsx",
+           sheet = 1, skip = 1)
+```
+
+
+```{r}
+library(dplyr)
+gender_data1 <- gender_data %>% 
+  melt(cols = c("Male", "Female"),
+       variable.name = "Gender")  
+
+gender_data1
+  
+```
+
+```{r}
+bmi_data <- read_excel("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/body weight/bmi rawdata.xlsx",
+           sheet = 2)
+bmi_data
+```
+
+```{r}
+gender_bmi_data <- left_join(gender_data1,bmi_data,by = "Edited_BfArM Nummer2") %>% 
+  drop_na()
+gender_bmi_data
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_groups_comparion_bmi_male_female <- ggbetweenstats(
+  data = gender_bmi_data,
+  x = "Gender",
+  y = "bmi",
+  type = "np",
+  title = "all groups_comparison BMI of male and female patients", # ALT for labvalue and daily dose",
+       xlab = "gender",
+       ylab = "BMI") 
+dir.create("plots", showWarnings = FALSE)
+svg("plots/all_groups_comparion_bmi_male_female.svg", height = 8, width = 6.5)
+print(all_groups_comparion_bmi_male_female)
+dev.off()
+all_groups_comparion_bmi_male_female
+```
+
+
+```{r}
+library(ggstatsplot)
+ldiclo_gender_bmi_data <- gender_bmi_data%>%
+ filter(Treatment.x == "Leber_Diclo")
+
+
+
+ldiclo_comparion_bmi_male_female <- ggbetweenstats(
+  data = ldiclo_gender_bmi_data,
+  x = "Gender",
+  y = "bmi",
+  type = "np",
+  title = "liver diclo_comparison BMI of male and female patients", # ALT for labvalue and daily dose",
+       xlab = "gender",
+       ylab = "BMI") 
+dir.create("plots", showWarnings = FALSE)
+svg("plots/ldiclo_comparion_bmi_male_female.svg", height = 8, width = 6.5)
+print(ldiclo_comparion_bmi_male_female)
+dev.off()
+ldiclo_comparion_bmi_male_female
+```
+
+```{r}
+library(ggstatsplot)
+libu_gender_bmi_data <- gender_bmi_data%>%
+ filter(Treatment.x == "Leber_Ibu")
+
+
+
+libu_comparion_bmi_male_female <- ggbetweenstats(
+  data = libu_gender_bmi_data,
+  x = "Gender",
+  y = "bmi",
+  type = "np",
+  title = "liver ibu_comparison BMI of male and female patients", # ALT for labvalue and daily dose",
+       xlab = "gender",
+       ylab = "BMI") 
+dir.create("plots", showWarnings = FALSE)
+svg("plots/libu_comparion_bmi_male_female.svg", height = 8, width = 6.5)
+print(libu_comparion_bmi_male_female)
+dev.off()
+libu_comparion_bmi_male_female
+```
+
+
+```{r}
+library(ggstatsplot)
+lpara_gender_bmi_data <- gender_bmi_data%>%
+ filter(Treatment.x == "Leber_Para")
+
+
+
+lpara_comparion_bmi_male_female <- ggbetweenstats(
+  data = lpara_gender_bmi_data,
+  x = "Gender",
+  y = "bmi",
+  type = "np",
+  title = "liver para_comparison BMI of male and female patients", # ALT for labvalue and daily dose",
+       xlab = "gender",
+       ylab = "BMI") 
+dir.create("plots", showWarnings = FALSE)
+svg("plots/lpara_comparion_bmi_male_female.svg", height = 8, width = 6.5)
+print(lpara_comparion_bmi_male_female)
+dev.off()
+lpara_comparion_bmi_male_female
+```
+
+

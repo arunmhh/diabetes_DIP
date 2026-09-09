@@ -1,0 +1,4419 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-05-14"
+---
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+```
+
+
+```{r}
+gpt_long_cgt_filtered <- gpt_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+gpt_long_cgt_filtered
+```
+
+
+```{r}
+gpt_long_cgnt
+```
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_gpt_combined <- bind_rows(gpt_long_cgt_filtered,gpt_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_gpt_combined
+```
+
+
+```{r}
+gpt_long_f <- gpt_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+gpt_long_f
+```
+
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_gpt_combined_TTOq <- cgt_cgnt_gpt_combined %>%
+  mutate(tto_group = "TTOq")
+
+gpt_long_f_TTOd <- gpt_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_gpt <- bind_rows(cgt_cgnt_gpt_combined_TTOq, gpt_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_gpt
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_gpt %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_gpt
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_gpt,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # ALT for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ALT u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_gpt_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###GPT liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_gpt <- bind_rows(cgt_cgnt_gpt_combined_TTOq, gpt_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_gpt
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_gpt
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_gpt,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # ALT for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ALT u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_gpt_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_comparison_of_peak_labvalues
+```
+
+
+###GPT liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_gpt <- bind_rows(cgt_cgnt_gpt_combined_TTOq, gpt_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_gpt
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+libu_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_gpt,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # ALT for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ALT u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_gpt_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_comparison_of_peak_labvalues)
+dev.off()
+libu_comparison_of_peak_labvalues
+```
+
+
+###GPT liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_gpt <- bind_rows(cgt_cgnt_gpt_combined_TTOq, gpt_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_gpt
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_gpt,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # ALT for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ALT u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_gpt_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_comparison_of_peak_labvalues)
+dev.off()
+lpara_comparison_of_peak_labvalues
+```
+
+
+
+###got###########################################################################################
+
+```{r}
+got_long_cgt_filtered <- got_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+got_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_got_combined <- bind_rows(got_long_cgt_filtered,got_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_got_combined
+```
+
+
+```{r}
+got_long_f <- got_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+got_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_got_combined_TTOq <- cgt_cgnt_got_combined %>%
+  mutate(tto_group = "TTOq")
+
+got_long_f_TTOd <- got_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_got <- bind_rows(cgt_cgnt_got_combined_TTOq, got_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_got
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_got %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_got
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_got,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # ast for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ast u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_ast_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###got liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_got <- bind_rows(cgt_cgnt_got_combined_TTOq, got_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_got
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_got
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_got_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_got,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # ast for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ast u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_got_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_got_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_got_comparison_of_peak_labvalues
+```
+
+
+###got liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_got <- bind_rows(cgt_cgnt_got_combined_TTOq, got_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_got
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+libu_got_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_got,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # ast for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ast u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_got_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_got_comparison_of_peak_labvalues)
+dev.off()
+libu_got_comparison_of_peak_labvalues
+```
+
+
+###got liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_got <- bind_rows(cgt_cgnt_got_combined_TTOq, got_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_got
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_got_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_got,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # ast for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ast u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_got_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_got_comparison_of_peak_labvalues)
+dev.off()
+lpara_got_comparison_of_peak_labvalues
+```
+
+
+###ggt###########################################################################################
+
+```{r}
+ggt_long_cgt_filtered <- ggt_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+ggt_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_ggt_combined <- bind_rows(ggt_long_cgt_filtered,ggt_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_ggt_combined
+```
+
+
+```{r}
+ggt_long_f <- ggt_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+ggt_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_ggt_combined_TTOq <- cgt_cgnt_ggt_combined %>%
+  mutate(tto_group = "TTOq")
+
+ggt_long_f_TTOd <- ggt_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_ggt <- bind_rows(cgt_cgnt_ggt_combined_TTOq, ggt_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_ggt
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_ggt %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_ggt
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_ggt,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # ggt for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ggt u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_ggt_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###ggt liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_ggt <- bind_rows(cgt_cgnt_ggt_combined_TTOq, ggt_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_ggt
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_ggt
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_ggt_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_ggt,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # ggt for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ggt u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_ggt_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_ggt_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_ggt_comparison_of_peak_labvalues
+```
+
+
+###ggt liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_ggt <- bind_rows(cgt_cgnt_ggt_combined_TTOq, ggt_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_ggt
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+libu_ggt_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_ggt,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # ggt for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ggt u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_ggt_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_ggt_comparison_of_peak_labvalues)
+dev.off()
+libu_ggt_comparison_of_peak_labvalues
+```
+
+
+###ggt liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_ggt <- bind_rows(cgt_cgnt_ggt_combined_TTOq, ggt_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_ggt
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_ggt_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_ggt,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # ggt for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ggt u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_ggt_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_ggt_comparison_of_peak_labvalues)
+dev.off()
+lpara_ggt_comparison_of_peak_labvalues
+```
+
+
+
+###ldh###########################################################################################
+
+```{r}
+ldh_long_cgt_filtered <- ldh_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+ldh_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_ldh_combined <- bind_rows(ldh_long_cgt_filtered,ldh_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_ldh_combined
+```
+
+
+```{r}
+ldh_long_f <- ldh_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+ldh_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_ldh_combined_TTOq <- cgt_cgnt_ldh_combined %>%
+  mutate(tto_group = "TTOq")
+
+ldh_long_f_TTOd <- ldh_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_ldh <- bind_rows(cgt_cgnt_ldh_combined_TTOq, ldh_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_ldh
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_ldh %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_ldh
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_ldh,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # ldh for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ldh u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_ldh_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###ldh liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_ldh <- bind_rows(cgt_cgnt_ldh_combined_TTOq, ldh_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_ldh
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_ldh
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_ldh_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_ldh,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # ldh for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ldh u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_ldh_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_ldh_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_ldh_comparison_of_peak_labvalues
+```
+
+
+###ldh liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_ldh <- bind_rows(cgt_cgnt_ldh_combined_TTOq, ldh_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_ldh
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+libu_ldh_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_ldh,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # ldh for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ldh u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_ldh_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_ldh_comparison_of_peak_labvalues)
+dev.off()
+libu_ldh_comparison_of_peak_labvalues
+```
+
+
+###ldh liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_ldh <- bind_rows(cgt_cgnt_ldh_combined_TTOq, ldh_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_ldh
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_ldh_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_ldh,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # ldh for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ldh u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_ldh_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_ldh_comparison_of_peak_labvalues)
+dev.off()
+lpara_ldh_comparison_of_peak_labvalues
+```
+
+
+
+###alkphos###########################################################################################
+
+```{r}
+alkphos_long_cgt_filtered <- ap_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+alkphos_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_alkphos_combined <- bind_rows(alkphos_long_cgt_filtered,ap_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_alkphos_combined
+```
+
+
+```{r}
+alkphos_long_f <- ap_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+alkphos_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_alkphos_combined_TTOq <- cgt_cgnt_alkphos_combined %>%
+  mutate(tto_group = "TTOq")
+
+alkphos_long_f_TTOd <- alkphos_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_alkphos <- bind_rows(cgt_cgnt_alkphos_combined_TTOq, alkphos_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_alkphos
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_alkphos %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_alkphos
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_alkphos,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # alkphos for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-alkphos u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_alkphos_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###alkphos liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_alkphos <- bind_rows(cgt_cgnt_alkphos_combined_TTOq, alkphos_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_alkphos
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_alkphos
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_alkphos_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_alkphos,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # alkphos for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-alkphos u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_alkphos_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_alkphos_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_alkphos_comparison_of_peak_labvalues
+```
+
+
+###alkphos liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_alkphos <- bind_rows(cgt_cgnt_alkphos_combined_TTOq, alkphos_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_alkphos
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+libu_alkphos_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_alkphos,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # alkphos for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-alkphos u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_alkphos_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_alkphos_comparison_of_peak_labvalues)
+dev.off()
+libu_alkphos_comparison_of_peak_labvalues
+```
+
+
+###alkphos liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_alkphos <- bind_rows(cgt_cgnt_alkphos_combined_TTOq, alkphos_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_alkphos
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_alkphos_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_alkphos,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # alkphos for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-alkphos u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_alkphos_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_alkphos_comparison_of_peak_labvalues)
+dev.off()
+lpara_alkphos_comparison_of_peak_labvalues
+```
+
+
+###totbili###########################################################################################
+
+```{r}
+totbili_long_cgt_filtered <- total_bilirubin_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+totbili_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_totbili_combined <- bind_rows(totbili_long_cgt_filtered,total_bilirubin_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_totbili_combined
+```
+
+
+```{r}
+totbili_long_f <- total_bilirubin_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+totbili_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_totbili_combined_TTOq <- cgt_cgnt_totbili_combined %>%
+  mutate(tto_group = "TTOq")
+
+totbili_long_f_TTOd <- totbili_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_totbili <- bind_rows(cgt_cgnt_totbili_combined_TTOq, totbili_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_totbili
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_totbili %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_totbili
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_totbili,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # totbili for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-totbili mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_totbili_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###totbili liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_totbili <- bind_rows(cgt_cgnt_totbili_combined_TTOq, totbili_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_totbili
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_totbili
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_totbili_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_totbili,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # totbili for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-totbili mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_totbili_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_totbili_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_totbili_comparison_of_peak_labvalues
+```
+
+
+###totbili liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_totbili <- bind_rows(cgt_cgnt_totbili_combined_TTOq, totbili_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_totbili
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+libu_totbili_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_totbili,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # totbili for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-totbili mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_totbili_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_totbili_comparison_of_peak_labvalues)
+dev.off()
+libu_totbili_comparison_of_peak_labvalues
+```
+
+
+###totbili liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_totbili <- bind_rows(cgt_cgnt_totbili_combined_TTOq, totbili_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_totbili
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_totbili_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_totbili,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # totbili for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-totbili mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_totbili_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_totbili_comparison_of_peak_labvalues)
+dev.off()
+lpara_totbili_comparison_of_peak_labvalues
+```
+
+###hb###########################################################################################
+
+```{r}
+hb_long_cgt_filtered <- hb_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+hb_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_hb_combined <- bind_rows(hb_long_cgt_filtered,hb_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_hb_combined
+```
+
+
+```{r}
+hb_long_f <- hb_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+hb_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_hb_combined_TTOq <- cgt_cgnt_hb_combined %>%
+  mutate(tto_group = "TTOq")
+
+hb_long_f_TTOd <- hb_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_hb <- bind_rows(cgt_cgnt_hb_combined_TTOq, hb_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_hb
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_hb %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_hb
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_hb,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # hb for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-hb g/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_hb_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###hb liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_hb <- bind_rows(cgt_cgnt_hb_combined_TTOq, hb_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_hb
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_hb
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_hb_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_hb,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # hb for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-hb g/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_hb_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_hb_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_hb_comparison_of_peak_labvalues
+```
+
+
+###hb liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_hb <- bind_rows(cgt_cgnt_hb_combined_TTOq, hb_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_hb
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+libu_hb_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_hb,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # hb for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-hb g/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_hb_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_hb_comparison_of_peak_labvalues)
+dev.off()
+libu_hb_comparison_of_peak_labvalues
+```
+
+
+###hb liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_hb <- bind_rows(cgt_cgnt_hb_combined_TTOq, hb_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_hb
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_hb_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_hb,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # hb for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-hb g/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_hb_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_hb_comparison_of_peak_labvalues)
+dev.off()
+lpara_hb_comparison_of_peak_labvalues
+```
+
+
+###crp###########################################################################################
+
+```{r}
+crp_long_cgt_filtered <- crp_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+crp_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_crp_combined <- bind_rows(crp_long_cgt_filtered,crp_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_crp_combined
+```
+
+
+```{r}
+crp_long_f <- crp_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+crp_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_crp_combined_TTOq <- cgt_cgnt_crp_combined %>%
+  mutate(tto_group = "TTOq")
+
+crp_long_f_TTOd <- crp_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_crp <- bind_rows(cgt_cgnt_crp_combined_TTOq, crp_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_crp
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_crp %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_crp
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_crp,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # crp for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-crp mg/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_crp_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###crp liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_crp <- bind_rows(cgt_cgnt_crp_combined_TTOq, crp_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_crp
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_crp
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_crp_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_crp,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # crp for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-crp mg/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_crp_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_crp_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_crp_comparison_of_peak_labvalues
+```
+
+
+###crp liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_crp <- bind_rows(cgt_cgnt_crp_combined_TTOq, crp_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_crp
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+libu_crp_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_crp,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # crp for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-crp mg/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_crp_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_crp_comparison_of_peak_labvalues)
+dev.off()
+libu_crp_comparison_of_peak_labvalues
+```
+
+
+###crp liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_crp <- bind_rows(cgt_cgnt_crp_combined_TTOq, crp_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_crp
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_crp_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_crp,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # crp for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-crp mg/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_crp_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_crp_comparison_of_peak_labvalues)
+dev.off()
+lpara_crp_comparison_of_peak_labvalues
+```
+
+
+
+###leucocytes###########################################################################################
+
+```{r}
+leucocytes_long_cgt_filtered <- leukozyten_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+leucocytes_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_leucocytes_combined <- bind_rows(leucocytes_long_cgt_filtered,leukozyten_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_leucocytes_combined
+```
+
+
+```{r}
+leucocytes_long_f <- leukozyten_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+leucocytes_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_leucocytes_combined_TTOq <- cgt_cgnt_leucocytes_combined %>%
+  mutate(tto_group = "TTOq")
+
+leucocytes_long_f_TTOd <- leucocytes_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_leucocytes <- bind_rows(cgt_cgnt_leucocytes_combined_TTOq, leucocytes_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_leucocytes
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_leucocytes %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_leucocytes
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_leucocytes,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # leucocytes for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-leucocytes cells/ul") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_leucocytes_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###leucocytes liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_leucocytes <- bind_rows(cgt_cgnt_leucocytes_combined_TTOq, leucocytes_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_leucocytes
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_leucocytes
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_leucocytes_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_leucocytes,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # leucocytes for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-leucocytes cells/ul") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_leucocytes_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_leucocytes_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_leucocytes_comparison_of_peak_labvalues
+```
+
+
+###leucocytes liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_leucocytes <- bind_rows(cgt_cgnt_leucocytes_combined_TTOq, leucocytes_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_leucocytes
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+libu_leucocytes_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_leucocytes,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # leucocytes for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-leucocytes cells/ul") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_leucocytes_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_leucocytes_comparison_of_peak_labvalues)
+dev.off()
+libu_leucocytes_comparison_of_peak_labvalues
+```
+
+
+###leucocytes liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_leucocytes <- bind_rows(cgt_cgnt_leucocytes_combined_TTOq, leucocytes_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_leucocytes
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_leucocytes_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_leucocytes,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # leucocytes for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-leucocytes cells/ul") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_leucocytes_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_leucocytes_comparison_of_peak_labvalues)
+dev.off()
+lpara_leucocytes_comparison_of_peak_labvalues
+```
+
+
+
+###thrombocytes###########################################################################################
+
+```{r}
+thrombocytes_long_cgt_filtered <- thrombozyten_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+thrombocytes_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_thrombocytes_combined <- bind_rows(thrombocytes_long_cgt_filtered,thrombozyten_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_thrombocytes_combined
+```
+
+
+```{r}
+thrombocytes_long_f <- thrombozyten_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+thrombocytes_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_thrombocytes_combined_TTOq <- cgt_cgnt_thrombocytes_combined %>%
+  mutate(tto_group = "TTOq")
+
+thrombocytes_long_f_TTOd <- thrombocytes_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_thrombocytes <- bind_rows(cgt_cgnt_thrombocytes_combined_TTOq, thrombocytes_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_thrombocytes
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_thrombocytes %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_thrombocytes
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_thrombocytes,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # thrombocytes for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-thrombocytes cells/ul") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_thrombocytes_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###thrombocytes liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_thrombocytes <- bind_rows(cgt_cgnt_thrombocytes_combined_TTOq, thrombocytes_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_thrombocytes
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_thrombocytes
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_thrombocytes_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_thrombocytes,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # thrombocytes for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-thrombocytes cells/ul") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_thrombocytes_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_thrombocytes_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_thrombocytes_comparison_of_peak_labvalues
+```
+
+
+###thrombocytes liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_thrombocytes <- bind_rows(cgt_cgnt_thrombocytes_combined_TTOq, thrombocytes_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_thrombocytes
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+libu_thrombocytes_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_thrombocytes,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # thrombocytes for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-thrombocytes cells/ul") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_thrombocytes_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_thrombocytes_comparison_of_peak_labvalues)
+dev.off()
+libu_thrombocytes_comparison_of_peak_labvalues
+```
+
+
+###thrombocytes liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_thrombocytes <- bind_rows(cgt_cgnt_thrombocytes_combined_TTOq, thrombocytes_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_thrombocytes
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_thrombocytes_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_thrombocytes,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # thrombocytes for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-thrombocytes cells/ul") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_thrombocytes_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_thrombocytes_comparison_of_peak_labvalues)
+dev.off()
+lpara_thrombocytes_comparison_of_peak_labvalues
+```
+
+
+###erythrozyten###########################################################################################
+
+```{r}
+erythrozyten_long_cgt_filtered <- erythrozyten_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+erythrozyten_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_erythrozyten_combined <- bind_rows(erythrozyten_long_cgt_filtered,erythrozyten_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_erythrozyten_combined
+```
+
+
+```{r}
+erythrozyten_long_f <- erythrozyten_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+erythrozyten_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_erythrozyten_combined_TTOq <- cgt_cgnt_erythrozyten_combined %>%
+  mutate(tto_group = "TTOq")
+
+erythrozyten_long_f_TTOd <- erythrozyten_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_erythrozyten <- bind_rows(cgt_cgnt_erythrozyten_combined_TTOq, erythrozyten_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_erythrozyten
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_erythrozyten %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_erythrozyten
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_erythrozyten,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # erythrozyten for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-erythrozyten cells/ul") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_erythrozyten_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###erythrozyten liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_erythrozyten <- bind_rows(cgt_cgnt_erythrozyten_combined_TTOq, erythrozyten_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_erythrozyten
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_erythrozyten
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_erythrozyten_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_erythrozyten,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # erythrozyten for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-erythrozyten cells/ul") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_erythrozyten_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_erythrozyten_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_erythrozyten_comparison_of_peak_labvalues
+```
+
+
+###erythrozyten liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_erythrozyten <- bind_rows(cgt_cgnt_erythrozyten_combined_TTOq, erythrozyten_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_erythrozyten
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+libu_erythrozyten_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_erythrozyten,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # erythrozyten for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-erythrozyten cells/ul") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_erythrozyten_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_erythrozyten_comparison_of_peak_labvalues)
+dev.off()
+libu_erythrozyten_comparison_of_peak_labvalues
+```
+
+
+###erythrozyten liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_erythrozyten <- bind_rows(cgt_cgnt_erythrozyten_combined_TTOq, erythrozyten_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_erythrozyten
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_erythrozyten_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_erythrozyten,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # erythrozyten for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-erythrozyten cells/ul") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_erythrozyten_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_erythrozyten_comparison_of_peak_labvalues)
+dev.off()
+lpara_erythrozyten_comparison_of_peak_labvalues
+```
+
+
+###ck###########################################################################################
+
+```{r}
+ck_long_cgt_filtered <- ck_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+ck_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_ck_combined <- bind_rows(ck_long_cgt_filtered,ck_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_ck_combined
+```
+
+
+```{r}
+ck_long_f <- ck_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+ck_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_ck_combined_TTOq <- cgt_cgnt_ck_combined %>%
+  mutate(tto_group = "TTOq")
+
+ck_long_f_TTOd <- ck_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_ck <- bind_rows(cgt_cgnt_ck_combined_TTOq, ck_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_ck
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_ck %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_ck
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_ck,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # ck for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ck u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_ck_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###ck liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_ck <- bind_rows(cgt_cgnt_ck_combined_TTOq, ck_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_ck
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_ck
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_ck_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_ck,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # ck for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ck u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_ck_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_ck_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_ck_comparison_of_peak_labvalues
+```
+
+
+###ck liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_ck <- bind_rows(cgt_cgnt_ck_combined_TTOq, ck_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_ck
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+libu_ck_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_ck,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # ck for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ck u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_ck_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_ck_comparison_of_peak_labvalues)
+dev.off()
+libu_ck_comparison_of_peak_labvalues
+```
+
+
+###ck liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_ck <- bind_rows(cgt_cgnt_ck_combined_TTOq, ck_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_ck
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_ck_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_ck,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # ck for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ck u/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_ck_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_ck_comparison_of_peak_labvalues)
+dev.off()
+lpara_ck_comparison_of_peak_labvalues
+```
+
+
+
+###quick###########################################################################################
+
+```{r}
+quick_long_cgt_filtered <- quick_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+quick_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_quick_combined <- bind_rows(quick_long_cgt_filtered,quick_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_quick_combined
+```
+
+
+```{r}
+quick_long_f <- quick_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+quick_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_quick_combined_TTOq <- cgt_cgnt_quick_combined %>%
+  mutate(tto_group = "TTOq")
+
+quick_long_f_TTOd <- quick_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_quick <- bind_rows(cgt_cgnt_quick_combined_TTOq, quick_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_quick
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_quick %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_quick
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_quick,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # quick for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-quick %") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_quick_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###quick liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_quick <- bind_rows(cgt_cgnt_quick_combined_TTOq, quick_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_quick
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_quick
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_quick_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_quick,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # quick for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-quick %") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_quick_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_quick_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_quick_comparison_of_peak_labvalues
+```
+
+
+###quick liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_quick <- bind_rows(cgt_cgnt_quick_combined_TTOq, quick_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_quick
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+libu_quick_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_quick,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # quick for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-quick %") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_quick_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_quick_comparison_of_peak_labvalues)
+dev.off()
+libu_quick_comparison_of_peak_labvalues
+```
+
+
+###quick liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_quick <- bind_rows(cgt_cgnt_quick_combined_TTOq, quick_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_quick
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_quick_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_quick,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # quick for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-quick %") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_quick_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_quick_comparison_of_peak_labvalues)
+dev.off()
+lpara_quick_comparison_of_peak_labvalues
+```
+
+
+
+###ptt###########################################################################################
+
+```{r}
+ptt_long_cgt_filtered <- ptt_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+ptt_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_ptt_combined <- bind_rows(ptt_long_cgt_filtered,ptt_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_ptt_combined
+```
+
+
+```{r}
+ptt_long_f <- ptt_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+ptt_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_ptt_combined_TTOq <- cgt_cgnt_ptt_combined %>%
+  mutate(tto_group = "TTOq")
+
+ptt_long_f_TTOd <- ptt_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_ptt <- bind_rows(cgt_cgnt_ptt_combined_TTOq, ptt_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_ptt
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_ptt %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_ptt
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_ptt,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # ptt for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ptt sec.") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_ptt_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###ptt liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_ptt <- bind_rows(cgt_cgnt_ptt_combined_TTOq, ptt_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_ptt
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_ptt
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_ptt_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_ptt,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # ptt for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ptt sec.") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_ptt_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_ptt_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_ptt_comparison_of_peak_labvalues
+```
+
+
+###ptt liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_ptt <- bind_rows(cgt_cgnt_ptt_combined_TTOq, ptt_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_ptt
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+libu_ptt_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_ptt,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # ptt for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ptt sec.") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_ptt_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_ptt_comparison_of_peak_labvalues)
+dev.off()
+libu_ptt_comparison_of_peak_labvalues
+```
+
+
+###ptt liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_ptt <- bind_rows(cgt_cgnt_ptt_combined_TTOq, ptt_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_ptt
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_ptt_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_ptt,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # ptt for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-ptt sec.") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_ptt_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_ptt_comparison_of_peak_labvalues)
+dev.off()
+lpara_ptt_comparison_of_peak_labvalues
+```
+
+
+###direct_bilirubin###########################################################################################
+
+```{r}
+direct_bilirubin_long_cgt_filtered <- direct_bilirubin_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+direct_bilirubin_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_direct_bilirubin_combined <- bind_rows(direct_bilirubin_long_cgt_filtered,direct_bilirubin_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_direct_bilirubin_combined
+```
+
+
+```{r}
+direct_bilirubin_long_f <- direct_bilirubin_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+direct_bilirubin_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_direct_bilirubin_combined_TTOq <- cgt_cgnt_direct_bilirubin_combined %>%
+  mutate(tto_group = "TTOq")
+
+direct_bilirubin_long_f_TTOd <- direct_bilirubin_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_direct_bilirubin <- bind_rows(cgt_cgnt_direct_bilirubin_combined_TTOq, direct_bilirubin_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_direct_bilirubin
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_direct_bilirubin %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_direct_bilirubin
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_direct_bilirubin,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # direct_bilirubin for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-direct_bilirubin mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_direct_bilirubin_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###direct_bilirubin liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_direct_bilirubin <- bind_rows(cgt_cgnt_direct_bilirubin_combined_TTOq, direct_bilirubin_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_direct_bilirubin
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_direct_bilirubin
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_direct_bilirubin_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_direct_bilirubin,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # direct_bilirubin for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-direct_bilirubin mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_direct_bilirubin_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_direct_bilirubin_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_direct_bilirubin_comparison_of_peak_labvalues
+```
+
+
+###direct_bilirubin liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_direct_bilirubin <- bind_rows(cgt_cgnt_direct_bilirubin_combined_TTOq, direct_bilirubin_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_direct_bilirubin
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+libu_direct_bilirubin_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_direct_bilirubin,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # direct_bilirubin for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-direct_bilirubin mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_direct_bilirubin_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_direct_bilirubin_comparison_of_peak_labvalues)
+dev.off()
+libu_direct_bilirubin_comparison_of_peak_labvalues
+```
+
+
+###direct_bilirubin liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_direct_bilirubin <- bind_rows(cgt_cgnt_direct_bilirubin_combined_TTOq, direct_bilirubin_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_direct_bilirubin
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_direct_bilirubin_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_direct_bilirubin,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # direct_bilirubin for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-direct_bilirubin mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_direct_bilirubin_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_direct_bilirubin_comparison_of_peak_labvalues)
+dev.off()
+lpara_direct_bilirubin_comparison_of_peak_labvalues
+```
+
+
+
+###kreatinin###########################################################################################
+
+```{r}
+kreatinin_long_cgt_filtered <- kreatinin_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+kreatinin_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_kreatinin_combined <- bind_rows(kreatinin_long_cgt_filtered,kreatinin_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_kreatinin_combined
+```
+
+
+```{r}
+kreatinin_long_f <- kreatinin_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+kreatinin_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_kreatinin_combined_TTOq <- cgt_cgnt_kreatinin_combined %>%
+  mutate(tto_group = "TTOq")
+
+kreatinin_long_f_TTOd <- kreatinin_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_kreatinin <- bind_rows(cgt_cgnt_kreatinin_combined_TTOq, kreatinin_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_kreatinin
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_kreatinin %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_kreatinin
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_kreatinin,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # kreatinin for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-kreatinin mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_kreatinin_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###kreatinin liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_kreatinin <- bind_rows(cgt_cgnt_kreatinin_combined_TTOq, kreatinin_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_kreatinin
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_kreatinin
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_kreatinin_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_kreatinin,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # kreatinin for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-kreatinin mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_kreatinin_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_kreatinin_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_kreatinin_comparison_of_peak_labvalues
+```
+
+
+###kreatinin liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_kreatinin <- bind_rows(cgt_cgnt_kreatinin_combined_TTOq, kreatinin_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_kreatinin
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+libu_kreatinin_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_kreatinin,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # kreatinin for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-kreatinin mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_kreatinin_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_kreatinin_comparison_of_peak_labvalues)
+dev.off()
+libu_kreatinin_comparison_of_peak_labvalues
+```
+
+
+###kreatinin liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_kreatinin <- bind_rows(cgt_cgnt_kreatinin_combined_TTOq, kreatinin_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_kreatinin
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_kreatinin_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_kreatinin,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # kreatinin for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-kreatinin mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_kreatinin_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_kreatinin_comparison_of_peak_labvalues)
+dev.off()
+lpara_kreatinin_comparison_of_peak_labvalues
+```
+
+
+###harnstoff###########################################################################################
+
+```{r}
+harnstoff_long_cgt_filtered <- harnstoff_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+harnstoff_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_harnstoff_combined <- bind_rows(harnstoff_long_cgt_filtered,harnstoff_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_harnstoff_combined
+```
+
+
+```{r}
+harnstoff_long_f <- harnstoff_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+harnstoff_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_harnstoff_combined_TTOq <- cgt_cgnt_harnstoff_combined %>%
+  mutate(tto_group = "TTOq")
+
+harnstoff_long_f_TTOd <- harnstoff_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_harnstoff <- bind_rows(cgt_cgnt_harnstoff_combined_TTOq, harnstoff_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_harnstoff
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_harnstoff %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_harnstoff
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_harnstoff,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # harnstoff for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-harnstoff mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_harnstoff_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###harnstoff liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_harnstoff <- bind_rows(cgt_cgnt_harnstoff_combined_TTOq, harnstoff_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_harnstoff
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_harnstoff
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_harnstoff_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_harnstoff,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # harnstoff for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-harnstoff mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_harnstoff_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_harnstoff_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_harnstoff_comparison_of_peak_labvalues
+```
+
+
+###harnstoff liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_harnstoff <- bind_rows(cgt_cgnt_harnstoff_combined_TTOq, harnstoff_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_harnstoff
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+libu_harnstoff_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_harnstoff,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # harnstoff for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-harnstoff mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_harnstoff_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_harnstoff_comparison_of_peak_labvalues)
+dev.off()
+libu_harnstoff_comparison_of_peak_labvalues
+```
+
+
+###harnstoff liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_harnstoff <- bind_rows(cgt_cgnt_harnstoff_combined_TTOq, harnstoff_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_harnstoff
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_harnstoff_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_harnstoff,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # harnstoff for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-harnstoff mg/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_harnstoff_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_harnstoff_comparison_of_peak_labvalues)
+dev.off()
+lpara_harnstoff_comparison_of_peak_labvalues
+```
+
+
+
+###gesamteiweiß###########################################################################################
+
+```{r}
+gesamteiweiß_long_cgt_filtered <- gesamteiweiß_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+gesamteiweiß_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_gesamteiweiß_combined <- bind_rows(gesamteiweiß_long_cgt_filtered,gesamteiweiß_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_gesamteiweiß_combined
+```
+
+
+```{r}
+gesamteiweiß_long_f <- gesamteiweiß_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+gesamteiweiß_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_gesamteiweiß_combined_TTOq <- cgt_cgnt_gesamteiweiß_combined %>%
+  mutate(tto_group = "TTOq")
+
+gesamteiweiß_long_f_TTOd <- gesamteiweiß_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_gesamteiweiß <- bind_rows(cgt_cgnt_gesamteiweiß_combined_TTOq, gesamteiweiß_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_gesamteiweiß
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_gesamteiweiß %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_gesamteiweiß
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_gesamteiweiß,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # gesamteiweiß for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-gesamteiweiß g/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_gesamteiweiß_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###gesamteiweiß liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_gesamteiweiß <- bind_rows(cgt_cgnt_gesamteiweiß_combined_TTOq, gesamteiweiß_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_gesamteiweiß
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_gesamteiweiß
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_gesamteiweiß_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_gesamteiweiß,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # gesamteiweiß for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-gesamteiweiß g/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_gesamteiweiß_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_gesamteiweiß_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_gesamteiweiß_comparison_of_peak_labvalues
+```
+
+
+###gesamteiweiß liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_gesamteiweiß <- bind_rows(cgt_cgnt_gesamteiweiß_combined_TTOq, gesamteiweiß_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_gesamteiweiß
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+libu_gesamteiweiß_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_gesamteiweiß,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # gesamteiweiß for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-gesamteiweiß g/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_gesamteiweiß_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_gesamteiweiß_comparison_of_peak_labvalues)
+dev.off()
+libu_gesamteiweiß_comparison_of_peak_labvalues
+```
+
+
+###gesamteiweiß liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_gesamteiweiß <- bind_rows(cgt_cgnt_gesamteiweiß_combined_TTOq, gesamteiweiß_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_gesamteiweiß
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_gesamteiweiß_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_gesamteiweiß,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # gesamteiweiß for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-gesamteiweiß g/dl") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_gesamteiweiß_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_gesamteiweiß_comparison_of_peak_labvalues)
+dev.off()
+lpara_gesamteiweiß_comparison_of_peak_labvalues
+```
+
+
+###natrium###########################################################################################
+
+```{r}
+natrium_long_cgt_filtered <- natrium_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+natrium_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_natrium_combined <- bind_rows(natrium_long_cgt_filtered,natrium_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_natrium_combined
+```
+
+
+```{r}
+natrium_long_f <- natrium_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+natrium_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_natrium_combined_TTOq <- cgt_cgnt_natrium_combined %>%
+  mutate(tto_group = "TTOq")
+
+natrium_long_f_TTOd <- natrium_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_natrium <- bind_rows(cgt_cgnt_natrium_combined_TTOq, natrium_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_natrium
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_natrium %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_natrium
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_natrium,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # natrium for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-natrium mmol/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_natrium_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###natrium liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_natrium <- bind_rows(cgt_cgnt_natrium_combined_TTOq, natrium_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_natrium
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_natrium
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_natrium_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_natrium,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # natrium for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-natrium mmol/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_natrium_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_natrium_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_natrium_comparison_of_peak_labvalues
+```
+
+
+###natrium liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_natrium <- bind_rows(cgt_cgnt_natrium_combined_TTOq, natrium_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_natrium
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+libu_natrium_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_natrium,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # natrium for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-natrium mmol/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_natrium_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_natrium_comparison_of_peak_labvalues)
+dev.off()
+libu_natrium_comparison_of_peak_labvalues
+```
+
+
+###natrium liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_natrium <- bind_rows(cgt_cgnt_natrium_combined_TTOq, natrium_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_natrium
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_natrium_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_natrium,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # natrium for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-natrium mmol/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_natrium_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_natrium_comparison_of_peak_labvalues)
+dev.off()
+lpara_natrium_comparison_of_peak_labvalues
+```
+
+
+
+###kalium###########################################################################################
+
+```{r}
+kalium_long_cgt_filtered <- kalium_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+kalium_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_kalium_combined <- bind_rows(kalium_long_cgt_filtered,kalium_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_kalium_combined
+```
+
+
+```{r}
+kalium_long_f <- kalium_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+kalium_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_kalium_combined_TTOq <- cgt_cgnt_kalium_combined %>%
+  mutate(tto_group = "TTOq")
+
+kalium_long_f_TTOd <- kalium_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_kalium <- bind_rows(cgt_cgnt_kalium_combined_TTOq, kalium_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_kalium
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_kalium %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_kalium
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_kalium,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # kalium for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-kalium mmol/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_kalium_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###kalium liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_kalium <- bind_rows(cgt_cgnt_kalium_combined_TTOq, kalium_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_kalium
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_kalium
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_kalium_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_kalium,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # kalium for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-kalium mmol/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_kalium_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_kalium_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_kalium_comparison_of_peak_labvalues
+```
+
+
+###kalium liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_kalium <- bind_rows(cgt_cgnt_kalium_combined_TTOq, kalium_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_kalium
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+libu_kalium_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_kalium,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # kalium for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-kalium mmol/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_kalium_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_kalium_comparison_of_peak_labvalues)
+dev.off()
+libu_kalium_comparison_of_peak_labvalues
+```
+
+
+###kalium liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_kalium <- bind_rows(cgt_cgnt_kalium_combined_TTOq, kalium_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_kalium
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_kalium_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_kalium,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # kalium for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-kalium mmol/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_kalium_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_kalium_comparison_of_peak_labvalues)
+dev.off()
+lpara_kalium_comparison_of_peak_labvalues
+```
+
+
+###kalzium###########################################################################################
+
+```{r}
+kalzium_long_cgt_filtered <- kalzium_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+kalzium_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_kalzium_combined <- bind_rows(kalzium_long_cgt_filtered,kalzium_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_kalzium_combined
+```
+
+
+```{r}
+kalzium_long_f <- kalzium_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+kalzium_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_kalzium_combined_TTOq <- cgt_cgnt_kalzium_combined %>%
+  mutate(tto_group = "TTOq")
+
+kalzium_long_f_TTOd <- kalzium_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_kalzium <- bind_rows(cgt_cgnt_kalzium_combined_TTOq, kalzium_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_kalzium
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_kalzium %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_kalzium
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_kalzium,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # kalzium for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-kalzium mmol/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_kalzium_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###kalzium liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_kalzium <- bind_rows(cgt_cgnt_kalzium_combined_TTOq, kalzium_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_kalzium
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_kalzium
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_kalzium_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_kalzium,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # kalzium for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-kalzium mmol/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_kalzium_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_kalzium_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_kalzium_comparison_of_peak_labvalues
+```
+
+
+###kalzium liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_kalzium <- bind_rows(cgt_cgnt_kalzium_combined_TTOq, kalzium_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_kalzium
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+libu_kalzium_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_kalzium,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # kalzium for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-kalzium mmol/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_kalzium_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_kalzium_comparison_of_peak_labvalues)
+dev.off()
+libu_kalzium_comparison_of_peak_labvalues
+```
+
+
+###kalzium liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_kalzium <- bind_rows(cgt_cgnt_kalzium_combined_TTOq, kalzium_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_kalzium
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_kalzium_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_kalzium,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # kalzium for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-kalzium mmol/l") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_kalzium_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_kalzium_comparison_of_peak_labvalues)
+dev.off()
+lpara_kalzium_comparison_of_peak_labvalues
+```
+
+
+###hämatokrit###########################################################################################
+
+```{r}
+hämatokrit_long_cgt_filtered <- hämatokrit_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+hämatokrit_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_hämatokrit_combined <- bind_rows(hämatokrit_long_cgt_filtered,hämatokrit_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_hämatokrit_combined
+```
+
+
+```{r}
+hämatokrit_long_f <- hämatokrit_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+hämatokrit_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_hämatokrit_combined_TTOq <- cgt_cgnt_hämatokrit_combined %>%
+  mutate(tto_group = "TTOq")
+
+hämatokrit_long_f_TTOd <- hämatokrit_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_hämatokrit <- bind_rows(cgt_cgnt_hämatokrit_combined_TTOq, hämatokrit_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_hämatokrit
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_hämatokrit %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_hämatokrit
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_hämatokrit,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # hämatokrit for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-hämatokrit %") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_hämatokrit_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###hämatokrit liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_hämatokrit <- bind_rows(cgt_cgnt_hämatokrit_combined_TTOq, hämatokrit_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_hämatokrit
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_hämatokrit
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_hämatokrit_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_hämatokrit,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # hämatokrit for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-hämatokrit %") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_hämatokrit_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_hämatokrit_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_hämatokrit_comparison_of_peak_labvalues
+```
+
+
+###hämatokrit liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_hämatokrit <- bind_rows(cgt_cgnt_hämatokrit_combined_TTOq, hämatokrit_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_hämatokrit
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+libu_hämatokrit_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_hämatokrit,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # hämatokrit for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-hämatokrit %") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_hämatokrit_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_hämatokrit_comparison_of_peak_labvalues)
+dev.off()
+libu_hämatokrit_comparison_of_peak_labvalues
+```
+
+
+###hämatokrit liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_hämatokrit <- bind_rows(cgt_cgnt_hämatokrit_combined_TTOq, hämatokrit_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_hämatokrit
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_hämatokrit_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_hämatokrit,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # hämatokrit for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-hämatokrit %") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_hämatokrit_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_hämatokrit_comparison_of_peak_labvalues)
+dev.off()
+lpara_hämatokrit_comparison_of_peak_labvalues
+```
+
+
+
+
+###inr###########################################################################################
+
+```{r}
+inr_long_cgt_filtered <- inr_long_cgt%>%
+ filter(!grepl("DBS", attribute))
+inr_long_cgt_filtered
+```
+
+
+```{r}
+# Angenommen, deine Tabellen heißen tabelle1 und tabelle2
+cgt_cgnt_inr_combined <- bind_rows(inr_long_cgt_filtered,inr_long_cgnt)
+
+# Ergebnis anzeigen
+cgt_cgnt_inr_combined
+```
+
+
+```{r}
+inr_long_f <- inr_long %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") %>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+inr_long_f
+```
+
+
+```{r}
+# Beispiel: tabelle1 = Gruppe A, tabelle2 = Gruppe B
+cgt_cgnt_inr_combined_TTOq <- cgt_cgnt_inr_combined %>%
+  mutate(tto_group = "TTOq")
+
+inr_long_f_TTOd <- inr_long_f %>%
+  mutate(tto_group = "TTOd")
+
+# Jetzt zusammenfügen
+combined_table_peak_inr <- bind_rows(cgt_cgnt_inr_combined_TTOq, inr_long_f_TTOd) %>%   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   ungroup()
+
+combined_table_peak_inr
+```
+
+
+```{r}
+library(dlookr)
+combined_table_peak_inr %>% 
+  group_by(tto_group) %>% 
+  normality(labreads)
+```
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = combined_table_peak_inr
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+all_patients_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = combined_table_peak_inr,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "all patients_comparison of peak labvalues", # inr for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-inr") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/all_patients_inr_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(all_patients_comparison_of_peak_labvalues)
+dev.off()
+all_patients_comparison_of_peak_labvalues
+```
+
+
+###inr liver_diclo######################
+
+
+```{r}
+# Jetzt zusammenfügen
+ldiclo_combined_table_peak_inr <- bind_rows(cgt_cgnt_inr_combined_TTOq, inr_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Diclo") 
+ldiclo_combined_table_peak_inr
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = ldiclo_combined_table_peak_inr
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+ldiclo_inr_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = ldiclo_combined_table_peak_inr,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver diclo_comparison of peak labvalues", # inr for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-inr") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/ldiclo_inr_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(ldiclo_inr_comparison_of_peak_labvalues)
+dev.off()
+ldiclo_inr_comparison_of_peak_labvalues
+```
+
+
+###inr liver_ibu######################
+
+
+```{r}
+# Jetzt zusammenfügen
+libu_combined_table_peak_inr <- bind_rows(cgt_cgnt_inr_combined_TTOq, inr_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Ibu") 
+```
+
+
+
+```{}
+t.test(
+   labreads ~ tto_group,
+  data = libu_combined_table_peak_inr
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+libu_inr_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = libu_combined_table_peak_inr,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver ibu_comparison of peak labvalues", # inr for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-inr") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/libu_inr_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(libu_inr_comparison_of_peak_labvalues)
+dev.off()
+libu_inr_comparison_of_peak_labvalues
+```
+
+
+###inr liver para######################
+
+
+```{r}
+# Jetzt zusammenfügen
+lpara_combined_table_peak_inr <- bind_rows(cgt_cgnt_inr_combined_TTOq, inr_long_f_TTOd )%>%
+   group_by(`Edited_BfArM Nummer2`) %>%   filter(labreads == max(labreads, na.rm = TRUE)) %>%   slice(1) %>% ungroup() %>% filter(Treatment == "Leber_Para") 
+```
+
+
+
+```{r}
+t.test(
+   labreads ~ tto_group,
+  data = lpara_combined_table_peak_inr
+)
+```
+
+
+```{r}
+library(ggstatsplot)
+
+lpara_inr_comparison_of_peak_labvalues <- ggbetweenstats(
+  data = lpara_combined_table_peak_inr,
+  x = "tto_group",
+  y = "labreads",
+  type = "np",
+  title = "liver para_comparison of peak labvalues", # inr for labvalue and daily dose",
+       xlab = "TTO group",
+       ylab = "Peak-inr") 
+dir.create("plots_peak", showWarnings = FALSE)
+svg("plots_peak/lpara_inr_comparison_of_peak_labvalues.svg", height = 8, width = 6.5)
+print(lpara_inr_comparison_of_peak_labvalues)
+dev.off()
+lpara_inr_comparison_of_peak_labvalues
+```
+
+
+
+
+
+
+
+

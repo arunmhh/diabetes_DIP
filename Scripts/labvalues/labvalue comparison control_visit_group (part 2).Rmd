@@ -1,0 +1,4583 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-05-31"
+---
+
+
+############################################################################
+### hb ####################################################################
+############################################################################
+
+```{r}
+hb_full_fs_peak <- hb_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+hb_full_fs_peak
+```
+
+
+```{r}
+hb_full_factor <- hb_full %>% 
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`))
+(hb_full_factor)
+```
+
+
+```{r}
+#withoutnormalref <- hb_full_fs_peak %>% 
+#  dplyr::filter(peak_labread > 20.9) 
+#withoutnormalref
+  
+```
+
+#####liver_diclo#############################
+
+
+```{r}
+library(dplyr)
+
+ldiclo_hb_with_controlvisit <- left_join(hb_full_fs_peak, hb_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+ldiclo_hb_with_controlvisit
+```
+
+```{r}
+ldiclo_hb_with_controlvisit_peak <- ldiclo_hb_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(ldiclo_hb_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- ldiclo_hb_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+ldiclo_hb_without_controlvisit <- hb_full_factor %>%
+  filter(Treatment == "Leber_Diclo") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(ldiclo_hb_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+ldiclo_hb_both_groups <- bind_rows(ldiclo_hb_with_controlvisit, 
+                                    ldiclo_hb_without_controlvisit)
+ldiclo_hb_both_groups
+```
+
+
+
+```{r}
+group_counts_ldiclo_hb_both_groups <- ldiclo_hb_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_ldiclo_hb_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(ldiclo_hb_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+ldiclo_hb_both_groups$Treatment <- factor(ldiclo_hb_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_ldiclo_hb_both_groups$Treatment <- factor(group_counts_ldiclo_hb_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- ldiclo_hb_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_ldiclo_hb_both_groups <- left_join(group_counts_ldiclo_hb_both_groups, y_pos, by = "Treatment")
+group_counts_ldiclo_hb_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(ldiclo_hb_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+ldiclo_hb_full_comparison_control_visit_group <- ggbetweenstats(
+  data = ldiclo_hb_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver diclo_hb_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "hb g/dl"
+) +
+  geom_text(
+    data = group_counts_ldiclo_hb_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+ldiclo_hb_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/hb_full_ldicl_comparison_control_visit_group.svg", height = 8, width = 10)
+print(ldiclo_hb_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+ldiclo_hb_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+
+##### liver_ibu #############################
+
+
+```{r}
+library(dplyr)
+
+libu_hb_with_controlvisit <- left_join(hb_full_fs_peak, hb_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+libu_hb_with_controlvisit
+```
+
+```{r}
+libu_hb_with_controlvisit_peak <- libu_hb_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(libu_hb_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- libu_hb_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+libu_hb_without_controlvisit <- hb_full_factor %>%
+  filter(Treatment == "Leber_Ibu") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(libu_hb_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+libu_hb_both_groups <- bind_rows(libu_hb_with_controlvisit, 
+                                    libu_hb_without_controlvisit)
+libu_hb_both_groups
+```
+
+
+
+```{r}
+group_counts_libu_hb_both_groups <- libu_hb_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_libu_hb_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(libu_hb_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+libu_hb_both_groups$Treatment <- factor(libu_hb_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_libu_hb_both_groups$Treatment <- factor(group_counts_libu_hb_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- libu_hb_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_libu_hb_both_groups <- left_join(group_counts_libu_hb_both_groups, y_pos, by = "Treatment")
+group_counts_libu_hb_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(libu_hb_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+libu_hb_full_comparison_control_visit_group <- ggbetweenstats(
+  data = libu_hb_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver ibu_hb_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "hb g/dl"
+) +
+  geom_text(
+    data = group_counts_libu_hb_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+libu_hb_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/hb_full_libu_comparison_control_visit_group.svg", height = 8, width = 10)
+print(libu_hb_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+libu_hb_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+##### liver_para ###################################################
+
+
+```{r}
+library(dplyr)
+
+lpara_hb_with_controlvisit <- left_join(hb_full_fs_peak, hb_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Para") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+lpara_hb_with_controlvisit
+```
+
+```{r}
+lpara_hb_with_controlvisit_peak <- lpara_hb_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(lpara_hb_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- lpara_hb_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+lpara_hb_without_controlvisit <- hb_full_factor %>%
+  filter(Treatment == "Leber_Para") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(lpara_hb_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+lpara_hb_both_groups <- bind_rows(lpara_hb_with_controlvisit, 
+                                    lpara_hb_without_controlvisit)
+lpara_hb_both_groups
+```
+
+
+
+```{r}
+group_counts_lpara_hb_both_groups <- lpara_hb_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_lpara_hb_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(lpara_hb_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+lpara_hb_both_groups$Treatment <- factor(lpara_hb_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_lpara_hb_both_groups$Treatment <- factor(group_counts_lpara_hb_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- lpara_hb_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_lpara_hb_both_groups <- left_join(group_counts_lpara_hb_both_groups, y_pos, by = "Treatment")
+group_counts_lpara_hb_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(lpara_hb_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+lpara_hb_full_comparison_control_visit_group <- ggbetweenstats(
+  data = lpara_hb_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver para_hb_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "hb g/dl"
+) +
+  geom_text(
+    data = group_counts_lpara_hb_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+lpara_hb_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/hb_full_lpara_comparison_control_visit_group.svg", height = 8, width = 10)
+print(lpara_hb_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+lpara_hb_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+############################################################################
+### gesamteiweiß ####################################################################
+############################################################################
+
+```{r}
+gesamteiweiß_full_fs_peak <- gesamteiweiß_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+gesamteiweiß_full_fs_peak
+```
+
+
+```{r}
+gesamteiweiß_full_factor <- gesamteiweiß_full %>% 
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`))
+(gesamteiweiß_full_factor)
+```
+
+
+```{r}
+#withoutnormalref <- gesamteiweiß_full_fs_peak %>% 
+#  dplyr::filter(peak_labread > 20.9) 
+#withoutnormalref
+  
+```
+
+#####liver_diclo#############################
+
+
+```{r}
+library(dplyr)
+
+ldiclo_gesamteiweiß_with_controlvisit <- left_join(gesamteiweiß_full_fs_peak, gesamteiweiß_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+ldiclo_gesamteiweiß_with_controlvisit
+```
+
+```{r}
+ldiclo_gesamteiweiß_with_controlvisit_peak <- ldiclo_gesamteiweiß_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(ldiclo_gesamteiweiß_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- ldiclo_gesamteiweiß_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+ldiclo_gesamteiweiß_without_controlvisit <- gesamteiweiß_full_factor %>%
+  filter(Treatment == "Leber_Diclo") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(ldiclo_gesamteiweiß_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+ldiclo_gesamteiweiß_both_groups <- bind_rows(ldiclo_gesamteiweiß_with_controlvisit, 
+                                    ldiclo_gesamteiweiß_without_controlvisit)
+ldiclo_gesamteiweiß_both_groups
+```
+
+
+
+```{r}
+group_counts_ldiclo_gesamteiweiß_both_groups <- ldiclo_gesamteiweiß_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_ldiclo_gesamteiweiß_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(ldiclo_gesamteiweiß_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+ldiclo_gesamteiweiß_both_groups$Treatment <- factor(ldiclo_gesamteiweiß_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_ldiclo_gesamteiweiß_both_groups$Treatment <- factor(group_counts_ldiclo_gesamteiweiß_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- ldiclo_gesamteiweiß_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_ldiclo_gesamteiweiß_both_groups <- left_join(group_counts_ldiclo_gesamteiweiß_both_groups, y_pos, by = "Treatment")
+group_counts_ldiclo_gesamteiweiß_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(ldiclo_gesamteiweiß_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+ldiclo_gesamteiweiß_full_comparison_control_visit_group <- ggbetweenstats(
+  data = ldiclo_gesamteiweiß_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver diclo_gesamteiweiß_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "gesamteiweiß g/dl"
+) +
+  geom_text(
+    data = group_counts_ldiclo_gesamteiweiß_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+ldiclo_gesamteiweiß_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/gesamteiweiß_full_ldicl_comparison_control_visit_group.svg", height = 8, width = 10)
+print(ldiclo_gesamteiweiß_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+ldiclo_gesamteiweiß_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+
+##### liver_ibu #############################
+
+
+```{r}
+library(dplyr)
+
+libu_gesamteiweiß_with_controlvisit <- left_join(gesamteiweiß_full_fs_peak, gesamteiweiß_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+libu_gesamteiweiß_with_controlvisit
+```
+
+```{r}
+libu_gesamteiweiß_with_controlvisit_peak <- libu_gesamteiweiß_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(libu_gesamteiweiß_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- libu_gesamteiweiß_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+libu_gesamteiweiß_without_controlvisit <- gesamteiweiß_full_factor %>%
+  filter(Treatment == "Leber_Ibu") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(libu_gesamteiweiß_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+libu_gesamteiweiß_both_groups <- bind_rows(libu_gesamteiweiß_with_controlvisit, 
+                                    libu_gesamteiweiß_without_controlvisit)
+libu_gesamteiweiß_both_groups
+```
+
+
+
+```{r}
+group_counts_libu_gesamteiweiß_both_groups <- libu_gesamteiweiß_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_libu_gesamteiweiß_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(libu_gesamteiweiß_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+libu_gesamteiweiß_both_groups$Treatment <- factor(libu_gesamteiweiß_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_libu_gesamteiweiß_both_groups$Treatment <- factor(group_counts_libu_gesamteiweiß_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- libu_gesamteiweiß_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_libu_gesamteiweiß_both_groups <- left_join(group_counts_libu_gesamteiweiß_both_groups, y_pos, by = "Treatment")
+group_counts_libu_gesamteiweiß_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(libu_gesamteiweiß_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+libu_gesamteiweiß_full_comparison_control_visit_group <- ggbetweenstats(
+  data = libu_gesamteiweiß_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver ibu_gesamteiweiß_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "gesamteiweiß g/dl"
+) +
+  geom_text(
+    data = group_counts_libu_gesamteiweiß_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+libu_gesamteiweiß_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/gesamteiweiß_full_libu_comparison_control_visit_group.svg", height = 8, width = 10)
+print(libu_gesamteiweiß_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+libu_gesamteiweiß_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+##### liver_para ###################################################
+
+
+```{r}
+library(dplyr)
+
+lpara_gesamteiweiß_with_controlvisit <- left_join(gesamteiweiß_full_fs_peak, gesamteiweiß_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Para") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+lpara_gesamteiweiß_with_controlvisit
+```
+
+```{r}
+lpara_gesamteiweiß_with_controlvisit_peak <- lpara_gesamteiweiß_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(lpara_gesamteiweiß_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- lpara_gesamteiweiß_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+lpara_gesamteiweiß_without_controlvisit <- gesamteiweiß_full_factor %>%
+  filter(Treatment == "Leber_Para") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(lpara_gesamteiweiß_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+lpara_gesamteiweiß_both_groups <- bind_rows(lpara_gesamteiweiß_with_controlvisit, 
+                                    lpara_gesamteiweiß_without_controlvisit)
+lpara_gesamteiweiß_both_groups
+```
+
+
+
+```{r}
+group_counts_lpara_gesamteiweiß_both_groups <- lpara_gesamteiweiß_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_lpara_gesamteiweiß_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(lpara_gesamteiweiß_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+lpara_gesamteiweiß_both_groups$Treatment <- factor(lpara_gesamteiweiß_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_lpara_gesamteiweiß_both_groups$Treatment <- factor(group_counts_lpara_gesamteiweiß_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- lpara_gesamteiweiß_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_lpara_gesamteiweiß_both_groups <- left_join(group_counts_lpara_gesamteiweiß_both_groups, y_pos, by = "Treatment")
+group_counts_lpara_gesamteiweiß_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(lpara_gesamteiweiß_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+lpara_gesamteiweiß_full_comparison_control_visit_group <- ggbetweenstats(
+  data = lpara_gesamteiweiß_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver para_gesamteiweiß_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "gesamteiweiß g/dl"
+) +
+  geom_text(
+    data = group_counts_lpara_gesamteiweiß_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+lpara_gesamteiweiß_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/gesamteiweiß_full_lpara_comparison_control_visit_group.svg", height = 8, width = 10)
+print(lpara_gesamteiweiß_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+lpara_gesamteiweiß_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+############################################################################
+### total_bilirubin ####################################################################
+############################################################################
+
+```{r}
+total_bilirubin_full_fs_peak <- total_bilirubin_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+total_bilirubin_full_fs_peak
+```
+
+
+```{r}
+total_bilirubin_full_factor <- total_bilirubin_full %>% 
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`))
+(total_bilirubin_full_factor)
+```
+
+
+```{r}
+#withoutnormalref <- total_bilirubin_full_fs_peak %>% 
+#  dplyr::filter(peak_labread > 20.9) 
+#withoutnormalref
+  
+```
+
+#####liver_diclo#############################
+
+
+```{r}
+library(dplyr)
+
+ldiclo_total_bilirubin_with_controlvisit <- left_join(total_bilirubin_full_fs_peak, total_bilirubin_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+ldiclo_total_bilirubin_with_controlvisit
+```
+
+```{r}
+ldiclo_total_bilirubin_with_controlvisit_peak <- ldiclo_total_bilirubin_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(ldiclo_total_bilirubin_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- ldiclo_total_bilirubin_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+ldiclo_total_bilirubin_without_controlvisit <- total_bilirubin_full_factor %>%
+  filter(Treatment == "Leber_Diclo") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(ldiclo_total_bilirubin_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+ldiclo_total_bilirubin_both_groups <- bind_rows(ldiclo_total_bilirubin_with_controlvisit, 
+                                    ldiclo_total_bilirubin_without_controlvisit)
+ldiclo_total_bilirubin_both_groups
+```
+
+
+
+```{r}
+group_counts_ldiclo_total_bilirubin_both_groups <- ldiclo_total_bilirubin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_ldiclo_total_bilirubin_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(ldiclo_total_bilirubin_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+ldiclo_total_bilirubin_both_groups$Treatment <- factor(ldiclo_total_bilirubin_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_ldiclo_total_bilirubin_both_groups$Treatment <- factor(group_counts_ldiclo_total_bilirubin_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- ldiclo_total_bilirubin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_ldiclo_total_bilirubin_both_groups <- left_join(group_counts_ldiclo_total_bilirubin_both_groups, y_pos, by = "Treatment")
+group_counts_ldiclo_total_bilirubin_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(ldiclo_total_bilirubin_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+ldiclo_total_bilirubin_full_comparison_control_visit_group <- ggbetweenstats(
+  data = ldiclo_total_bilirubin_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver diclo_total_bilirubin_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "total_bilirubin mg/dl"
+) +
+  geom_text(
+    data = group_counts_ldiclo_total_bilirubin_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+ldiclo_total_bilirubin_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/total_bilirubin_full_ldicl_comparison_control_visit_group.svg", height = 8, width = 10)
+print(ldiclo_total_bilirubin_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+ldiclo_total_bilirubin_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+
+##### liver_ibu #############################
+
+
+```{r}
+library(dplyr)
+
+libu_total_bilirubin_with_controlvisit <- left_join(total_bilirubin_full_fs_peak, total_bilirubin_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+libu_total_bilirubin_with_controlvisit
+```
+
+```{r}
+libu_total_bilirubin_with_controlvisit_peak <- libu_total_bilirubin_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(libu_total_bilirubin_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- libu_total_bilirubin_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+libu_total_bilirubin_without_controlvisit <- total_bilirubin_full_factor %>%
+  filter(Treatment == "Leber_Ibu") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(libu_total_bilirubin_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+libu_total_bilirubin_both_groups <- bind_rows(libu_total_bilirubin_with_controlvisit, 
+                                    libu_total_bilirubin_without_controlvisit)
+libu_total_bilirubin_both_groups
+```
+
+
+
+```{r}
+group_counts_libu_total_bilirubin_both_groups <- libu_total_bilirubin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_libu_total_bilirubin_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(libu_total_bilirubin_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+libu_total_bilirubin_both_groups$Treatment <- factor(libu_total_bilirubin_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_libu_total_bilirubin_both_groups$Treatment <- factor(group_counts_libu_total_bilirubin_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- libu_total_bilirubin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_libu_total_bilirubin_both_groups <- left_join(group_counts_libu_total_bilirubin_both_groups, y_pos, by = "Treatment")
+group_counts_libu_total_bilirubin_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(libu_total_bilirubin_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+libu_total_bilirubin_full_comparison_control_visit_group <- ggbetweenstats(
+  data = libu_total_bilirubin_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver ibu_total_bilirubin_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "total_bilirubin mg/dl"
+) +
+  geom_text(
+    data = group_counts_libu_total_bilirubin_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+libu_total_bilirubin_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/total_bilirubin_full_libu_comparison_control_visit_group.svg", height = 8, width = 10)
+print(libu_total_bilirubin_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+libu_total_bilirubin_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+##### liver_para ###################################################
+
+
+```{r}
+library(dplyr)
+
+lpara_total_bilirubin_with_controlvisit <- left_join(total_bilirubin_full_fs_peak, total_bilirubin_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Para") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+lpara_total_bilirubin_with_controlvisit
+```
+
+```{r}
+lpara_total_bilirubin_with_controlvisit_peak <- lpara_total_bilirubin_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(lpara_total_bilirubin_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- lpara_total_bilirubin_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+lpara_total_bilirubin_without_controlvisit <- total_bilirubin_full_factor %>%
+  filter(Treatment == "Leber_Para") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(lpara_total_bilirubin_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+lpara_total_bilirubin_both_groups <- bind_rows(lpara_total_bilirubin_with_controlvisit, 
+                                    lpara_total_bilirubin_without_controlvisit)
+lpara_total_bilirubin_both_groups
+```
+
+
+
+```{r}
+group_counts_lpara_total_bilirubin_both_groups <- lpara_total_bilirubin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_lpara_total_bilirubin_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(lpara_total_bilirubin_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+lpara_total_bilirubin_both_groups$Treatment <- factor(lpara_total_bilirubin_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_lpara_total_bilirubin_both_groups$Treatment <- factor(group_counts_lpara_total_bilirubin_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- lpara_total_bilirubin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_lpara_total_bilirubin_both_groups <- left_join(group_counts_lpara_total_bilirubin_both_groups, y_pos, by = "Treatment")
+group_counts_lpara_total_bilirubin_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(lpara_total_bilirubin_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+lpara_total_bilirubin_full_comparison_control_visit_group <- ggbetweenstats(
+  data = lpara_total_bilirubin_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver para_total_bilirubin_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "total_bilirubin mg/dl"
+) +
+  geom_text(
+    data = group_counts_lpara_total_bilirubin_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+lpara_total_bilirubin_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/total_bilirubin_full_lpara_comparison_control_visit_group.svg", height = 8, width = 10)
+print(lpara_total_bilirubin_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+lpara_total_bilirubin_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+############################################################################
+### direct_bilirubin ####################################################################
+############################################################################
+
+```{r}
+direct_bilirubin_full_fs_peak <- direct_bilirubin_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+direct_bilirubin_full_fs_peak
+```
+
+
+```{r}
+direct_bilirubin_full_factor <- direct_bilirubin_full %>% 
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`))
+(direct_bilirubin_full_factor)
+```
+
+
+```{r}
+#withoutnormalref <- direct_bilirubin_full_fs_peak %>% 
+#  dplyr::filter(peak_labread > 20.9) 
+#withoutnormalref
+  
+```
+
+#####liver_diclo#############################
+
+
+```{r}
+library(dplyr)
+
+ldiclo_direct_bilirubin_with_controlvisit <- left_join(direct_bilirubin_full_fs_peak, direct_bilirubin_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+ldiclo_direct_bilirubin_with_controlvisit
+```
+
+```{r}
+ldiclo_direct_bilirubin_with_controlvisit_peak <- ldiclo_direct_bilirubin_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(ldiclo_direct_bilirubin_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- ldiclo_direct_bilirubin_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+ldiclo_direct_bilirubin_without_controlvisit <- direct_bilirubin_full_factor %>%
+  filter(Treatment == "Leber_Diclo") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(ldiclo_direct_bilirubin_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+ldiclo_direct_bilirubin_both_groups <- bind_rows(ldiclo_direct_bilirubin_with_controlvisit, 
+                                    ldiclo_direct_bilirubin_without_controlvisit)
+ldiclo_direct_bilirubin_both_groups
+```
+
+
+
+```{r}
+group_counts_ldiclo_direct_bilirubin_both_groups <- ldiclo_direct_bilirubin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_ldiclo_direct_bilirubin_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(ldiclo_direct_bilirubin_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+ldiclo_direct_bilirubin_both_groups$Treatment <- factor(ldiclo_direct_bilirubin_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_ldiclo_direct_bilirubin_both_groups$Treatment <- factor(group_counts_ldiclo_direct_bilirubin_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- ldiclo_direct_bilirubin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_ldiclo_direct_bilirubin_both_groups <- left_join(group_counts_ldiclo_direct_bilirubin_both_groups, y_pos, by = "Treatment")
+group_counts_ldiclo_direct_bilirubin_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(ldiclo_direct_bilirubin_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+ldiclo_direct_bilirubin_full_comparison_control_visit_group <- ggbetweenstats(
+  data = ldiclo_direct_bilirubin_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver diclo_direct_bilirubin_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "direct_bilirubin mg/dl"
+) +
+  geom_text(
+    data = group_counts_ldiclo_direct_bilirubin_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+ldiclo_direct_bilirubin_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/direct_bilirubin_full_ldicl_comparison_control_visit_group.svg", height = 8, width = 10)
+print(ldiclo_direct_bilirubin_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+ldiclo_direct_bilirubin_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+
+##### liver_ibu #############################
+
+
+```{r}
+library(dplyr)
+
+libu_direct_bilirubin_with_controlvisit <- left_join(direct_bilirubin_full_fs_peak, direct_bilirubin_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+libu_direct_bilirubin_with_controlvisit
+```
+
+```{r}
+libu_direct_bilirubin_with_controlvisit_peak <- libu_direct_bilirubin_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(libu_direct_bilirubin_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- libu_direct_bilirubin_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+libu_direct_bilirubin_without_controlvisit <- direct_bilirubin_full_factor %>%
+  filter(Treatment == "Leber_Ibu") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(libu_direct_bilirubin_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+libu_direct_bilirubin_both_groups <- bind_rows(libu_direct_bilirubin_with_controlvisit, 
+                                    libu_direct_bilirubin_without_controlvisit)
+libu_direct_bilirubin_both_groups
+```
+
+
+
+```{r}
+group_counts_libu_direct_bilirubin_both_groups <- libu_direct_bilirubin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_libu_direct_bilirubin_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(libu_direct_bilirubin_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+libu_direct_bilirubin_both_groups$Treatment <- factor(libu_direct_bilirubin_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_libu_direct_bilirubin_both_groups$Treatment <- factor(group_counts_libu_direct_bilirubin_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- libu_direct_bilirubin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_libu_direct_bilirubin_both_groups <- left_join(group_counts_libu_direct_bilirubin_both_groups, y_pos, by = "Treatment")
+group_counts_libu_direct_bilirubin_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(libu_direct_bilirubin_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+libu_direct_bilirubin_full_comparison_control_visit_group <- ggbetweenstats(
+  data = libu_direct_bilirubin_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver ibu_direct_bilirubin_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "direct_bilirubin mg/dl"
+) +
+  geom_text(
+    data = group_counts_libu_direct_bilirubin_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+libu_direct_bilirubin_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/direct_bilirubin_full_libu_comparison_control_visit_group.svg", height = 8, width = 10)
+print(libu_direct_bilirubin_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+libu_direct_bilirubin_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+##### liver_para ###################################################
+
+
+```{r}
+library(dplyr)
+
+lpara_direct_bilirubin_with_controlvisit <- left_join(direct_bilirubin_full_fs_peak, direct_bilirubin_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Para") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+lpara_direct_bilirubin_with_controlvisit
+```
+
+```{r}
+lpara_direct_bilirubin_with_controlvisit_peak <- lpara_direct_bilirubin_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(lpara_direct_bilirubin_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- lpara_direct_bilirubin_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+lpara_direct_bilirubin_without_controlvisit <- direct_bilirubin_full_factor %>%
+  filter(Treatment == "Leber_Para") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(lpara_direct_bilirubin_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+lpara_direct_bilirubin_both_groups <- bind_rows(lpara_direct_bilirubin_with_controlvisit, 
+                                    lpara_direct_bilirubin_without_controlvisit)
+lpara_direct_bilirubin_both_groups
+```
+
+
+
+```{r}
+group_counts_lpara_direct_bilirubin_both_groups <- lpara_direct_bilirubin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_lpara_direct_bilirubin_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(lpara_direct_bilirubin_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+lpara_direct_bilirubin_both_groups$Treatment <- factor(lpara_direct_bilirubin_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_lpara_direct_bilirubin_both_groups$Treatment <- factor(group_counts_lpara_direct_bilirubin_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- lpara_direct_bilirubin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_lpara_direct_bilirubin_both_groups <- left_join(group_counts_lpara_direct_bilirubin_both_groups, y_pos, by = "Treatment")
+group_counts_lpara_direct_bilirubin_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(lpara_direct_bilirubin_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+lpara_direct_bilirubin_full_comparison_control_visit_group <- ggbetweenstats(
+  data = lpara_direct_bilirubin_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver para_direct_bilirubin_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "direct_bilirubin mg/dl"
+) +
+  geom_text(
+    data = group_counts_lpara_direct_bilirubin_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+lpara_direct_bilirubin_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/direct_bilirubin_full_lpara_comparison_control_visit_group.svg", height = 8, width = 10)
+print(lpara_direct_bilirubin_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+lpara_direct_bilirubin_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+############################################################################
+### kreatinin ####################################################################
+############################################################################
+
+```{r}
+kreatinin_full_fs_peak <- kreatinin_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+kreatinin_full_fs_peak
+```
+
+
+```{r}
+kreatinin_full_factor <- kreatinin_full %>% 
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`))
+(kreatinin_full_factor)
+```
+
+
+```{r}
+#withoutnormalref <- kreatinin_full_fs_peak %>% 
+#  dplyr::filter(peak_labread > 20.9) 
+#withoutnormalref
+  
+```
+
+#####liver_diclo#############################
+
+
+```{r}
+library(dplyr)
+
+ldiclo_kreatinin_with_controlvisit <- left_join(kreatinin_full_fs_peak, kreatinin_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+ldiclo_kreatinin_with_controlvisit
+```
+
+```{r}
+ldiclo_kreatinin_with_controlvisit_peak <- ldiclo_kreatinin_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(ldiclo_kreatinin_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- ldiclo_kreatinin_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+ldiclo_kreatinin_without_controlvisit <- kreatinin_full_factor %>%
+  filter(Treatment == "Leber_Diclo") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(ldiclo_kreatinin_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+ldiclo_kreatinin_both_groups <- bind_rows(ldiclo_kreatinin_with_controlvisit, 
+                                    ldiclo_kreatinin_without_controlvisit)
+ldiclo_kreatinin_both_groups
+```
+
+
+
+```{r}
+group_counts_ldiclo_kreatinin_both_groups <- ldiclo_kreatinin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_ldiclo_kreatinin_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(ldiclo_kreatinin_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+ldiclo_kreatinin_both_groups$Treatment <- factor(ldiclo_kreatinin_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_ldiclo_kreatinin_both_groups$Treatment <- factor(group_counts_ldiclo_kreatinin_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- ldiclo_kreatinin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_ldiclo_kreatinin_both_groups <- left_join(group_counts_ldiclo_kreatinin_both_groups, y_pos, by = "Treatment")
+group_counts_ldiclo_kreatinin_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(ldiclo_kreatinin_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+ldiclo_kreatinin_full_comparison_control_visit_group <- ggbetweenstats(
+  data = ldiclo_kreatinin_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver diclo_kreatinin_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "kreatinin mg/dl"
+) +
+  geom_text(
+    data = group_counts_ldiclo_kreatinin_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+ldiclo_kreatinin_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/kreatinin_full_ldicl_comparison_control_visit_group.svg", height = 8, width = 10)
+print(ldiclo_kreatinin_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+ldiclo_kreatinin_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+
+##### liver_ibu #############################
+
+
+```{r}
+library(dplyr)
+
+libu_kreatinin_with_controlvisit <- left_join(kreatinin_full_fs_peak, kreatinin_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+libu_kreatinin_with_controlvisit
+```
+
+```{r}
+libu_kreatinin_with_controlvisit_peak <- libu_kreatinin_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(libu_kreatinin_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- libu_kreatinin_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+libu_kreatinin_without_controlvisit <- kreatinin_full_factor %>%
+  filter(Treatment == "Leber_Ibu") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(libu_kreatinin_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+libu_kreatinin_both_groups <- bind_rows(libu_kreatinin_with_controlvisit, 
+                                    libu_kreatinin_without_controlvisit)
+libu_kreatinin_both_groups
+```
+
+
+
+```{r}
+group_counts_libu_kreatinin_both_groups <- libu_kreatinin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_libu_kreatinin_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(libu_kreatinin_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+libu_kreatinin_both_groups$Treatment <- factor(libu_kreatinin_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_libu_kreatinin_both_groups$Treatment <- factor(group_counts_libu_kreatinin_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- libu_kreatinin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_libu_kreatinin_both_groups <- left_join(group_counts_libu_kreatinin_both_groups, y_pos, by = "Treatment")
+group_counts_libu_kreatinin_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(libu_kreatinin_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+libu_kreatinin_full_comparison_control_visit_group <- ggbetweenstats(
+  data = libu_kreatinin_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver ibu_kreatinin_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "kreatinin mg/dl"
+) +
+  geom_text(
+    data = group_counts_libu_kreatinin_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+libu_kreatinin_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/kreatinin_full_libu_comparison_control_visit_group.svg", height = 8, width = 10)
+print(libu_kreatinin_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+libu_kreatinin_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+##### liver_para ###################################################
+
+
+```{r}
+library(dplyr)
+
+lpara_kreatinin_with_controlvisit <- left_join(kreatinin_full_fs_peak, kreatinin_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Para") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+lpara_kreatinin_with_controlvisit
+```
+
+```{r}
+lpara_kreatinin_with_controlvisit_peak <- lpara_kreatinin_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(lpara_kreatinin_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- lpara_kreatinin_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+lpara_kreatinin_without_controlvisit <- kreatinin_full_factor %>%
+  filter(Treatment == "Leber_Para") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(lpara_kreatinin_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+lpara_kreatinin_both_groups <- bind_rows(lpara_kreatinin_with_controlvisit, 
+                                    lpara_kreatinin_without_controlvisit)
+lpara_kreatinin_both_groups
+```
+
+
+
+```{r}
+group_counts_lpara_kreatinin_both_groups <- lpara_kreatinin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_lpara_kreatinin_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(lpara_kreatinin_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+lpara_kreatinin_both_groups$Treatment <- factor(lpara_kreatinin_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_lpara_kreatinin_both_groups$Treatment <- factor(group_counts_lpara_kreatinin_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- lpara_kreatinin_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_lpara_kreatinin_both_groups <- left_join(group_counts_lpara_kreatinin_both_groups, y_pos, by = "Treatment")
+group_counts_lpara_kreatinin_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(lpara_kreatinin_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+lpara_kreatinin_full_comparison_control_visit_group <- ggbetweenstats(
+  data = lpara_kreatinin_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver para_kreatinin_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "kreatinin mg/dl"
+) +
+  geom_text(
+    data = group_counts_lpara_kreatinin_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+lpara_kreatinin_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/kreatinin_full_lpara_comparison_control_visit_group.svg", height = 8, width = 10)
+print(lpara_kreatinin_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+lpara_kreatinin_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+
+
+############################################################################
+### harnstoff ####################################################################
+############################################################################
+
+```{r}
+harnstoff_full_fs_peak <- harnstoff_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+harnstoff_full_fs_peak
+```
+
+
+```{r}
+harnstoff_full_factor <- harnstoff_full %>% 
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`))
+(harnstoff_full_factor)
+```
+
+
+```{r}
+#withoutnormalref <- harnstoff_full_fs_peak %>% 
+#  dplyr::filter(peak_labread > 20.9) 
+#withoutnormalref
+  
+```
+
+#####liver_diclo#############################
+
+
+```{r}
+library(dplyr)
+
+ldiclo_harnstoff_with_controlvisit <- left_join(harnstoff_full_fs_peak, harnstoff_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+ldiclo_harnstoff_with_controlvisit
+```
+
+```{r}
+ldiclo_harnstoff_with_controlvisit_peak <- ldiclo_harnstoff_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(ldiclo_harnstoff_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- ldiclo_harnstoff_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+ldiclo_harnstoff_without_controlvisit <- harnstoff_full_factor %>%
+  filter(Treatment == "Leber_Diclo") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(ldiclo_harnstoff_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+ldiclo_harnstoff_both_groups <- bind_rows(ldiclo_harnstoff_with_controlvisit, 
+                                    ldiclo_harnstoff_without_controlvisit)
+ldiclo_harnstoff_both_groups
+```
+
+
+
+```{r}
+group_counts_ldiclo_harnstoff_both_groups <- ldiclo_harnstoff_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_ldiclo_harnstoff_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(ldiclo_harnstoff_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+ldiclo_harnstoff_both_groups$Treatment <- factor(ldiclo_harnstoff_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_ldiclo_harnstoff_both_groups$Treatment <- factor(group_counts_ldiclo_harnstoff_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- ldiclo_harnstoff_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_ldiclo_harnstoff_both_groups <- left_join(group_counts_ldiclo_harnstoff_both_groups, y_pos, by = "Treatment")
+group_counts_ldiclo_harnstoff_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(ldiclo_harnstoff_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+ldiclo_harnstoff_full_comparison_control_visit_group <- ggbetweenstats(
+  data = ldiclo_harnstoff_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver diclo_harnstoff_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "harnstoff mg/dl"
+) +
+  geom_text(
+    data = group_counts_ldiclo_harnstoff_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+ldiclo_harnstoff_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/harnstoff_full_ldicl_comparison_control_visit_group.svg", height = 8, width = 10)
+print(ldiclo_harnstoff_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+ldiclo_harnstoff_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+
+##### liver_ibu #############################
+
+
+```{r}
+library(dplyr)
+
+libu_harnstoff_with_controlvisit <- left_join(harnstoff_full_fs_peak, harnstoff_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+libu_harnstoff_with_controlvisit
+```
+
+```{r}
+libu_harnstoff_with_controlvisit_peak <- libu_harnstoff_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(libu_harnstoff_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- libu_harnstoff_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+libu_harnstoff_without_controlvisit <- harnstoff_full_factor %>%
+  filter(Treatment == "Leber_Ibu") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(libu_harnstoff_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+libu_harnstoff_both_groups <- bind_rows(libu_harnstoff_with_controlvisit, 
+                                    libu_harnstoff_without_controlvisit)
+libu_harnstoff_both_groups
+```
+
+
+
+```{r}
+group_counts_libu_harnstoff_both_groups <- libu_harnstoff_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_libu_harnstoff_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(libu_harnstoff_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+libu_harnstoff_both_groups$Treatment <- factor(libu_harnstoff_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_libu_harnstoff_both_groups$Treatment <- factor(group_counts_libu_harnstoff_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- libu_harnstoff_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_libu_harnstoff_both_groups <- left_join(group_counts_libu_harnstoff_both_groups, y_pos, by = "Treatment")
+group_counts_libu_harnstoff_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(libu_harnstoff_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+libu_harnstoff_full_comparison_control_visit_group <- ggbetweenstats(
+  data = libu_harnstoff_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver ibu_harnstoff_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "harnstoff mg/dl"
+) +
+  geom_text(
+    data = group_counts_libu_harnstoff_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+libu_harnstoff_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/harnstoff_full_libu_comparison_control_visit_group.svg", height = 8, width = 10)
+print(libu_harnstoff_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+libu_harnstoff_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+##### liver_para ###################################################
+
+
+```{r}
+library(dplyr)
+
+lpara_harnstoff_with_controlvisit <- left_join(harnstoff_full_fs_peak, harnstoff_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Para") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+lpara_harnstoff_with_controlvisit
+```
+
+```{r}
+lpara_harnstoff_with_controlvisit_peak <- lpara_harnstoff_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(lpara_harnstoff_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- lpara_harnstoff_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+lpara_harnstoff_without_controlvisit <- harnstoff_full_factor %>%
+  filter(Treatment == "Leber_Para") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(lpara_harnstoff_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+lpara_harnstoff_both_groups <- bind_rows(lpara_harnstoff_with_controlvisit, 
+                                    lpara_harnstoff_without_controlvisit)
+lpara_harnstoff_both_groups
+```
+
+
+
+```{r}
+group_counts_lpara_harnstoff_both_groups <- lpara_harnstoff_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_lpara_harnstoff_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(lpara_harnstoff_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+lpara_harnstoff_both_groups$Treatment <- factor(lpara_harnstoff_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_lpara_harnstoff_both_groups$Treatment <- factor(group_counts_lpara_harnstoff_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- lpara_harnstoff_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_lpara_harnstoff_both_groups <- left_join(group_counts_lpara_harnstoff_both_groups, y_pos, by = "Treatment")
+group_counts_lpara_harnstoff_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(lpara_harnstoff_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+lpara_harnstoff_full_comparison_control_visit_group <- ggbetweenstats(
+  data = lpara_harnstoff_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver para_harnstoff_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "harnstoff mg/dl"
+) +
+  geom_text(
+    data = group_counts_lpara_harnstoff_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+lpara_harnstoff_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/harnstoff_full_lpara_comparison_control_visit_group.svg", height = 8, width = 10)
+print(lpara_harnstoff_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+lpara_harnstoff_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+############################################################################
+### crp ####################################################################
+############################################################################
+
+```{r}
+crp_full_fs_peak <- crp_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+crp_full_fs_peak
+```
+
+
+```{r}
+crp_full_factor <- crp_full %>% 
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`))
+(crp_full_factor)
+```
+
+
+```{r}
+#withoutnormalref <- crp_full_fs_peak %>% 
+#  dplyr::filter(peak_labread > 20.9) 
+#withoutnormalref
+  
+```
+
+#####liver_diclo#############################
+
+
+```{r}
+library(dplyr)
+
+ldiclo_crp_with_controlvisit <- left_join(crp_full_fs_peak, crp_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+ldiclo_crp_with_controlvisit
+```
+
+```{r}
+ldiclo_crp_with_controlvisit_peak <- ldiclo_crp_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(ldiclo_crp_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- ldiclo_crp_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+ldiclo_crp_without_controlvisit <- crp_full_factor %>%
+  filter(Treatment == "Leber_Diclo") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(ldiclo_crp_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+ldiclo_crp_both_groups <- bind_rows(ldiclo_crp_with_controlvisit, 
+                                    ldiclo_crp_without_controlvisit)
+ldiclo_crp_both_groups
+```
+
+
+
+```{r}
+group_counts_ldiclo_crp_both_groups <- ldiclo_crp_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_ldiclo_crp_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(ldiclo_crp_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+ldiclo_crp_both_groups$Treatment <- factor(ldiclo_crp_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_ldiclo_crp_both_groups$Treatment <- factor(group_counts_ldiclo_crp_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- ldiclo_crp_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_ldiclo_crp_both_groups <- left_join(group_counts_ldiclo_crp_both_groups, y_pos, by = "Treatment")
+group_counts_ldiclo_crp_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(ldiclo_crp_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+ldiclo_crp_full_comparison_control_visit_group <- ggbetweenstats(
+  data = ldiclo_crp_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver diclo_crp_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "crp mg/l"
+) +
+  geom_text(
+    data = group_counts_ldiclo_crp_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+ldiclo_crp_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/crp_full_ldicl_comparison_control_visit_group.svg", height = 8, width = 10)
+print(ldiclo_crp_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+ldiclo_crp_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+
+##### liver_ibu #############################
+
+
+```{r}
+library(dplyr)
+
+libu_crp_with_controlvisit <- left_join(crp_full_fs_peak, crp_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+libu_crp_with_controlvisit
+```
+
+```{r}
+libu_crp_with_controlvisit_peak <- libu_crp_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(libu_crp_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- libu_crp_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+libu_crp_without_controlvisit <- crp_full_factor %>%
+  filter(Treatment == "Leber_Ibu") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(libu_crp_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+libu_crp_both_groups <- bind_rows(libu_crp_with_controlvisit, 
+                                    libu_crp_without_controlvisit)
+libu_crp_both_groups
+```
+
+
+
+```{r}
+group_counts_libu_crp_both_groups <- libu_crp_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_libu_crp_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(libu_crp_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+libu_crp_both_groups$Treatment <- factor(libu_crp_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_libu_crp_both_groups$Treatment <- factor(group_counts_libu_crp_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- libu_crp_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_libu_crp_both_groups <- left_join(group_counts_libu_crp_both_groups, y_pos, by = "Treatment")
+group_counts_libu_crp_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(libu_crp_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+libu_crp_full_comparison_control_visit_group <- ggbetweenstats(
+  data = libu_crp_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver ibu_crp_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "crp mg/l"
+) +
+  geom_text(
+    data = group_counts_libu_crp_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+libu_crp_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/crp_full_libu_comparison_control_visit_group.svg", height = 8, width = 10)
+print(libu_crp_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+libu_crp_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+##### liver_para ###################################################
+
+
+```{r}
+library(dplyr)
+
+lpara_crp_with_controlvisit <- left_join(crp_full_fs_peak, crp_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Para") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+lpara_crp_with_controlvisit
+```
+
+```{r}
+lpara_crp_with_controlvisit_peak <- lpara_crp_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(lpara_crp_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- lpara_crp_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+lpara_crp_without_controlvisit <- crp_full_factor %>%
+  filter(Treatment == "Leber_Para") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(lpara_crp_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+lpara_crp_both_groups <- bind_rows(lpara_crp_with_controlvisit, 
+                                    lpara_crp_without_controlvisit)
+lpara_crp_both_groups
+```
+
+
+
+```{r}
+group_counts_lpara_crp_both_groups <- lpara_crp_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_lpara_crp_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(lpara_crp_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+lpara_crp_both_groups$Treatment <- factor(lpara_crp_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_lpara_crp_both_groups$Treatment <- factor(group_counts_lpara_crp_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- lpara_crp_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_lpara_crp_both_groups <- left_join(group_counts_lpara_crp_both_groups, y_pos, by = "Treatment")
+group_counts_lpara_crp_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(lpara_crp_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+lpara_crp_full_comparison_control_visit_group <- ggbetweenstats(
+  data = lpara_crp_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver para_crp_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "crp mg/l"
+) +
+  geom_text(
+    data = group_counts_lpara_crp_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+lpara_crp_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/crp_full_lpara_comparison_control_visit_group.svg", height = 8, width = 10)
+print(lpara_crp_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+lpara_crp_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+############################################################################
+### natrium ####################################################################
+############################################################################
+
+```{r}
+natrium_full_fs_peak <- natrium_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+natrium_full_fs_peak
+```
+
+
+```{r}
+natrium_full_factor <- natrium_full %>% 
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`))
+(natrium_full_factor)
+```
+
+
+```{r}
+#withoutnormalref <- natrium_full_fs_peak %>% 
+#  dplyr::filter(peak_labread > 20.9) 
+#withoutnormalref
+  
+```
+
+#####liver_diclo#############################
+
+
+```{r}
+library(dplyr)
+
+ldiclo_natrium_with_controlvisit <- left_join(natrium_full_fs_peak, natrium_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+ldiclo_natrium_with_controlvisit
+```
+
+```{r}
+ldiclo_natrium_with_controlvisit_peak <- ldiclo_natrium_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(ldiclo_natrium_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- ldiclo_natrium_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+ldiclo_natrium_without_controlvisit <- natrium_full_factor %>%
+  filter(Treatment == "Leber_Diclo") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(ldiclo_natrium_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+ldiclo_natrium_both_groups <- bind_rows(ldiclo_natrium_with_controlvisit, 
+                                    ldiclo_natrium_without_controlvisit)
+ldiclo_natrium_both_groups
+```
+
+
+
+```{r}
+group_counts_ldiclo_natrium_both_groups <- ldiclo_natrium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_ldiclo_natrium_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(ldiclo_natrium_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+ldiclo_natrium_both_groups$Treatment <- factor(ldiclo_natrium_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_ldiclo_natrium_both_groups$Treatment <- factor(group_counts_ldiclo_natrium_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- ldiclo_natrium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_ldiclo_natrium_both_groups <- left_join(group_counts_ldiclo_natrium_both_groups, y_pos, by = "Treatment")
+group_counts_ldiclo_natrium_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(ldiclo_natrium_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+ldiclo_natrium_full_comparison_control_visit_group <- ggbetweenstats(
+  data = ldiclo_natrium_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver diclo_natrium_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "natrium mmol/l"
+) +
+  geom_text(
+    data = group_counts_ldiclo_natrium_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+ldiclo_natrium_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/natrium_full_ldicl_comparison_control_visit_group.svg", height = 8, width = 10)
+print(ldiclo_natrium_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+ldiclo_natrium_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+
+##### liver_ibu #############################
+
+
+```{r}
+library(dplyr)
+
+libu_natrium_with_controlvisit <- left_join(natrium_full_fs_peak, natrium_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+libu_natrium_with_controlvisit
+```
+
+```{r}
+libu_natrium_with_controlvisit_peak <- libu_natrium_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(libu_natrium_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- libu_natrium_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+libu_natrium_without_controlvisit <- natrium_full_factor %>%
+  filter(Treatment == "Leber_Ibu") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(libu_natrium_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+libu_natrium_both_groups <- bind_rows(libu_natrium_with_controlvisit, 
+                                    libu_natrium_without_controlvisit)
+libu_natrium_both_groups
+```
+
+
+
+```{r}
+group_counts_libu_natrium_both_groups <- libu_natrium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_libu_natrium_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(libu_natrium_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+libu_natrium_both_groups$Treatment <- factor(libu_natrium_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_libu_natrium_both_groups$Treatment <- factor(group_counts_libu_natrium_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- libu_natrium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_libu_natrium_both_groups <- left_join(group_counts_libu_natrium_both_groups, y_pos, by = "Treatment")
+group_counts_libu_natrium_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(libu_natrium_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+libu_natrium_full_comparison_control_visit_group <- ggbetweenstats(
+  data = libu_natrium_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver ibu_natrium_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "natrium mmol/l"
+) +
+  geom_text(
+    data = group_counts_libu_natrium_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+libu_natrium_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/natrium_full_libu_comparison_control_visit_group.svg", height = 8, width = 10)
+print(libu_natrium_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+libu_natrium_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+##### liver_para ###################################################
+
+
+```{r}
+library(dplyr)
+
+lpara_natrium_with_controlvisit <- left_join(natrium_full_fs_peak, natrium_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Para") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+lpara_natrium_with_controlvisit
+```
+
+```{r}
+lpara_natrium_with_controlvisit_peak <- lpara_natrium_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(lpara_natrium_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- lpara_natrium_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+lpara_natrium_without_controlvisit <- natrium_full_factor %>%
+  filter(Treatment == "Leber_Para") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(lpara_natrium_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+lpara_natrium_both_groups <- bind_rows(lpara_natrium_with_controlvisit, 
+                                    lpara_natrium_without_controlvisit)
+lpara_natrium_both_groups
+```
+
+
+
+```{r}
+group_counts_lpara_natrium_both_groups <- lpara_natrium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_lpara_natrium_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(lpara_natrium_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+lpara_natrium_both_groups$Treatment <- factor(lpara_natrium_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_lpara_natrium_both_groups$Treatment <- factor(group_counts_lpara_natrium_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- lpara_natrium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_lpara_natrium_both_groups <- left_join(group_counts_lpara_natrium_both_groups, y_pos, by = "Treatment")
+group_counts_lpara_natrium_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(lpara_natrium_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+lpara_natrium_full_comparison_control_visit_group <- ggbetweenstats(
+  data = lpara_natrium_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver para_natrium_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "natrium mmol/l"
+) +
+  geom_text(
+    data = group_counts_lpara_natrium_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+lpara_natrium_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/natrium_full_lpara_comparison_control_visit_group.svg", height = 8, width = 10)
+print(lpara_natrium_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+lpara_natrium_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+############################################################################
+### kalium ####################################################################
+############################################################################
+
+```{r}
+kalium_full_fs_peak <- kalium_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+kalium_full_fs_peak
+```
+
+
+```{r}
+kalium_full_factor <- kalium_full %>% 
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`))
+(kalium_full_factor)
+```
+
+
+```{r}
+#withoutnormalref <- kalium_full_fs_peak %>% 
+#  dplyr::filter(peak_labread > 20.9) 
+#withoutnormalref
+  
+```
+
+#####liver_diclo#############################
+
+
+```{r}
+library(dplyr)
+
+ldiclo_kalium_with_controlvisit <- left_join(kalium_full_fs_peak, kalium_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+ldiclo_kalium_with_controlvisit
+```
+
+```{r}
+ldiclo_kalium_with_controlvisit_peak <- ldiclo_kalium_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(ldiclo_kalium_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- ldiclo_kalium_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+ldiclo_kalium_without_controlvisit <- kalium_full_factor %>%
+  filter(Treatment == "Leber_Diclo") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(ldiclo_kalium_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+ldiclo_kalium_both_groups <- bind_rows(ldiclo_kalium_with_controlvisit, 
+                                    ldiclo_kalium_without_controlvisit)
+ldiclo_kalium_both_groups
+```
+
+
+
+```{r}
+group_counts_ldiclo_kalium_both_groups <- ldiclo_kalium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_ldiclo_kalium_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(ldiclo_kalium_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+ldiclo_kalium_both_groups$Treatment <- factor(ldiclo_kalium_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_ldiclo_kalium_both_groups$Treatment <- factor(group_counts_ldiclo_kalium_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- ldiclo_kalium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_ldiclo_kalium_both_groups <- left_join(group_counts_ldiclo_kalium_both_groups, y_pos, by = "Treatment")
+group_counts_ldiclo_kalium_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(ldiclo_kalium_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+ldiclo_kalium_full_comparison_control_visit_group <- ggbetweenstats(
+  data = ldiclo_kalium_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver diclo_kalium_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "kalium mmol/l"
+) +
+  geom_text(
+    data = group_counts_ldiclo_kalium_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+ldiclo_kalium_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/kalium_full_ldicl_comparison_control_visit_group.svg", height = 8, width = 10)
+print(ldiclo_kalium_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+ldiclo_kalium_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+
+##### liver_ibu #############################
+
+
+```{r}
+library(dplyr)
+
+libu_kalium_with_controlvisit <- left_join(kalium_full_fs_peak, kalium_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+libu_kalium_with_controlvisit
+```
+
+```{r}
+libu_kalium_with_controlvisit_peak <- libu_kalium_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(libu_kalium_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- libu_kalium_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+libu_kalium_without_controlvisit <- kalium_full_factor %>%
+  filter(Treatment == "Leber_Ibu") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(libu_kalium_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+libu_kalium_both_groups <- bind_rows(libu_kalium_with_controlvisit, 
+                                    libu_kalium_without_controlvisit)
+libu_kalium_both_groups
+```
+
+
+
+```{r}
+group_counts_libu_kalium_both_groups <- libu_kalium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_libu_kalium_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(libu_kalium_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+libu_kalium_both_groups$Treatment <- factor(libu_kalium_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_libu_kalium_both_groups$Treatment <- factor(group_counts_libu_kalium_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- libu_kalium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_libu_kalium_both_groups <- left_join(group_counts_libu_kalium_both_groups, y_pos, by = "Treatment")
+group_counts_libu_kalium_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(libu_kalium_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+libu_kalium_full_comparison_control_visit_group <- ggbetweenstats(
+  data = libu_kalium_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver ibu_kalium_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "kalium mmol/l"
+) +
+  geom_text(
+    data = group_counts_libu_kalium_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+libu_kalium_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/kalium_full_libu_comparison_control_visit_group.svg", height = 8, width = 10)
+print(libu_kalium_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+libu_kalium_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+##### liver_para ###################################################
+
+
+```{r}
+library(dplyr)
+
+lpara_kalium_with_controlvisit <- left_join(kalium_full_fs_peak, kalium_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Para") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+lpara_kalium_with_controlvisit
+```
+
+```{r}
+lpara_kalium_with_controlvisit_peak <- lpara_kalium_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(lpara_kalium_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- lpara_kalium_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+lpara_kalium_without_controlvisit <- kalium_full_factor %>%
+  filter(Treatment == "Leber_Para") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(lpara_kalium_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+lpara_kalium_both_groups <- bind_rows(lpara_kalium_with_controlvisit, 
+                                    lpara_kalium_without_controlvisit)
+lpara_kalium_both_groups
+```
+
+
+
+```{r}
+group_counts_lpara_kalium_both_groups <- lpara_kalium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_lpara_kalium_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(lpara_kalium_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+lpara_kalium_both_groups$Treatment <- factor(lpara_kalium_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_lpara_kalium_both_groups$Treatment <- factor(group_counts_lpara_kalium_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- lpara_kalium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_lpara_kalium_both_groups <- left_join(group_counts_lpara_kalium_both_groups, y_pos, by = "Treatment")
+group_counts_lpara_kalium_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(lpara_kalium_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+lpara_kalium_full_comparison_control_visit_group <- ggbetweenstats(
+  data = lpara_kalium_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver para_kalium_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "kalium mmol/l"
+) +
+  geom_text(
+    data = group_counts_lpara_kalium_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+lpara_kalium_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/kalium_full_lpara_comparison_control_visit_group.svg", height = 8, width = 10)
+print(lpara_kalium_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+lpara_kalium_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+
+############################################################################
+### kalzium ####################################################################
+############################################################################
+
+```{r}
+kalzium_full_fs_peak <- kalzium_full %>% 
+  filter(str_detect(attribute, "_From start|_From Start|DBS"))%>%
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(peak_labread = max(labreads, na.rm = TRUE)) %>%
+  arrange(desc(peak_labread))  # optional: sortieren
+kalzium_full_fs_peak
+```
+
+
+```{r}
+kalzium_full_factor <- kalzium_full %>% 
+  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`))
+(kalzium_full_factor)
+```
+
+
+```{r}
+#withoutnormalref <- kalzium_full_fs_peak %>% 
+#  dplyr::filter(peak_labread > 20.9) 
+#withoutnormalref
+  
+```
+
+#####liver_diclo#############################
+
+
+```{r}
+library(dplyr)
+
+ldiclo_kalzium_with_controlvisit <- left_join(kalzium_full_fs_peak, kalzium_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+ldiclo_kalzium_with_controlvisit
+```
+
+```{r}
+ldiclo_kalzium_with_controlvisit_peak <- ldiclo_kalzium_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(ldiclo_kalzium_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- ldiclo_kalzium_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+ldiclo_kalzium_without_controlvisit <- kalzium_full_factor %>%
+  filter(Treatment == "Leber_Diclo") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Diclo", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(ldiclo_kalzium_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+ldiclo_kalzium_both_groups <- bind_rows(ldiclo_kalzium_with_controlvisit, 
+                                    ldiclo_kalzium_without_controlvisit)
+ldiclo_kalzium_both_groups
+```
+
+
+
+```{r}
+group_counts_ldiclo_kalzium_both_groups <- ldiclo_kalzium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_ldiclo_kalzium_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(ldiclo_kalzium_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+ldiclo_kalzium_both_groups$Treatment <- factor(ldiclo_kalzium_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_ldiclo_kalzium_both_groups$Treatment <- factor(group_counts_ldiclo_kalzium_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- ldiclo_kalzium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_ldiclo_kalzium_both_groups <- left_join(group_counts_ldiclo_kalzium_both_groups, y_pos, by = "Treatment")
+group_counts_ldiclo_kalzium_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(ldiclo_kalzium_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+ldiclo_kalzium_full_comparison_control_visit_group <- ggbetweenstats(
+  data = ldiclo_kalzium_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver diclo_kalzium_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "kalzium mmol/l"
+) +
+  geom_text(
+    data = group_counts_ldiclo_kalzium_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+ldiclo_kalzium_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/kalzium_full_ldicl_comparison_control_visit_group.svg", height = 8, width = 10)
+print(ldiclo_kalzium_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+ldiclo_kalzium_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+
+##### liver_ibu #############################
+
+
+```{r}
+library(dplyr)
+
+libu_kalzium_with_controlvisit <- left_join(kalzium_full_fs_peak, kalzium_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+libu_kalzium_with_controlvisit
+```
+
+```{r}
+libu_kalzium_with_controlvisit_peak <- libu_kalzium_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(libu_kalzium_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- libu_kalzium_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+libu_kalzium_without_controlvisit <- kalzium_full_factor %>%
+  filter(Treatment == "Leber_Ibu") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Ibu", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(libu_kalzium_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+libu_kalzium_both_groups <- bind_rows(libu_kalzium_with_controlvisit, 
+                                    libu_kalzium_without_controlvisit)
+libu_kalzium_both_groups
+```
+
+
+
+```{r}
+group_counts_libu_kalzium_both_groups <- libu_kalzium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_libu_kalzium_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(libu_kalzium_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+libu_kalzium_both_groups$Treatment <- factor(libu_kalzium_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_libu_kalzium_both_groups$Treatment <- factor(group_counts_libu_kalzium_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- libu_kalzium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_libu_kalzium_both_groups <- left_join(group_counts_libu_kalzium_both_groups, y_pos, by = "Treatment")
+group_counts_libu_kalzium_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(libu_kalzium_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+libu_kalzium_full_comparison_control_visit_group <- ggbetweenstats(
+  data = libu_kalzium_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver ibu_kalzium_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "kalzium mmol/l"
+) +
+  geom_text(
+    data = group_counts_libu_kalzium_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+libu_kalzium_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/kalzium_full_libu_comparison_control_visit_group.svg", height = 8, width = 10)
+print(libu_kalzium_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+libu_kalzium_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+##### liver_para ###################################################
+
+
+```{r}
+library(dplyr)
+
+lpara_kalzium_with_controlvisit <- left_join(kalzium_full_fs_peak, kalzium_full_factor, 
+                                       by = "Edited_BfArM Nummer2") %>% 
+#  dplyr::filter(str_detect(attribute, "_From [Ss]tart|DBS")) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  dplyr::select(1,3,4,5) %>% 
+  #distinct(edited_bf_ar_m_nummer2, .keep_all = TRUE)%>% 
+  filter(Treatment == "Leber_Para") %>% 
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients with controlvisit", Treatment))# %>% 
+#  mutate(`Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)) %>% 
+#  group_by(`Edited_BfArM Nummer2`) %>%
+#  summarise(peak_labread = max(labreads, na.rm = TRUE))
+  
+lpara_kalzium_with_controlvisit
+```
+
+```{r}
+lpara_kalzium_with_controlvisit_peak <- lpara_kalzium_with_controlvisit %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+  slice(1) %>%  # Falls mehrere Zeilen denselben Maximalwert haben, nimm eine davon
+  ungroup() %>%
+  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, `peak-labreads`)
+
+# Ergebnis anzeigen
+print(lpara_kalzium_with_controlvisit_peak)
+
+```
+
+
+```{r}
+# 1. Hole die Patienten-IDs aus dem "Peak"-Datensatz
+patient_ids <- lpara_kalzium_with_controlvisit$`Edited_BfArM Nummer2`
+
+# 2. Filtere die restlichen Patienten aus dem vollständigen Datensatz
+lpara_kalzium_without_controlvisit <- kalzium_full_factor %>%
+  filter(Treatment == "Leber_Para") %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>%
+  filter(!`Edited_BfArM Nummer2` %in% patient_ids) %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+#  filter(labreads == max(labreads, na.rm = TRUE)) %>%
+#  slice(1) %>%  # Falls es mehrere mit demselben Max gibt, nur eine behalten
+#  ungroup() %>%
+#  rename(`peak-labreads` = labreads) %>%
+  select(`Edited_BfArM Nummer2`, Treatment, attribute, labreads) %>%
+  mutate(Treatment = if_else(Treatment == "Leber_Para", "Patients without controlvisit", Treatment))
+
+# Ergebnis anzeigen
+print(lpara_kalzium_without_controlvisit)
+
+```
+
+
+
+
+```{r}
+lpara_kalzium_both_groups <- bind_rows(lpara_kalzium_with_controlvisit, 
+                                    lpara_kalzium_without_controlvisit)
+lpara_kalzium_both_groups
+```
+
+
+
+```{r}
+group_counts_lpara_kalzium_both_groups <- lpara_kalzium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+group_counts_lpara_kalzium_both_groups
+
+# Faktor-Levels aus dem Hauptdatensatz definieren
+treatment_levels <- unique(lpara_kalzium_both_groups$Treatment)
+
+# Treatment-Spalte in beiden Datensätzen als Faktor setzen
+lpara_kalzium_both_groups$Treatment <- factor(lpara_kalzium_both_groups$Treatment,
+                                                 levels = treatment_levels)
+
+group_counts_lpara_kalzium_both_groups$Treatment <- factor(group_counts_lpara_kalzium_both_groups$Treatment,
+                                                              levels = treatment_levels)
+
+y_pos <- lpara_kalzium_both_groups %>%
+  group_by(Treatment) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.09, .groups = "drop")
+
+y_pos
+
+
+group_counts_lpara_kalzium_both_groups <- left_join(group_counts_lpara_kalzium_both_groups, y_pos, by = "Treatment")
+group_counts_lpara_kalzium_both_groups
+
+
+
+# Maximalen y-Wert bestimmen (leicht oberhalb vom höchsten Wert)
+y_max <- max(lpara_kalzium_both_groups$labreads, na.rm = TRUE) * 1.15
+
+# Plot neu aufbauen mit eigener y-Skalierung
+lpara_kalzium_full_comparison_control_visit_group <- ggbetweenstats(
+  data = lpara_kalzium_both_groups,
+  x = Treatment,
+  y = labreads,
+  type = "parametric",
+  title = "liver para_kalzium_full_comparison labreads after reactionstart for patients with and without controlvisit", 
+  xlab = "Patient group",
+  ylab = "kalzium mmol/l"
+) +
+  geom_text(
+    data = group_counts_lpara_kalzium_both_groups,
+    aes(
+      x = Treatment,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 4,
+    vjust = -0.5
+  ) +
+  scale_y_continuous(limits = c(0, y_max), expand = expansion(mult = c(0.05, 0.1)))
+
+lpara_kalzium_full_comparison_control_visit_group
+
+
+dir.create("plots_comparison_control_visit_group", showWarnings = FALSE)
+svg("plots_comparison_control_visit_group/kalzium_full_lpara_comparison_control_visit_group.svg", height = 8, width = 10)
+print(lpara_kalzium_full_comparison_control_visit_group)
+dev.off()
+```
+
+
+
+```{r}
+lpara_kalzium_both_groups %>% 
+  group_by(Treatment) %>% 
+  normality()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

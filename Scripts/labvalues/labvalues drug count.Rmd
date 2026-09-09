@@ -1,0 +1,4467 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-06-07"
+---
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+```
+
+# Datensätze befinden sich in: Joined_data_Comedication_mainmedication_labvalues.Rmd
+
+### gpt_all_groups_comedication_count_intake_at_same_timespan #######################################################
+```{r}
+all_data %>% 
+  filter(panel_id == "gpt")
+```
+
+
+```{r}
+```
+
+```{r}
+gpt_full2 <- all_data %>% 
+  filter(panel_id == "gpt") %>% 
+ dplyr::rename("patient_group" = "kathegorie",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bf_ar_m_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS")) %>% 
+  drop_na()
+gpt_full2 
+
+```
+
+```{r}
+mainmed_comed_gpt <- left_join(main_data_comed,gpt_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_gpt
+```
+
+
+```{r}
+mainmed_comed_gpt_filter_before <- mainmed_comed_gpt %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_gpt_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_gpt_filter_after <- mainmed_comed_gpt %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_gpt_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+```{r}
+main_medication_count_sit <- read_excel(here::here("RawData/main_medication_count.xlsx"), 
+                                        sheet = 2)
+main_medication_count_sit
+```
+
+
+
+
+```{r}
+#!!!!!!!!!!! braucht man nur wenn bei mainmed_comed_gpt_filter_after Werte stehen
+
+#mainmed_comed_gpt_all <- left_join(mainmed_comed_gpt_filter_before,mainmed_comed_gpt_filter_after,by = "bfarm_nummer") #%>%
+
+#mainmed_comed_gpt_all
+```
+
+
+```{r}
+
+mainmed_comed_gpt_all_counts <- 
+  mainmed_comed_gpt_filter_before %>%
+    pivot_longer(cols = c(Medication), 
+    names_to = "source", values_to = "medication") %>%
+    distinct(bfarm_nummer, medication) %>%
+    group_by(bfarm_nummer) %>%
+    summarise(number_comedication = n(), .groups = "drop")
+
+
+mainmed_comed_gpt_all_counts
+
+```
+
+
+### code verändert, noch für alle anderen anpassen
+
+
+```{r}
+plotdata_gpt <- left_join(
+  mainmed_comed_gpt_all_counts,
+  mainmed_comed_gpt,
+  by = "bfarm_nummer"
+) %>% 
+  mutate(
+  number_comedication = as.factor(number_comedication),
+  labreads = round(labreads, 2)
+) %>% 
+  distinct(
+    bfarm_nummer,
+    day_of_measurement,
+    labreads,
+    .keep_all = TRUE
+  ) %>% 
+  dplyr::select(1, 2, 15)
+
+plotdata_gpt
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_gpt %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison gpt with drug count comedication_intake at same timespan",
+    x = "number of medication",
+    y = "ALT (U/L)" )
+
+#dir.create("plots_labvalues drug count", showWarnings = FALSE)
+#svg("plots_labvalues drug count/gpt_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+#dev.off()
+```
+
+##=======================================================
+## gpt_all_groups_drug_count_intake_at_same_timespan 
+##=======================================================
+
+```{r}
+
+main_medication_count <- read_excel("main_medication_count.xlsx")
+main_medication_count
+```
+
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_gpt_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_gpt, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_gpt_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison gpt with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "ALT (U/L)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/gpt_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_gpt_labvalues_drug_count)
+dev.off()
+all_groups_gpt_labvalues_drug_count
+```
+
+
+
+```{r}
+#library(pzfx)
+#write_pzfx(total_medication1,"total_medication1.pzfx", row_names = FALSE)
+```
+
+
+```{r}
+mainmed_comed_gpt
+```
+
+
+
+
+
+
+
+### Graphs without filter of intake at the same timespan #########################################################
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_gpt_all_counts <- mainmed_comed_gpt %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_gpt_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_gpt, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_gpt_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "ALT (U/L)",
+    title = "All groups_comparison gpt with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/gpt_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_gpt_labvalues_medication_count)
+dev.off()
+all_groups_gpt_labvalues_medication_count
+```
+
+###########################################################################################
+### got ###################################################################################
+###########################################################################################
+
+### got_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+got_full2 <- got_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+got_full2 
+
+```
+
+```{r}
+mainmed_comed_got <- left_join(main_data_comed,got_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_got
+```
+
+```{r}
+mainmed_comed_got_filter_before <- mainmed_comed_got %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_got_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_got_filter_after <- mainmed_comed_got %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_got_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_got_all_counts <- mainmed_comed_got_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_got <- left_join(mainmed_comed_got_all_counts,mainmed_comed_got,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_got
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_got %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison got with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "got (U/L)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/got_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### got_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_got_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_got, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_got_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison got with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "got (U/L)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/got_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_got_labvalues_drug_count)
+dev.off()
+all_groups_got_labvalues_drug_count
+```
+
+### Graphs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_got_all_counts <- mainmed_comed_got %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_got, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_got_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "got (U/L)",
+    title = "All groups_comparison got with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/got_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_got_labvalues_medication_count)
+dev.off()
+all_groups_got_labvalues_medication_count
+```
+
+
+###########################################################################################
+### ggt ###################################################################################
+###########################################################################################
+
+### ggt_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+ggt_full2 <- ggt_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+ggt_full2 
+
+```
+
+```{r}
+mainmed_comed_ggt <- left_join(main_data_comed,ggt_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_ggt
+```
+
+```{r}
+mainmed_comed_ggt_filter_before <- mainmed_comed_ggt %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_ggt_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_ggt_filter_after <- mainmed_comed_ggt %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_ggt_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_ggt_all_counts <- mainmed_comed_ggt_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_ggt <- left_join(mainmed_comed_ggt_all_counts,mainmed_comed_ggt,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_ggt
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_ggt %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison ggt with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "ggt (U/L)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ggt_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### ggt_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_ggt_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_ggt, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_ggt_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison ggt with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "ggt (U/L)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ggt_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_ggt_labvalues_drug_count)
+dev.off()
+all_groups_ggt_labvalues_drug_count
+```
+
+
+### Graphs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_ggt_all_counts <- mainmed_comed_ggt %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_ggt, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_ggt_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "ggt (U/L)",
+    title = "All groups_comparison ggt with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ggt_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_ggt_labvalues_medication_count)
+dev.off()
+all_groups_ggt_labvalues_medication_count
+```
+
+
+
+###########################################################################################
+### ap ###################################################################################
+###########################################################################################
+
+### ap_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+ap_full2 <- ap_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+ap_full2 
+
+```
+
+```{r}
+mainmed_comed_ap <- left_join(main_data_comed,ap_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_ap
+```
+
+```{r}
+mainmed_comed_ap_filter_before <- mainmed_comed_ap %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_ap_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_ap_filter_after <- mainmed_comed_ap %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_ap_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_ap_all_counts <- mainmed_comed_ap_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_ap <- left_join(mainmed_comed_ap_all_counts,mainmed_comed_ap,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_ap
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_ap %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison ap with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "ap (U/L)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ap_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### ap_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_ap_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_ap, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_ap_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison ap with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "ap (U/L)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ap_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_ap_labvalues_drug_count)
+dev.off()
+all_groups_ap_labvalues_drug_count
+```
+
+
+### Graphs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_ap_all_counts <- mainmed_comed_ap %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_ap, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_ap_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "ap (U/L)",
+    title = "All groups_comparison ap with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ap_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_ap_labvalues_medication_count)
+dev.off()
+all_groups_ap_labvalues_medication_count
+```
+
+###########################################################################################
+### ldh ###################################################################################
+###########################################################################################
+
+### ldh_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+ldh_full2 <- ldh_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+ldh_full2 
+
+```
+
+```{r}
+mainmed_comed_ldh <- left_join(main_data_comed,ldh_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_ldh
+```
+
+```{r}
+mainmed_comed_ldh_filter_before <- mainmed_comed_ldh %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_ldh_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_ldh_filter_after <- mainmed_comed_ldh %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_ldh_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_ldh_all_counts <- mainmed_comed_ldh_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_ldh <- left_join(mainmed_comed_ldh_all_counts,mainmed_comed_ldh,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_ldh
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_ldh %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison ldh with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "ldh (U/L)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ldh_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### ldh_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_ldh_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_ldh, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_ldh_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison ldh with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "ldh (U/L)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ldh_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_ldh_labvalues_drug_count)
+dev.off()
+all_groups_ldh_labvalues_drug_count
+```
+
+
+### Grldhhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_ldh_all_counts <- mainmed_comed_ldh %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_ldh, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_ldh_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "ldh (U/L)",
+    title = "All groups_comparison ldh with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ldh_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_ldh_labvalues_medication_count)
+dev.off()
+all_groups_ldh_labvalues_medication_count
+```
+
+
+###########################################################################################
+### ck ###################################################################################
+###########################################################################################
+
+### ck_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+ck_full2 <- ck_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+ck_full2 
+
+```
+
+```{r}
+mainmed_comed_ck <- left_join(main_data_comed,ck_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_ck
+```
+
+```{r}
+mainmed_comed_ck_filter_before <- mainmed_comed_ck %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_ck_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_ck_filter_after <- mainmed_comed_ck %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_ck_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_ck_all_counts <- mainmed_comed_ck_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_ck <- left_join(mainmed_comed_ck_all_counts,mainmed_comed_ck,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_ck
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_ck %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison ck with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "ck (U/L)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ck_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### ck_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_ck_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_ck, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_ck_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison ck with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "ck (U/L)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ck_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_ck_labvalues_drug_count)
+dev.off()
+all_groups_ck_labvalues_drug_count
+```
+
+
+### Grckhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_ck_all_counts <- mainmed_comed_ck %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_ck, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_ck_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "ck (U/L)",
+    title = "All groups_comparison ck with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ck_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_ck_labvalues_medication_count)
+dev.off()
+all_groups_ck_labvalues_medication_count
+```
+
+
+###########################################################################################
+### ptt ###################################################################################
+###########################################################################################
+
+### ptt_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+ptt_full2 <- ptt_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+ptt_full2 
+
+```
+
+```{r}
+mainmed_comed_ptt <- left_join(main_data_comed,ptt_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_ptt
+```
+
+```{r}
+mainmed_comed_ptt_filter_before <- mainmed_comed_ptt %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_ptt_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_ptt_filter_after <- mainmed_comed_ptt %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_ptt_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_ptt_all_counts <- mainmed_comed_ptt_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_ptt <- left_join(mainmed_comed_ptt_all_counts,mainmed_comed_ptt,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_ptt
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_ptt %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison ptt with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "ptt (sec.)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ptt_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### ptt_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_ptt_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_ptt, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_ptt_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison ptt with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "ptt (sec.)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ptt_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_ptt_labvalues_drug_count)
+dev.off()
+all_groups_ptt_labvalues_drug_count
+```
+
+
+### Grptths without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_ptt_all_counts <- mainmed_comed_ptt %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_ptt, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_ptt_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "ptt (sec.)",
+    title = "All groups_comparison ptt with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/ptt_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_ptt_labvalues_medication_count)
+dev.off()
+all_groups_ptt_labvalues_medication_count
+```
+
+###########################################################################################
+### hb ###################################################################################
+###########################################################################################
+
+### hb_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+hb_full2 <- hb_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+hb_full2 
+
+```
+
+```{r}
+mainmed_comed_hb <- left_join(main_data_comed,hb_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_hb
+```
+
+```{r}
+mainmed_comed_hb_filter_before <- mainmed_comed_hb %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_hb_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_hb_filter_after <- mainmed_comed_hb %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_hb_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_hb_all_counts <- mainmed_comed_hb_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_hb <- left_join(mainmed_comed_hb_all_counts,mainmed_comed_hb,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_hb
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_hb %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison hb with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "hb (g/dl)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/hb_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### hb_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_hb_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_hb, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_hb_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison hb with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "hb (g/dl)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/hb_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_hb_labvalues_drug_count)
+dev.off()
+all_groups_hb_labvalues_drug_count
+```
+
+
+### Grhbhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_hb_all_counts <- mainmed_comed_hb %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_hb, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_hb_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "hb (g/dl)",
+    title = "All groups_comparison hb with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/hb_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_hb_labvalues_medication_count)
+dev.off()
+all_groups_hb_labvalues_medication_count
+```
+
+
+###########################################################################################
+### gesamteiweiß ###################################################################################
+###########################################################################################
+
+### gesamteiweiß_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+gesamteiweiß_full2 <- gesamteiweiß_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+gesamteiweiß_full2 
+
+```
+
+```{r}
+mainmed_comed_gesamteiweiß <- left_join(main_data_comed,gesamteiweiß_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_gesamteiweiß
+```
+
+```{r}
+mainmed_comed_gesamteiweiß_filter_before <- mainmed_comed_gesamteiweiß %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_gesamteiweiß_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_gesamteiweiß_filter_after <- mainmed_comed_gesamteiweiß %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_gesamteiweiß_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_gesamteiweiß_all_counts <- mainmed_comed_gesamteiweiß_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_gesamteiweiß <- left_join(mainmed_comed_gesamteiweiß_all_counts,mainmed_comed_gesamteiweiß,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_gesamteiweiß
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_gesamteiweiß %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison gesamteiweiß with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "gesamteiweiß (g/dl)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/gesamteiweiß_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### gesamteiweiß_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_gesamteiweiß_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_gesamteiweiß, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_gesamteiweiß_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison gesamteiweiß with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "gesamteiweiß (g/dl)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/gesamteiweiß_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_gesamteiweiß_labvalues_drug_count)
+dev.off()
+all_groups_gesamteiweiß_labvalues_drug_count
+```
+
+
+### Grgesamteiweißhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_gesamteiweiß_all_counts <- mainmed_comed_gesamteiweiß %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_gesamteiweiß, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_gesamteiweiß_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "gesamteiweiß (g/dl)",
+    title = "All groups_comparison gesamteiweiß with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/gesamteiweiß_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_gesamteiweiß_labvalues_medication_count)
+dev.off()
+all_groups_gesamteiweiß_labvalues_medication_count
+```
+
+
+###########################################################################################
+### leukozyten ###################################################################################
+###########################################################################################
+
+### leukozyten_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+leukozyten_full2 <- leukozyten_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+leukozyten_full2 
+
+```
+
+```{r}
+mainmed_comed_leukozyten <- left_join(main_data_comed,leukozyten_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_leukozyten
+```
+
+```{r}
+mainmed_comed_leukozyten_filter_before <- mainmed_comed_leukozyten %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_leukozyten_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_leukozyten_filter_after <- mainmed_comed_leukozyten %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_leukozyten_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_leukozyten_all_counts <- mainmed_comed_leukozyten_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_leukozyten <- left_join(mainmed_comed_leukozyten_all_counts,mainmed_comed_leukozyten,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_leukozyten
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_leukozyten %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison leukozyten with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "leukozyten (cells/ul)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/leukozyten_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### leukozyten_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_leukozyten_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_leukozyten, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_leukozyten_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison leukozyten with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "leukozyten (cells/ul)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/leukozyten_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_leukozyten_labvalues_drug_count)
+dev.off()
+all_groups_leukozyten_labvalues_drug_count
+```
+
+
+### Grleukozytenhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_leukozyten_all_counts <- mainmed_comed_leukozyten %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_leukozyten, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_leukozyten_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "leukozyten (cells/ul)",
+    title = "All groups_comparison leukozyten with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/leukozyten_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_leukozyten_labvalues_medication_count)
+dev.off()
+all_groups_leukozyten_labvalues_medication_count
+```
+
+
+###########################################################################################
+### erythrozyten ###################################################################################
+###########################################################################################
+
+### erythrozyten_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+erythrozyten_full2 <- erythrozyten_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+erythrozyten_full2 
+
+```
+
+```{r}
+mainmed_comed_erythrozyten <- left_join(main_data_comed,erythrozyten_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_erythrozyten
+```
+
+```{r}
+mainmed_comed_erythrozyten_filter_before <- mainmed_comed_erythrozyten %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_erythrozyten_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_erythrozyten_filter_after <- mainmed_comed_erythrozyten %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_erythrozyten_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_erythrozyten_all_counts <- mainmed_comed_erythrozyten_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_erythrozyten <- left_join(mainmed_comed_erythrozyten_all_counts,mainmed_comed_erythrozyten,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_erythrozyten
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_erythrozyten %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison erythrozyten with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "erythrozyten (cells/ul)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/erythrozyten_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### erythrozyten_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_erythrozyten_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_erythrozyten, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_erythrozyten_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison erythrozyten with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "erythrozyten (cells/ul)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/erythrozyten_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_erythrozyten_labvalues_drug_count)
+dev.off()
+all_groups_erythrozyten_labvalues_drug_count
+```
+
+
+### Grerythrozytenhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_erythrozyten_all_counts <- mainmed_comed_erythrozyten %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_erythrozyten, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_erythrozyten_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "erythrozyten (cells/ul)",
+    title = "All groups_comparison erythrozyten with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/erythrozyten_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_erythrozyten_labvalues_medication_count)
+dev.off()
+all_groups_erythrozyten_labvalues_medication_count
+```
+
+
+###########################################################################################
+### thrombozyten ###################################################################################
+###########################################################################################
+
+### thrombozyten_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+thrombozyten_full2 <- thrombozyten_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+thrombozyten_full2 
+
+```
+
+```{r}
+mainmed_comed_thrombozyten <- left_join(main_data_comed,thrombozyten_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_thrombozyten
+```
+
+```{r}
+mainmed_comed_thrombozyten_filter_before <- mainmed_comed_thrombozyten %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_thrombozyten_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_thrombozyten_filter_after <- mainmed_comed_thrombozyten %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_thrombozyten_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_thrombozyten_all_counts <- mainmed_comed_thrombozyten_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_thrombozyten <- left_join(mainmed_comed_thrombozyten_all_counts,mainmed_comed_thrombozyten,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_thrombozyten
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_thrombozyten %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison thrombozyten with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "thrombozyten (cells/ul)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/thrombozyten_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### thrombozyten_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_thrombozyten_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_thrombozyten, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_thrombozyten_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison thrombozyten with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "thrombozyten (cells/ul)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/thrombozyten_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_thrombozyten_labvalues_drug_count)
+dev.off()
+all_groups_thrombozyten_labvalues_drug_count
+```
+
+
+### Grthrombozytenhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_thrombozyten_all_counts <- mainmed_comed_thrombozyten %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_thrombozyten, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_thrombozyten_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "thrombozyten (cells/ul)",
+    title = "All groups_comparison thrombozyten with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/thrombozyten_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_thrombozyten_labvalues_medication_count)
+dev.off()
+all_groups_thrombozyten_labvalues_medication_count
+```
+
+
+###########################################################################################
+### total_bilirubin ###################################################################################
+###########################################################################################
+
+### total_bilirubin_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+total_bilirubin_full2 <- total_bilirubin_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+total_bilirubin_full2 
+
+```
+
+```{r}
+mainmed_comed_total_bilirubin <- left_join(main_data_comed,total_bilirubin_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_total_bilirubin
+```
+
+```{r}
+mainmed_comed_total_bilirubin_filter_before <- mainmed_comed_total_bilirubin %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_total_bilirubin_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_total_bilirubin_filter_after <- mainmed_comed_total_bilirubin %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_total_bilirubin_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_total_bilirubin_all_counts <- mainmed_comed_total_bilirubin_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_total_bilirubin <- left_join(mainmed_comed_total_bilirubin_all_counts,mainmed_comed_total_bilirubin,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_total_bilirubin
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_total_bilirubin %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison total_bilirubin with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "total_bilirubin (mg/dl)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/total_bilirubin_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### total_bilirubin_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_total_bilirubin_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_total_bilirubin, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_total_bilirubin_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison total_bilirubin with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "total_bilirubin (mg/dl)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/total_bilirubin_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_total_bilirubin_labvalues_drug_count)
+dev.off()
+all_groups_total_bilirubin_labvalues_drug_count
+```
+
+
+### Grtotal_bilirubinhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_total_bilirubin_all_counts <- mainmed_comed_total_bilirubin %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_total_bilirubin, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_total_bilirubin_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "total_bilirubin (mg/dl)",
+    title = "All groups_comparison total_bilirubin with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/total_bilirubin_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_total_bilirubin_labvalues_medication_count)
+dev.off()
+all_groups_total_bilirubin_labvalues_medication_count
+```
+
+
+###########################################################################################
+### direct_bilirubin ###################################################################################
+###########################################################################################
+
+### direct_bilirubin_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+direct_bilirubin_full2 <- direct_bilirubin_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+direct_bilirubin_full2 
+
+```
+
+```{r}
+mainmed_comed_direct_bilirubin <- left_join(main_data_comed,direct_bilirubin_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_direct_bilirubin
+```
+
+```{r}
+mainmed_comed_direct_bilirubin_filter_before <- mainmed_comed_direct_bilirubin %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_direct_bilirubin_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_direct_bilirubin_filter_after <- mainmed_comed_direct_bilirubin %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_direct_bilirubin_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_direct_bilirubin_all_counts <- mainmed_comed_direct_bilirubin_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_direct_bilirubin <- left_join(mainmed_comed_direct_bilirubin_all_counts,mainmed_comed_direct_bilirubin,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_direct_bilirubin
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_direct_bilirubin %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison direct_bilirubin with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "direct_bilirubin (mg/dl)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/direct_bilirubin_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### direct_bilirubin_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_direct_bilirubin_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_direct_bilirubin, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_direct_bilirubin_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison direct_bilirubin with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "direct_bilirubin (mg/dl)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/direct_bilirubin_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_direct_bilirubin_labvalues_drug_count)
+dev.off()
+all_groups_direct_bilirubin_labvalues_drug_count
+```
+
+
+### Grdirect_bilirubinhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_direct_bilirubin_all_counts <- mainmed_comed_direct_bilirubin %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_direct_bilirubin, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_direct_bilirubin_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "direct_bilirubin (mg/dl)",
+    title = "All groups_comparison direct_bilirubin with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/direct_bilirubin_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_direct_bilirubin_labvalues_medication_count)
+dev.off()
+all_groups_direct_bilirubin_labvalues_medication_count
+```
+
+
+
+###########################################################################################
+### kreatinin ###################################################################################
+###########################################################################################
+
+### kreatinin_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+kreatinin_full2 <- kreatinin_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+kreatinin_full2 
+
+```
+
+```{r}
+mainmed_comed_kreatinin <- left_join(main_data_comed,kreatinin_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_kreatinin
+```
+
+```{r}
+mainmed_comed_kreatinin_filter_before <- mainmed_comed_kreatinin %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_kreatinin_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_kreatinin_filter_after <- mainmed_comed_kreatinin %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_kreatinin_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_kreatinin_all_counts <- mainmed_comed_kreatinin_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_kreatinin <- left_join(mainmed_comed_kreatinin_all_counts,mainmed_comed_kreatinin,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_kreatinin
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_kreatinin %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison kreatinin with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "kreatinin (mg/dl)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/kreatinin_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### kreatinin_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_kreatinin_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_kreatinin, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_kreatinin_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison kreatinin with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "kreatinin (mg/dl)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/kreatinin_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_kreatinin_labvalues_drug_count)
+dev.off()
+all_groups_kreatinin_labvalues_drug_count
+```
+
+
+### Grkreatininhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_kreatinin_all_counts <- mainmed_comed_kreatinin %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_kreatinin, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_kreatinin_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "kreatinin (mg/dl)",
+    title = "All groups_comparison kreatinin with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/kreatinin_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_kreatinin_labvalues_medication_count)
+dev.off()
+all_groups_kreatinin_labvalues_medication_count
+```
+
+
+###########################################################################################
+### harnstoff ###################################################################################
+###########################################################################################
+
+### harnstoff_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+harnstoff_full2 <- harnstoff_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+harnstoff_full2 
+
+```
+
+```{r}
+mainmed_comed_harnstoff <- left_join(main_data_comed,harnstoff_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_harnstoff
+```
+
+```{r}
+mainmed_comed_harnstoff_filter_before <- mainmed_comed_harnstoff %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_harnstoff_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_harnstoff_filter_after <- mainmed_comed_harnstoff %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_harnstoff_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_harnstoff_all_counts <- mainmed_comed_harnstoff_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_harnstoff <- left_join(mainmed_comed_harnstoff_all_counts,mainmed_comed_harnstoff,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_harnstoff
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_harnstoff %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison harnstoff with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "harnstoff (mg/dl)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/harnstoff_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### harnstoff_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_harnstoff_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_harnstoff, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_harnstoff_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison harnstoff with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "harnstoff (mg/dl)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/harnstoff_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_harnstoff_labvalues_drug_count)
+dev.off()
+all_groups_harnstoff_labvalues_drug_count
+```
+
+
+### Grharnstoffhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_harnstoff_all_counts <- mainmed_comed_harnstoff %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_harnstoff, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_harnstoff_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "harnstoff (mg/dl)",
+    title = "All groups_comparison harnstoff with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/harnstoff_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_harnstoff_labvalues_medication_count)
+dev.off()
+all_groups_harnstoff_labvalues_medication_count
+```
+
+
+###########################################################################################
+### crp ###################################################################################
+###########################################################################################
+
+### crp_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+crp_full2 <- crp_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+crp_full2 
+
+```
+
+```{r}
+mainmed_comed_crp <- left_join(main_data_comed,crp_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_crp
+```
+
+```{r}
+mainmed_comed_crp_filter_before <- mainmed_comed_crp %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_crp_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_crp_filter_after <- mainmed_comed_crp %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_crp_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_crp_all_counts <- mainmed_comed_crp_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_crp <- left_join(mainmed_comed_crp_all_counts,mainmed_comed_crp,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_crp
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_crp %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison crp with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "crp (mg/l)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/crp_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### crp_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_crp_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_crp, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_crp_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison crp with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "crp (mg/l)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/crp_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_crp_labvalues_drug_count)
+dev.off()
+all_groups_crp_labvalues_drug_count
+```
+
+
+### Grcrphs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_crp_all_counts <- mainmed_comed_crp %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_crp, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_crp_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "crp (mg/l)",
+    title = "All groups_comparison crp with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/crp_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_crp_labvalues_medication_count)
+dev.off()
+all_groups_crp_labvalues_medication_count
+```
+
+
+###########################################################################################
+### natrium ###################################################################################
+###########################################################################################
+
+### natrium_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+natrium_full2 <- natrium_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+natrium_full2 
+
+```
+
+```{r}
+mainmed_comed_natrium <- left_join(main_data_comed,natrium_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_natrium
+```
+
+```{r}
+mainmed_comed_natrium_filter_before <- mainmed_comed_natrium %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_natrium_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_natrium_filter_after <- mainmed_comed_natrium %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_natrium_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_natrium_all_counts <- mainmed_comed_natrium_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_natrium <- left_join(mainmed_comed_natrium_all_counts,mainmed_comed_natrium,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_natrium
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_natrium %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison natrium with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "natrium (mmol/l)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/natrium_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### natrium_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_natrium_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_natrium, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_natrium_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison natrium with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "natrium (mmol/l)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/natrium_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_natrium_labvalues_drug_count)
+dev.off()
+all_groups_natrium_labvalues_drug_count
+```
+
+
+### Grnatriumhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_natrium_all_counts <- mainmed_comed_natrium %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_natrium, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_natrium_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "natrium (mmol/l)",
+    title = "All groups_comparison natrium with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/natrium_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_natrium_labvalues_medication_count)
+dev.off()
+all_groups_natrium_labvalues_medication_count
+```
+
+
+###########################################################################################
+### kalium ###################################################################################
+###########################################################################################
+
+### kalium_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+kalium_full2 <- kalium_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+kalium_full2 
+
+```
+
+```{r}
+mainmed_comed_kalium <- left_join(main_data_comed,kalium_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_kalium
+```
+
+```{r}
+mainmed_comed_kalium_filter_before <- mainmed_comed_kalium %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_kalium_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_kalium_filter_after <- mainmed_comed_kalium %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_kalium_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_kalium_all_counts <- mainmed_comed_kalium_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_kalium <- left_join(mainmed_comed_kalium_all_counts,mainmed_comed_kalium,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_kalium
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_kalium %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison kalium with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "kalium (mmol/l)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/kalium_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### kalium_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_kalium_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_kalium, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_kalium_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison kalium with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "kalium (mmol/l)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/kalium_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_kalium_labvalues_drug_count)
+dev.off()
+all_groups_kalium_labvalues_drug_count
+```
+
+
+### Grkaliumhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_kalium_all_counts <- mainmed_comed_kalium %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_kalium, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_kalium_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "kalium (mmol/l)",
+    title = "All groups_comparison kalium with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/kalium_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_kalium_labvalues_medication_count)
+dev.off()
+all_groups_kalium_labvalues_medication_count
+```
+
+
+###########################################################################################
+### kalzium ###################################################################################
+###########################################################################################
+
+### kalzium_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+kalzium_full2 <- kalzium_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+kalzium_full2 
+
+```
+
+```{r}
+mainmed_comed_kalzium <- left_join(main_data_comed,kalzium_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_kalzium
+```
+
+```{r}
+mainmed_comed_kalzium_filter_before <- mainmed_comed_kalzium %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_kalzium_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_kalzium_filter_after <- mainmed_comed_kalzium %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_kalzium_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_kalzium_all_counts <- mainmed_comed_kalzium_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_kalzium <- left_join(mainmed_comed_kalzium_all_counts,mainmed_comed_kalzium,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_kalzium
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_kalzium %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison kalzium with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "kalzium (mmol/l)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/kalzium_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### kalzium_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_kalzium_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_kalzium, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_kalzium_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison kalzium with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "kalzium (mmol/l)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/kalzium_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_kalzium_labvalues_drug_count)
+dev.off()
+all_groups_kalzium_labvalues_drug_count
+```
+
+
+### Grkalziumhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_kalzium_all_counts <- mainmed_comed_kalzium %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_kalzium, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_kalzium_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "kalzium (mmol/l)",
+    title = "All groups_comparison kalzium with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/kalzium_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_kalzium_labvalues_medication_count)
+dev.off()
+all_groups_kalzium_labvalues_medication_count
+```
+
+
+###########################################################################################
+### quick ###################################################################################
+###########################################################################################
+
+### quick_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+quick_full2 <- quick_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+quick_full2 
+
+```
+
+```{r}
+mainmed_comed_quick <- left_join(main_data_comed,quick_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_quick
+```
+
+```{r}
+mainmed_comed_quick_filter_before <- mainmed_comed_quick %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_quick_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_quick_filter_after <- mainmed_comed_quick %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_quick_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_quick_all_counts <- mainmed_comed_quick_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_quick <- left_join(mainmed_comed_quick_all_counts,mainmed_comed_quick,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_quick
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_quick %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison quick with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "quick (%)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/quick_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### quick_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_quick_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_quick, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_quick_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison quick with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "quick (%)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/quick_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_quick_labvalues_drug_count)
+dev.off()
+all_groups_quick_labvalues_drug_count
+```
+
+
+### Grquickhs without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_quick_all_counts <- mainmed_comed_quick %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_quick, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_quick_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "quick (%)",
+    title = "All groups_comparison quick with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/quick_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_quick_labvalues_medication_count)
+dev.off()
+all_groups_quick_labvalues_medication_count
+```
+
+
+###########################################################################################
+### hämatokrit ###################################################################################
+###########################################################################################
+
+### hämatokrit_all_groups_comedication_count_intake_at_same_timespan #######################################################
+
+```{r}
+hämatokrit_full2 <- hämatokrit_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "day_of_measurement" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(day_of_measurement, "_From Start|_From start|DBS"))
+hämatokrit_full2 
+
+```
+
+```{r}
+mainmed_comed_hämatokrit <- left_join(main_data_comed,hämatokrit_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.x,-patient_group.y)
+mainmed_comed_hämatokrit
+```
+
+```{r}
+mainmed_comed_hämatokrit_filter_before <- mainmed_comed_hämatokrit %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M +91) %>%
+  dplyr::filter(parameter_M1 > parameter_co)
+
+mainmed_comed_hämatokrit_filter_before#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+```{r}
+mainmed_comed_hämatokrit_filter_after <- mainmed_comed_hämatokrit %>% 
+  dplyr::filter(grepl("Zeitraum: letzte Einnahme bis Krankheitsbeginn",kathegorie_M)) %>% 
+  dplyr::filter(grepl("Zeitraum: erste Einnahme bis Krankheitsbeginn",kathegorie_co)) %>% 
+  mutate(parameter_M1 = parameter_M -91) %>% 
+  filter(!(parameter_M1 < 0)) %>% 
+  dplyr::filter(parameter_M1 < parameter_co)
+
+mainmed_comed_hämatokrit_filter_after#%>% 
+#  dplyr::filter(Medication == "Atenolol, Clortalidon (Hypertonus)")
+  
+```
+
+
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_hämatokrit_all_counts <- mainmed_comed_hämatokrit_filter_before %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+
+```{r}
+plotdata_hämatokrit <- left_join(mainmed_comed_hämatokrit_all_counts,mainmed_comed_hämatokrit,by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,12) %>% 
+  mutate(number_comedication = as.factor(number_comedication)) %>% 
+  distinct(labreads,.keep_all = TRUE)
+
+plotdata_hämatokrit
+```
+
+```{r}
+labvalues_for_comedication_count <- plotdata_hämatokrit %>% 
+  ggplot(aes(x = number_comedication, y = labreads)) +
+  geom_point() +
+  geom_smooth() +
+  labs(
+    title = "All groups_comparison hämatokrit with drug count comedication_intake at same timespan",
+    x = "number of comedication",
+    y = "hämatokrit (%)" )
+
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/hämatokrit_all_groups_comedication_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(labvalues_for_comedication_count)
+dev.off()
+```
+
+
+### hämatokrit_all_groups_drug_count_intake_at_same_timespan ##########################################################
+
+```{r}
+total_medication <- left_join(main_medication_count,mainmed_comed_hämatokrit_all_counts, by = "bfarm_nummer") %>% 
+   mutate(number_comedication = coalesce(number_comedication, 0)) %>% 
+  mutate(total_medication = medication_M_count + number_comedication) %>% 
+  dplyr::arrange(desc(total_medication)) %>% 
+  filter(!(number_comedication == 0)) #%>% 
+  #mutate(total_medication = as.factor(total_medication))
+
+total_medication
+```
+
+
+```{r}
+total_medication1 <- left_join(total_medication,mainmed_comed_hämatokrit, by = "bfarm_nummer") %>% 
+  dplyr::select(1,2,3,4,14) %>% 
+  drop_na() %>% 
+  distinct(labreads, .keep_all = TRUE) #%>% 
+#  column_to_rownames(var = "bfarm_nummer")
+  
+
+total_medication1
+```
+
+```{r}
+all_groups_hämatokrit_labvalues_drug_count <-total_medication1 %>% 
+  ggplot(aes(x = total_medication, y = labreads))+
+  geom_point(position = position_dodge(width = 0.2))+
+  geom_smooth()+
+#  scale_y_continuous(limits = c(0, 10000), breaks = seq(0, 10000, by = 500))+
+labs(
+    title = "All groups_comparison hämatokrit with drug count main- and comedication_intake at same timespan",
+    x = "number of medicaments",
+    y = "hämatokrit (%)" )
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/hämatokrit_all_groups_drug_count_intake_at_same_timespan.svg", height = 8, width = 10)
+print(all_groups_hämatokrit_labvalues_drug_count)
+dev.off()
+all_groups_hämatokrit_labvalues_drug_count
+```
+
+
+### Grhämatokriths without filter of intake at the same timespan #########################################################
+
+```{r}
+# Beispielcode für deine Tabelle
+# df <- your_dataframe_name
+
+mainmed_comed_hämatokrit_all_counts <- mainmed_comed_hämatokrit %>%
+  # Schritt 1: Beide Spalten in eine lange Form bringen
+  pivot_longer(cols = c(Medication), 
+               names_to = "source", values_to = "medication") %>%
+  # Schritt 2: Duplikate entfernen (jede Medikamenten-Patient-Kombination nur einmal)
+  distinct(bfarm_nummer, medication) %>%
+  # Schritt 3: Pro Patient (bfarm_nummer) zählen, wie viele verschiedene Medikamente es gibt
+  group_by(bfarm_nummer) %>%
+  summarise(number_comedication = n(), .groups = "drop")
+
+# Ausgabe ansehen
+
+
+```
+
+
+```{r}
+medication_labreads <- left_join(total_medication,mainmed_comed_hämatokrit, by = "bfarm_nummer") %>% 
+  select(1,4,14) %>% 
+  distinct(labreads, .keep_all = TRUE)
+medication_labreads
+```
+
+```{r}
+all_groups_hämatokrit_labvalues_medication_count <- medication_labreads %>% 
+  mutate(total_medication = as.factor(total_medication)) %>% 
+  ggplot(aes(x =total_medication, y = labreads))+
+  geom_point()+
+  geom_smooth()+
+  labs(
+    x = "number of medicaments",
+    y = "hämatokrit (%)",
+    title = "All groups_comparison hämatokrit with drug count main- and comedication_all intake times", hjust = 0.5)+
+#  scale_y_continuous(limits = c(0,4000))+
+  theme_classic()+
+  theme(
+    plot.title = element_text(margin = margin(b=10), 
+                              color="black", face="bold", hjust = 0.5),
+    axis.title.x = element_text(face= "bold", size = 15, colour = "black"),
+    axis.text.x = element_text(angle = 45, hjust = 1),
+    axis.title.y = element_text(face = "bold", size = 15, colour = "black"),
+    legend.position = c(0.2,0.9),
+    legend.text = element_text(size = 15, face = "bold"))
+dir.create("plots_labvalues drug count", showWarnings = FALSE)
+svg("plots_labvalues drug count/hämatokrit_all_groups_drug_count_all_intake_times.svg", height = 8, width = 10)
+print(all_groups_hämatokrit_labvalues_medication_count)
+dev.off()
+all_groups_hämatokrit_labvalues_medication_count
+```
+

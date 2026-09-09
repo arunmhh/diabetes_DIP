@@ -218,7 +218,7 @@ age_gender_data
 
 
 ##============
-##BMI data
+## BMI data
 ##============
 
 ```{r}

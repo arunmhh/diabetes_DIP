@@ -1,0 +1,796 @@
+---
+title: "full data"
+output: html_document
+date: "2025-05-15"
+---
+
+
+
+```{r}
+library(dplyr)
+library(stringr)
+```
+
+
+
+```{r}
+ck_full <- bind_rows(
+  ck_long %>% mutate(source = "ck_long"),
+  ck_long_cgt %>% mutate(source = "ck_long_cgt"),
+  ck_long_cgnt %>% mutate(source = "ck_long_cgnt")
+)%>%
+  select(-source)%>%
+  mutate(
+    attribute = str_replace(attribute, 
+                            regex("^ck", ignore_case = TRUE), 
+                            "CK")
+  )
+```
+
+```{r}
+#Code zum Speichern des Datensatzes, damit das Environment nicht überfüllt ist
+
+#save(got_long ,file = "xy.RData")
+
+#load("xy.RData")
+```
+
+
+
+```{r}
+ckmb_full <- bind_rows(
+  ckmb_long %>% mutate(source = "ckmb_long"),
+  ck_mb_long_cgt %>% mutate(source = "ckmb_long_cgt")
+  # ckmb_long_cgnt %>% mutate(source = "ckmb_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^ck mb", ignore_case = TRUE), "CK_MB") %>%
+      str_replace(regex("^ck-mb", ignore_case = TRUE), "CK_MB") %>%
+      str_replace(regex("^ck_mb", ignore_case = TRUE), "CK_MB")
+  )
+```
+
+
+```{r}
+quick_full <- bind_rows(
+  quick_long %>% mutate(source = "quick_long"),
+  quick_long_cgt %>% mutate(source = "quick_long_cgt"),
+  quick_long_cgnt %>% mutate(source = "quick_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^quick", ignore_case = TRUE), "Quick"))
+```
+
+
+```{r}
+inr_full <- bind_rows(
+  inr_long %>% mutate(source = "inr_long"),
+  inr_long_cgt %>% mutate(source = "inr_long_cgt"),
+  inr_long_cgnt %>% mutate(source = "inr_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^inr", ignore_case = TRUE), "INR"))
+```
+
+
+```{r}
+prothrombin_full <- bind_rows(
+  prothrombin_long %>% mutate(source = "prothrombin_long"),
+  prothrombin_long_cgt %>% mutate(source = "prothrombin_long_cgt"),
+  prothrombin_long_cgnt %>% mutate(source = "prothrombin_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^prothrombin", ignore_case = TRUE), "Prothrombin"))
+```
+
+
+```{r}
+ptt_full <- bind_rows(
+  ptt_long %>% mutate(source = "ptt_long"),
+  ptt_long_cgt %>% mutate(source = "ptt_long_cgt"),
+  ptt_long_cgnt %>% mutate(source = "ptt_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^ptt", ignore_case = TRUE), "PTT"))
+```
+
+
+```{r}
+serummyoglobin_full <- bind_rows(
+  serummyoglobin_long %>% mutate(source = "serummyoglobin_long"),
+#  serummyoglobin_long_cgt %>% mutate(source = "serummyoglobin_long_cgt"),
+  serummyoglobin_long_cgnt %>% mutate(source = "serummyoglobin_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^serummyoglobin", ignore_case = TRUE), "Serummyoglobin"))
+```
+
+
+```{r}
+d_dimer_full <- bind_rows(
+  d_dimer_long %>% mutate(source = "d_dimer_long"),
+  d_dimer_long_cgt %>% mutate(source = "d_dimer_long_cgt"),
+#  d_dimer_long_cgnt %>% mutate(source = "d_dimer_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^d_dimer", ignore_case = TRUE), "D_Dimer"))
+```
+
+
+```{r}
+fibrinogen_full <- bind_rows(
+  fibrinogen_long %>% mutate(source = "fibrinogen_long"),
+  fibrinogen_long_cgt %>% mutate(source = "fibrinogen_long_cgt"),
+  fibrinogen_long_cgnt %>% mutate(source = "fibrinogen_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^fibrinogen", ignore_case = TRUE), "Fibrinogen"))
+```
+
+
+```{r}
+leukozyten_full <- bind_rows(
+  leukozyten_long %>% mutate(source = "leukozyten_long"),
+  leukozyten_long_cgt %>% mutate(source = "leukozyten_long_cgt"),
+  leukozyten_long_cgnt %>% mutate(source = "leukozyten_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^leukozyten", ignore_case = TRUE), "Leukozyten"))
+```
+
+
+```{r}
+got_full <- bind_rows(
+  got_long %>% mutate(source = "got_long"),
+  got_long_cgt %>% mutate(source = "got_long_cgt"),
+  got_long_cgnt %>% mutate(source = "got_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^got", ignore_case = TRUE), "GOT"))
+```
+
+
+```{r}
+gpt_full <- bind_rows(
+  gpt_long %>% mutate(source = "gpt_long"),
+  gpt_long_cgt %>% mutate(source = "gpt_long_cgt"),
+  gpt_long_cgnt %>% mutate(source = "gpt_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^gpt", ignore_case = TRUE), "GPT"))
+```
+
+
+```{r}
+ggt_full <- bind_rows(
+  ggt_long %>% mutate(source = "ggt_long"),
+  ggt_long_cgt %>% mutate(source = "ggt_long_cgt"),
+  ggt_long_cgnt %>% mutate(source = "ggt_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^ggt", ignore_case = TRUE), "GGT"))
+```
+
+
+```{r}
+ldh_full <- bind_rows(
+  ldh_long %>% mutate(source = "ldh_long"),
+  ldh_long_cgt %>% mutate(source = "ldh_long_cgt"),
+  ldh_long_cgnt %>% mutate(source = "ldh_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^ldh", ignore_case = TRUE), "LDH"))
+```
+
+
+```{r}
+gldh_full <- bind_rows(
+  gldh_long %>% mutate(source = "gldh_long"),
+  gldh_long_cgt %>% mutate(source = "gldh_long_cgt"),
+  gldh_long_cgnt %>% mutate(source = "gldh_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^gldh", ignore_case = TRUE), "GLDH"))
+```
+
+
+```{r}
+triglyceride_full <- bind_rows(
+  triglyceride_long %>% mutate(source = "triglyceride_long"),
+  triglyceride_long_cgt %>% mutate(source = "triglyceride_long_cgt"),
+  triglyceride_long_cgnt %>% mutate(source = "triglyceride_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^triglyceride", ignore_case = TRUE), "Triglyceride"))
+```
+
+
+```{r}
+cholesterin_full <- bind_rows(
+  cholesterin_long %>% mutate(source = "cholesterin_long"),
+  cholesterin_long_cgt %>% mutate(source = "cholesterin_long_cgt"),
+  cholesterin_long_cgnt %>% mutate(source = "cholesterin_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^cholesterin", ignore_case = TRUE), "Cholesterin"))
+```
+
+
+```{r}
+hdl_full <- bind_rows(
+  hdl_long %>% mutate(source = "hdl_long"),
+  hdl_long_cgt %>% mutate(source = "hdl_long_cgt"),
+  hdl_long_cgnt %>% mutate(source = "hdl_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^hdl", ignore_case = TRUE), "HDL"))
+```
+
+
+```{r}
+ldl_full <- bind_rows(
+  ldl_long %>% mutate(source = "ldl_long"),
+  ldl_long_cgt %>% mutate(source = "ldl_long_cgt"),
+  ldl_long_cgnt %>% mutate(source = "ldl_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^ldl", ignore_case = TRUE), "LDL"))
+```
+
+
+```{r}
+lymphozyten_full <- bind_rows(
+  lymphozyten_long %>% mutate(source = "lymphozyten_long"),
+  lymphozyten_long_cgt %>% mutate(source = "lymphozyten_long_cgt"),
+  lymphozyten_long_cgnt %>% mutate(source = "lymphozyten_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^lymphozyten", ignore_case = TRUE), "Lymphozyten"))
+```
+
+
+```{r}
+hb_full <- bind_rows(
+  hb_long %>% mutate(source = "hb_long"),
+  hb_long_cgt %>% mutate(source = "hb_long_cgt"),
+  hb_long_cgnt %>% mutate(source = "hb_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^hb", ignore_case = TRUE), "HB"))
+```
+
+
+```{r}
+total_bilirubin_full <- bind_rows(
+  total_bilirubin_long %>% mutate(source = "total_bilirubin_long"),
+  total_bilirubin_long_cgt %>% mutate(source = "total_bilirubin_long_cgt"),
+  total_bilirubin_long_cgnt %>% mutate(source = "total_bilirubin_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^total_bilirubin", ignore_case = TRUE), "TotalBilirubin"))
+```
+
+
+```{r}
+direct_bilirubin_full <- bind_rows(
+  direct_bilirubin_long %>% mutate(source = "direct_bilirubin_long"),
+  direct_bilirubin_long_cgt %>% mutate(source = "direct_bilirubin_long_cgt"),
+  direct_bilirubin_long_cgnt %>% mutate(source = "direct_bilirubin_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^direct_bilirubin", ignore_case = TRUE), "Direct_Bilirubin"))
+```
+
+
+```{r}
+gesamteiweiß_full <- bind_rows(
+  gesamteiweiß_long %>% mutate(source = "gesamteiweiß_long"),
+  gesamteiweiß_long_cgt %>% mutate(source = "gesamteiweiß_long_cgt"),
+  gesamteiweiß_long_cgnt %>% mutate(source = "gesamteiweiß_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^gesamteiweiß", ignore_case = TRUE), "Gesamteiweiß"))
+```
+
+
+```{r}
+ap_full <- bind_rows(
+  ap_long %>% mutate(source = "ap_long"),
+  ap_long_cgt %>% mutate(source = "ap_long_cgt"),
+  ap_long_cgnt %>% mutate(source = "ap_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^ap", ignore_case = TRUE), "AP"))
+```
+
+
+```{r}
+cholinesterase_full <- bind_rows(
+  cholinesterase_long %>% mutate(source = "cholinesterase_long"),
+  cholinesterase_long_cgt %>% mutate(source = "cholinesterase_long_cgt"),
+  cholinesterase_long_cgnt %>% mutate(source = "cholinesterase_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^cholinesterase", ignore_case = TRUE), "Cholinesterase"))
+```
+
+
+```{r}
+kreatinin_full <- bind_rows(
+  kreatinin_long %>% mutate(source = "kreatinin_long"),
+  kreatinin_long_cgt %>% mutate(source = "kreatinin_long_cgt"),
+  kreatinin_long_cgnt %>% mutate(source = "kreatinin_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^kreatinin", ignore_case = TRUE), "Kreatinin"))
+```
+
+
+```{r}
+amylase_full <- bind_rows(
+  amylase_long %>% mutate(source = "amylase_long"),
+  amylase_long_cgt %>% mutate(source = "amylase_long_cgt"),
+  amylase_long_cgnt %>% mutate(source = "amylase_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^amylase", ignore_case = TRUE), "Amylase"))
+```
+
+
+```{r}
+lipase_full <- bind_rows(
+  lipase_long %>% mutate(source = "lipase_long"),
+  lipase_long_cgt %>% mutate(source = "lipase_long_cgt"),
+  lipase_long_cgnt %>% mutate(source = "lipase_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^lipase", ignore_case = TRUE), "Lipase"))
+```
+
+
+```{r}
+crp_full <- bind_rows(
+  crp_long %>% mutate(source = "crp_long"),
+  crp_long_cgt %>% mutate(source = "crp_long_cgt"),
+  crp_long_cgnt %>% mutate(source = "crp_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^crp", ignore_case = TRUE), "CRP"))
+```
+
+
+```{r}
+#harnstoff_full <- harnstoff_long
+ 
+```
+
+```{r}
+harnstoff_full <- bind_rows(
+  harnstoff_long %>% mutate(source = "harnstoff_long"),
+  harnstoff_long_cgt %>% mutate(source = "harnstoff_long_cgt"),
+  harnstoff_long_cgnt %>% mutate(source = "harnstoff_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^harnstoff", ignore_case = TRUE), "Harnstoff"))
+```
+
+
+```{r}
+harnsäure_full <- bind_rows(
+  harnsäure_long %>% mutate(source = "harnsäure_long"),
+  harnsäure_long_cgt %>% mutate(source = "harnsäure_long_cgt"),
+  harnsäure_long_cgnt %>% mutate(source = "harnsäure_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^harnsäure", ignore_case = TRUE), "Harnsäure"))
+```
+
+
+```{r}
+erythrozyten_full <- bind_rows(
+  erythrozyten_long %>% mutate(source = "erythrozyten_long"),
+  erythrozyten_long_cgt %>% mutate(source = "erythrozyten_long_cgt"),
+  erythrozyten_long_cgnt %>% mutate(source = "erythrozyten_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^erythrozyten", ignore_case = TRUE), "Erythrozyten"))
+```
+
+
+```{r}
+thrombozyten_full <- bind_rows(
+  thrombozyten_long %>% mutate(source = "thrombozyten_long"),
+  thrombozyten_long_cgt %>% mutate(source = "thrombozyten_long_cgt"),
+  thrombozyten_long_cgnt %>% mutate(source = "thrombozyten_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^thrombozyten", ignore_case = TRUE), "Thrombozyten"))
+```
+
+
+```{r}
+haptoglobin_full <- bind_rows(
+  haptoglobin_long %>% mutate(source = "haptoglobin_long"),
+  haptoglobin_long_cgt %>% mutate(source = "haptoglobin_long_cgt"),
+  haptoglobin_long_cgnt %>% mutate(source = "haptoglobin_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^haptoglobin", ignore_case = TRUE), "Haptoglobin"))
+```
+
+
+```{r}
+monozyten_full <- bind_rows(
+  monozyten_long %>% mutate(source = "monozyten_long"),
+  monozyten_long_cgt %>% mutate(source = "monozyten_long_cgt"),
+  monozyten_long_cgnt %>% mutate(source = "monozyten_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^monozyten", ignore_case = TRUE), "Monozyten"))
+```
+
+
+```{r}
+eosinophile_full <- bind_rows(
+  eosinophile_long %>% mutate(source = "eosinophile_long"),
+  eosinophile_long_cgt %>% mutate(source = "eosinophile_long_cgt"),
+  eosinophile_long_cgnt %>% mutate(source = "eosinophile_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^eosinophile", ignore_case = TRUE), "Eosinophile"))
+```
+
+
+```{r}
+neutrophile_full <- bind_rows(
+  neutrophile_long %>% mutate(source = "neutrophile_long"),
+  neutrophile_long_cgt %>% mutate(source = "neutrophile_long_cgt"),
+  neutrophile_long_cgnt %>% mutate(source = "neutrophile_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^neutrophile", ignore_case = TRUE), "Neutrophile"))
+```
+
+
+```{r}
+segmentkernige_full <- bind_rows(
+  segmentkernige_long %>% mutate(source = "segmentkernige_long"),
+#  segmentkernige_long_cgt %>% mutate(source = "segmentkernige_long_cgt"),
+  segmentkernige_long_cgnt %>% mutate(source = "segmentkernige_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^segmentkernige", ignore_case = TRUE), "Segmentkernige"))
+```
+
+
+```{r}
+basophile_full <- bind_rows(
+  basophile_long %>% mutate(source = "basophile_long"),
+  basophile_long_cgt %>% mutate(source = "basophile_long_cgt"),
+  basophile_long_cgnt %>% mutate(source = "basophile_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^basophile", ignore_case = TRUE), "Basophile"))
+```
+
+
+```{r}
+albumin_full <- bind_rows(
+  albumin_long %>% mutate(source = "albumin_long"),
+  albumin_long_cgt %>% mutate(source = "albumin_long_cgt"),
+  albumin_long_cgnt %>% mutate(source = "albumin_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^albumin", ignore_case = TRUE), "Albumin"))
+```
+
+
+```{r}
+hämatokrit_full <- bind_rows(
+  hämatokrit_long %>% mutate(source = "hämatokrit_long"),
+  hämatokrit_long_cgt %>% mutate(source = "hämatokrit_long_cgt"),
+  hämatokrit_long_cgnt %>% mutate(source = "hämatokrit_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^hämatokrit", ignore_case = TRUE), "Hämatokrit"))
+```
+
+
+```{r}
+mcv_full <- bind_rows(
+  mcv_long %>% mutate(source = "mcv_long"),
+  mcv_long_cgt %>% mutate(source = "mcv_long_cgt"),
+  mcv_long_cgnt %>% mutate(source = "mcv_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^mcv", ignore_case = TRUE), "MCV"))
+```
+
+
+```{r}
+mch_full <- bind_rows(
+  mch_long %>% mutate(source = "mch_long"),
+  mch_long_cgt %>% mutate(source = "mch_long_cgt"),
+  mch_long_cgnt %>% mutate(source = "mch_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^mch", ignore_case = TRUE), "MCH"))
+```
+
+
+```{r}
+mchc_full <- bind_rows(
+  mchc_long %>% mutate(source = "mchc_long"),
+  mchc_long_cgt %>% mutate(source = "mchc_long_cgt"),
+  mchc_long_cgnt %>% mutate(source = "mchc_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^mchc", ignore_case = TRUE), "MCHC"))
+```
+
+
+```{r}
+#natrium_full <- natrium_long
+  
+```
+
+```{r}
+natrium_full <- bind_rows(
+  natrium_long %>% mutate(source = "natrium_long"),
+  natrium_long_cgt %>% mutate(source = "natrium_long_cgt"),
+  natrium_long_cgnt %>% mutate(source = "natrium_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^natrium", ignore_case = TRUE), "Natrium"))
+```
+
+
+```{r}
+kalium_full <- bind_rows(
+  kalium_long %>% mutate(source = "kalium_long"),
+  kalium_long_cgt %>% mutate(source = "kalium_long_cgt"),
+  kalium_long_cgnt %>% mutate(source = "kalium_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^kalium", ignore_case = TRUE), "Kalium"))
+```
+
+
+```{r}
+#kalzium_full <- kalzium_long
+ 
+```
+
+```{r}
+kalzium_full <- bind_rows(
+  kalzium_long %>% mutate(source = "kalzium_long"),
+  kalzium_long_cgt %>% mutate(source = "kalzium_long_cgt"),
+  kalzium_long_cgnt %>% mutate(source = "kalzium_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^kalzium", ignore_case = TRUE), "Kalzium"))
+```
+
+
+```{r}
+magnesium_full <- bind_rows(
+  magnesium_long %>% mutate(source = "magnesium_long"),
+  magnesium_long_cgt %>% mutate(source = "magnesium_long_cgt"),
+  magnesium_long_cgnt %>% mutate(source = "magnesium_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^magnesium", ignore_case = TRUE), "Magnesium"))
+```
+
+
+```{r}
+chlorid_full <- bind_rows(
+  chlorid_long %>% mutate(source = "chlorid_long"),
+  chlorid_long_cgt %>% mutate(source = "chlorid_long_cgt"),
+  chlorid_long_cgnt %>% mutate(source = "chlorid_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^chlorid", ignore_case = TRUE), "Chlorid"))
+```
+
+
+```{r}
+serum_eisen_full <- bind_rows(
+  serum_eisen_long %>% mutate(source = "serum_eisen_long"),
+  serum_eisen_long_cgt %>% mutate(source = "serum_eisen_long_cgt"),
+  serum_eisen_long_cgnt %>% mutate(source = "serum_eisen_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^serum-eisen", ignore_case = TRUE), "Serum_Eisen"))
+```
+
+
+```{r}
+ferritin_full <- bind_rows(
+  ferritin_long %>% mutate(source = "ferritin_long"),
+  ferritin_long_cgt %>% mutate(source = "ferritin_long_cgt"),
+  ferritin_long_cgnt %>% mutate(source = "ferritin_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^ferritin", ignore_case = TRUE), "Ferritin"))
+```
+
+
+```{r}
+glucose_full <- bind_rows(
+  glucose_long %>% mutate(source = "glucose_long"),
+  glucose_long_cgt %>% mutate(source = "glucose_long_cgt"),
+  glucose_long_cgnt %>% mutate(source = "glucose_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^glucose", ignore_case = TRUE), "Glucose"))
+```
+
+
+```{r}
+ammoniak_full <- bind_rows(
+  ammoniak_long %>% mutate(source = "ammoniak_long"),
+  ammoniak_long_cgt %>% mutate(source = "ammoniak_long_cgt"),
+  ammoniak_long_cgnt %>% mutate(source = "ammoniak_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^ammoniak", ignore_case = TRUE), "Ammoniak"))
+```
+
+
+```{r}
+lactat_full <- bind_rows(
+  lactat_long %>% mutate(source = "lactat_long"),
+  lactat_long_cgt %>% mutate(source = "lactat_long_cgt"),
+  lactat_long_cgnt %>% mutate(source = "lactat_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^lactat", ignore_case = TRUE), "Lactat"))
+```
+
+
+```{r}
+phosphat_full <- bind_rows(
+  phosphat_long %>% mutate(source = "phosphat_long"),
+  phosphat_long_cgt %>% mutate(source = "phosphat_long_cgt"),
+  phosphat_long_cgnt %>% mutate(source = "phosphat_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^phosphat", ignore_case = TRUE), "Phosphat"))
+```
+
+
+```{r}
+gfr_full <- bind_rows(
+  gfr_long %>% mutate(source = "gfr_long"),
+  gfr_long_cgt %>% mutate(source = "gfr_long_cgt"),
+  gfr_long_cgnt %>% mutate(source = "gfr_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^gfr", ignore_case = TRUE), "GFR"))
+```
+
+
+```{r}
+bsg_full <- bind_rows(
+  bsg_long %>% mutate(source = "bsg_long"),
+  bsg_long_cgt %>% mutate(source = "bsg_long_cgt"),
+#  bsg_long_cgnt %>% mutate(source = "bsg_long_cgnt")
+) %>%
+  select(-source) %>%
+  mutate(
+    attribute = attribute %>%
+      str_replace(regex("^bsg", ignore_case = TRUE), "BSG"))
+```

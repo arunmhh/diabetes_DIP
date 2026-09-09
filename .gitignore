@@ -1,13 +1,86 @@
-# Ignore local environment history and project cache
-echo ".Rhistory" >> .gitignore
-echo ".RData" >> .gitignore
-echo ".Rproj.user/" >> .gitignore
+# =========================
+# Data
+# =========================
+*.csv
+old_data/
+processed_data/
 
-# Ignore renv package library (keep renv.lock and activate.R)
-echo "renv/library/" >> .gitignore
-echo "renv/local/" >> .gitignore
+# =========================
+# Generated output
+# =========================
+output/
 
-# Protect patient-level/clinical raw and processed data
-echo "Rawdata/" >> .gitignore
-echo "processed_data/" >> .gitignore
-echo "old_data/" >> .gitignore
+# =========================
+# Figures
+# =========================
+*.png
+*.jpg
+*.jpeg
+
+# =========================
+# Archives
+# =========================
+*.gz
+*.zip
+*.tar
+*.rar
+
+# =========================
+# Temporary / backup files
+# =========================
+*~
+*~$*
+*.tmp
+*.bak
+*.backup
+*.swp
+*.swo
+*.swn
+
+# =========================
+# Operating system
+# =========================
+.DS_Store
+Thumbs.db
+
+# =========================
+# Logs
+# =========================
+*.log
+
+# =========================
+# R / RStudio
+# =========================
+.Rhistory
+.RData
+.Rproj.user/
+
+# =========================
+# renv
+# =========================
+renv/library/
+renv/staging/
+renv/.cache/
+
+# =========================
+# LaTeX auxiliary files
+# =========================
+*.aux
+*.out
+*.toc
+*.synctex.gz
+*.fls
+*.fdb_latexmk
+*.blg
+*.bbl
+*.nav
+*.snm
+*.vrb
+*.lof
+*.lot
+
+# =========================
+# Project-specific directories
+# =========================
+Script/
+Renv/

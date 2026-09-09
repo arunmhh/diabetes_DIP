@@ -1,0 +1,2196 @@
+---
+title: "Untitled"
+output: html_document
+date: "2026-04-18"
+---
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+library(ggplot2)
+library(ggpubr)
+library(stringr)
+library(car)
+```
+
+
+```{r}
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/co-medication")
+
+comedicationdata <- read_csv("comedication_full_data.csv")
+comedicationdata2 <- comedicationdata %>% 
+  dplyr::rename( "Edited_BfArM Nummer2" = "bfarm_nummer",
+                 "Attribut"   = "treatment",
+                  "Treatment" = "Medication",
+                 "Parameter" = "labreads",
+                 "Kathegorie" = "kathegorie",
+                 "Drug_Group" = "drug_group") %>% 
+  dplyr::select(1,3,5,6,2,4)
+
+comedicationdata2
+```
+
+
+### Monotreatment data ###########################################################
+
+```{r}
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/comp dose_labvalues")
+
+dose_data <- read_excel("Dose table_assumed_full.xlsx", sheet = 2)  
+
+dose_data
+```
+
+```{r}
+monotreat_unfinished <- anti_join(dose_data,comedicationdata2, by = "Edited_BfArM Nummer2")
+monotreat_unfinished
+```
+
+```{r}
+# Erzeuge eine neue Tabelle mit den kombinierten Medikamenten pro Patient
+med_summary <- dose_data %>%
+  filter(Kathegorie != "Cummulative Dosis")%>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(multi_med = paste(sort(unique(Treatment)), collapse = "+"), .groups = "drop")
+
+# Füge diese Info wieder an den Originaldatensatz an
+dose_data_multi <- dose_data %>%
+  left_join(med_summary, by = "Edited_BfArM Nummer2")
+dose_data_multi
+```
+
+```{r}
+mainmed_multi <- dose_data_multi %>% 
+  filter(multi_med %in% c("Diclofenac+Paracetamol",
+                          "Diclofenac+Ibuprofen",
+                          "Ibuprofen+Paracetamol",
+                          "Diclofenac+Ibuprofen+Paracetamol"))%>% 
+  distinct(`Edited_BfArM Nummer2`)
+
+mainmed_multi
+```
+
+
+```{r}
+patientid_monotreat <- monotreat_unfinished %>%
+  anti_join(mainmed_multi, by = "Edited_BfArM Nummer2") %>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  filter(Kathegorie != "Cummulative Dosis") %>%
+  summarise(Treatment = first(Treatment), .groups = "drop") %>%
+  rename(Medication = Treatment)
+patientid_monotreat
+```
+
+
+
+### gpt ###
+
+```{r}
+gpt_monotreat <- left_join(patientid_monotreat, gpt_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+gpt_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- gpt_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = gpt_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_gpt_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "GPT (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_gpt_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(gpt_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_gpt_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_gpt_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_gpt_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+```{r}
+gpt_monotreat_peak <- gpt_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_gpt_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = gpt_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_gpt_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-GPT (U/L)",
+  messages = FALSE
+)
+
+all_groups_gpt_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_gpt_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_gpt_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### got ###
+
+```{r}
+got_monotreat <- left_join(patientid_monotreat, got_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+got_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- got_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = got_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_got_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "got (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_got_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(got_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_got_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_got_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_got_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### got peak ###
+```{r}
+got_monotreat_peak <- got_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_got_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = got_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_got_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-got (U/L)",
+  messages = FALSE
+)
+
+all_groups_got_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_got_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_got_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### ggt ###
+
+```{r}
+ggt_monotreat <- left_join(patientid_monotreat, ggt_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+ggt_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- ggt_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ggt_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_ggt_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "ggt (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_ggt_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(ggt_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_ggt_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_ggt_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_ggt_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### ggt peak ###
+```{r}
+ggt_monotreat_peak <- ggt_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_ggt_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = ggt_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_ggt_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-ggt (U/L)",
+  messages = FALSE
+)
+
+all_groups_ggt_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_ggt_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_ggt_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### ldh ###
+
+```{r}
+ldh_monotreat <- left_join(patientid_monotreat, ldh_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+ldh_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- ldh_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ldh_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_ldh_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "ldh (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_ldh_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(ldh_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_ldh_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_ldh_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_ldh_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### ldh peak ###
+```{r}
+ldh_monotreat_peak <- ldh_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_ldh_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = ldh_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_ldh_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-ldh (U/L)",
+  messages = FALSE
+)
+
+all_groups_ldh_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_ldh_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_ldh_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### ap ###
+
+```{r}
+ap_monotreat <- left_join(patientid_monotreat, ap_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+ap_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- ap_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ap_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_ap_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "ap (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_ap_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(ap_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_ap_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_ap_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_ap_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### ap peak ###
+```{r}
+ap_monotreat_peak <- ap_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_ap_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = ap_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_ap_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-ap (U/L)",
+  messages = FALSE
+)
+
+all_groups_ap_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_ap_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_ap_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### ck ###
+
+```{r}
+ck_monotreat <- left_join(patientid_monotreat, ck_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+ck_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- ck_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ck_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_ck_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "ck (U/L)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_ck_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(ck_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_ck_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_ck_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_ck_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### ck peak ###
+```{r}
+ck_monotreat_peak <- ck_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_ck_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = ck_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_ck_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-ck (U/L)",
+  messages = FALSE
+)
+
+all_groups_ck_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_ck_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_ck_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### quick ###
+
+```{r}
+quick_monotreat <- left_join(patientid_monotreat, quick_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+quick_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- quick_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = quick_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_quick_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "quick (%)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_quick_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(quick_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_quick_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_quick_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_quick_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### quick peak ###
+```{r}
+quick_monotreat_peak <- quick_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_quick_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = quick_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_quick_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-quick (%)",
+  messages = FALSE
+)
+
+all_groups_quick_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_quick_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_quick_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### hämatokrit ###
+
+```{r}
+hämatokrit_monotreat <- left_join(patientid_monotreat, hämatokrit_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+hämatokrit_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- hämatokrit_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = hämatokrit_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_hämatokrit_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "hämatokrit (%)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_hämatokrit_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(hämatokrit_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_hämatokrit_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_hämatokrit_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_hämatokrit_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### hämatokrit peak ###
+```{r}
+hämatokrit_monotreat_peak <- hämatokrit_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_hämatokrit_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = hämatokrit_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_hämatokrit_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-hämatokrit (%)",
+  messages = FALSE
+)
+
+all_groups_hämatokrit_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_hämatokrit_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_hämatokrit_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### ptt ###
+
+```{r}
+ptt_monotreat <- left_join(patientid_monotreat, ptt_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+ptt_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- ptt_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ptt_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_ptt_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "ptt (Sec.)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_ptt_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(ptt_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_ptt_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_ptt_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_ptt_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### ptt peak ###
+```{r}
+ptt_monotreat_peak <- ptt_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_ptt_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = ptt_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_ptt_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-ptt (Sec.)",
+  messages = FALSE
+)
+
+all_groups_ptt_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_ptt_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_ptt_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### leukozyten ###
+
+```{r}
+leukozyten_monotreat <- left_join(patientid_monotreat, leukozyten_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+leukozyten_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- leukozyten_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leukozyten_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_leukozyten_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "leukozyten (cells/ul)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_leukozyten_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(leukozyten_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_leukozyten_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_leukozyten_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_leukozyten_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### leukozyten peak ###
+```{r}
+leukozyten_monotreat_peak <- leukozyten_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_leukozyten_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = leukozyten_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_leukozyten_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-leukozyten (cells/ul)",
+  messages = FALSE
+)
+
+all_groups_leukozyten_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_leukozyten_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_leukozyten_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### erythrozyten ###
+
+```{r}
+erythrozyten_monotreat <- left_join(patientid_monotreat, erythrozyten_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+erythrozyten_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- erythrozyten_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = erythrozyten_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_erythrozyten_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "erythrozyten (cells/ul)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_erythrozyten_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(erythrozyten_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_erythrozyten_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_erythrozyten_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_erythrozyten_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### erythrozyten peak ###
+```{r}
+erythrozyten_monotreat_peak <- erythrozyten_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_erythrozyten_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = erythrozyten_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_erythrozyten_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-erythrozyten (cells/ul)",
+  messages = FALSE
+)
+
+all_groups_erythrozyten_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_erythrozyten_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_erythrozyten_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### thrombozyten ###
+
+```{r}
+thrombozyten_monotreat <- left_join(patientid_monotreat, thrombozyten_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+thrombozyten_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- thrombozyten_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = thrombozyten_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_thrombozyten_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "thrombozyten (cells/ul)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_thrombozyten_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(thrombozyten_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_thrombozyten_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_thrombozyten_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_thrombozyten_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### thrombozyten peak ###
+```{r}
+thrombozyten_monotreat_peak <- thrombozyten_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_thrombozyten_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = thrombozyten_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_thrombozyten_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-thrombozyten (cells/ul)",
+  messages = FALSE
+)
+
+all_groups_thrombozyten_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_thrombozyten_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_thrombozyten_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### hb ###
+
+```{r}
+hb_monotreat <- left_join(patientid_monotreat, hb_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+hb_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- hb_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = hb_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_hb_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "hb (g/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_hb_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(hb_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_hb_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_hb_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_hb_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### hb peak ###
+```{r}
+hb_monotreat_peak <- hb_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_hb_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = hb_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_hb_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-hb (g/dl)",
+  messages = FALSE
+)
+
+all_groups_hb_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_hb_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_hb_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### gesamteiweiß ###
+
+```{r}
+gesamteiweiß_monotreat <- left_join(patientid_monotreat, gesamteiweiß_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+gesamteiweiß_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- gesamteiweiß_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = gesamteiweiß_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_gesamteiweiß_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "gesamteiweiß (g/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_gesamteiweiß_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(gesamteiweiß_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_gesamteiweiß_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_gesamteiweiß_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_gesamteiweiß_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### gesamteiweiß peak ###
+```{r}
+gesamteiweiß_monotreat_peak <- gesamteiweiß_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_gesamteiweiß_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = gesamteiweiß_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_gesamteiweiß_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-gesamteiweiß (g/dl)",
+  messages = FALSE
+)
+
+all_groups_gesamteiweiß_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_gesamteiweiß_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_gesamteiweiß_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### total_bilirubin ###
+
+```{r}
+total_bilirubin_monotreat <- left_join(patientid_monotreat, total_bilirubin_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+total_bilirubin_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- total_bilirubin_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = total_bilirubin_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_total_bilirubin_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "total_bilirubin (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_total_bilirubin_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(total_bilirubin_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_total_bilirubin_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_total_bilirubin_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_total_bilirubin_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### total_bilirubin peak ###
+```{r}
+total_bilirubin_monotreat_peak <- total_bilirubin_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_total_bilirubin_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = total_bilirubin_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_total_bilirubin_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-total_bilirubin (mg/dl)",
+  messages = FALSE
+)
+
+all_groups_total_bilirubin_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_total_bilirubin_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_total_bilirubin_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### direct_bilirubin ###
+
+```{r}
+direct_bilirubin_monotreat <- left_join(patientid_monotreat, direct_bilirubin_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+direct_bilirubin_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- direct_bilirubin_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = direct_bilirubin_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_direct_bilirubin_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "direct_bilirubin (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_direct_bilirubin_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(direct_bilirubin_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_direct_bilirubin_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_direct_bilirubin_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_direct_bilirubin_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### direct_bilirubin peak ###
+```{r}
+direct_bilirubin_monotreat_peak <- direct_bilirubin_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_direct_bilirubin_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = direct_bilirubin_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_direct_bilirubin_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-direct_bilirubin (mg/dl)",
+  messages = FALSE
+)
+
+all_groups_direct_bilirubin_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_direct_bilirubin_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_direct_bilirubin_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### kreatinin ###
+
+```{r}
+kreatinin_monotreat <- left_join(patientid_monotreat, kreatinin_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+kreatinin_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- kreatinin_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = kreatinin_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_kreatinin_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "kreatinin (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_kreatinin_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(kreatinin_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_kreatinin_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_kreatinin_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_kreatinin_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### kreatinin peak ###
+```{r}
+kreatinin_monotreat_peak <- kreatinin_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_kreatinin_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = kreatinin_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_kreatinin_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-kreatinin (mg/dl)",
+  messages = FALSE
+)
+
+all_groups_kreatinin_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_kreatinin_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_kreatinin_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### harnstoff ###
+
+```{r}
+harnstoff_monotreat <- left_join(patientid_monotreat, harnstoff_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+harnstoff_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- harnstoff_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = harnstoff_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_harnstoff_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "harnstoff (mg/dl)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_harnstoff_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(harnstoff_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_harnstoff_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_harnstoff_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_harnstoff_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### harnstoff peak ###
+```{r}
+harnstoff_monotreat_peak <- harnstoff_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_harnstoff_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = harnstoff_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_harnstoff_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-harnstoff (mg/dl)",
+  messages = FALSE
+)
+
+all_groups_harnstoff_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_harnstoff_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_harnstoff_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### crp ###
+
+```{r}
+crp_monotreat <- left_join(patientid_monotreat, crp_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+crp_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- crp_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = crp_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_crp_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "crp (mg/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_crp_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(crp_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_crp_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_crp_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_crp_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### crp peak ###
+```{r}
+crp_monotreat_peak <- crp_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_crp_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = crp_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_crp_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-crp (mg/l)",
+  messages = FALSE
+)
+
+all_groups_crp_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_crp_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_crp_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### natrium ###
+
+```{r}
+natrium_monotreat <- left_join(patientid_monotreat, natrium_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+natrium_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- natrium_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = natrium_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_natrium_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "natrium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_natrium_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(natrium_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_natrium_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_natrium_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_natrium_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### natrium peak ###
+```{r}
+natrium_monotreat_peak <- natrium_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_natrium_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = natrium_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_natrium_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-natrium (mmol/l)",
+  messages = FALSE
+)
+
+all_groups_natrium_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_natrium_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_natrium_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### kalium ###
+
+```{r}
+kalium_monotreat <- left_join(patientid_monotreat, kalium_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+kalium_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- kalium_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = kalium_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_kalium_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "kalium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_kalium_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(kalium_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_kalium_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_kalium_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_kalium_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### kalium peak ###
+```{r}
+kalium_monotreat_peak <- kalium_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_kalium_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = kalium_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_kalium_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-kalium (mmol/l)",
+  messages = FALSE
+)
+
+all_groups_kalium_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_kalium_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_kalium_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### kalzium ###
+
+```{r}
+kalzium_monotreat <- left_join(patientid_monotreat, kalzium_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+kalzium_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- kalzium_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = kalzium_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_kalzium_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "kalzium (mmol/l)",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_kalzium_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(kalzium_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_kalzium_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_kalzium_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_kalzium_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### kalzium peak ###
+```{r}
+kalzium_monotreat_peak <- kalzium_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_kalzium_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = kalzium_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_kalzium_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-kalzium (mmol/l)",
+  messages = FALSE
+)
+
+all_groups_kalzium_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_kalzium_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_kalzium_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+### inr ###
+
+```{r}
+inr_monotreat <- left_join(patientid_monotreat, inr_full, c = "Edited_BfArM Nummer2") %>% 
+  drop_na(labreads) %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) 
+inr_monotreat
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Medication-Gruppe berechnen
+n_patients <- inr_monotreat %>%
+  distinct(`Edited_BfArM Nummer2`, Medication) %>%  # nur einzigartige Patienten
+  count(Medication, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = inr_monotreat,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_inr_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "inr",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+all_groups_inr_nsaid_monotreat_comparison <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = Medication, 
+        y = max(inr_monotreat$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+all_groups_inr_nsaid_monotreat_comparison
+dir.create("plots monotreat", showWarnings = FALSE)
+svg("plots monotreat/all groups_inr_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_inr_nsaid_monotreat_comparison)
+dev.off()
+```
+
+### inr peak ###
+```{r}
+inr_monotreat_peak <- inr_monotreat %>% 
+  drop_na() %>% 
+  group_by(Medication) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+```
+
+
+```{r}
+all_groups_inr_peak_nsaid_monotreat_comparison <- ggbetweenstats(
+  data = inr_monotreat_peak,
+  x = "Medication",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_inr_peak_nsaid monotreat comparison",
+  xlab = "Patient group",
+  ylab = "Peak-inr",
+  messages = FALSE
+)
+
+all_groups_inr_peak_nsaid_monotreat_comparison
+dir.create("plots monotreat/plots peak", showWarnings = FALSE)
+svg("plots monotreat/plots peak/all groups_inr_peak_nsaid monotreat comparison.svg", height = 6, width = 8)
+print(all_groups_inr_peak_nsaid_monotreat_comparison)
+dev.off()
+```
+
+
+
+
+### normality, variance, levene, welch summary ###
+```{r}
+while (sink.number() > 0) sink()
+
+files <- list(
+  gpt_monotreat = gpt_monotreat,
+  got_monotreat = got_monotreat,
+  ggt_monotreat = ggt_monotreat,
+  ap_monotreat = ap_monotreat,
+  total_bilirubin_monotreat = total_bilirubin_monotreat,
+  direct_bilirubin_monotreat = direct_bilirubin_monotreat,
+  ldh_monotreat = ldh_monotreat,
+  ck_monotreat = ck_monotreat,
+  quick_monotreat = quick_monotreat,
+  inr_monotreat = inr_monotreat,
+  ptt_monotreat = ptt_monotreat,
+  leukozyten_monotreat = leukozyten_monotreat,
+  erythrozyten_monotreat = erythrozyten_monotreat,
+  thrombozyten_monotreat = thrombozyten_monotreat,
+  hb_monotreat = hb_monotreat,
+  hämatokrit_monotreat = hämatokrit_monotreat,
+  gesamteiweiß_monotreat = gesamteiweiß_monotreat,
+  crp_monotreat = crp_monotreat,
+  kreatinin_monotreat = kreatinin_monotreat,
+  harnstoff_monotreat = harnstoff_monotreat,
+  natrium_monotreat = natrium_monotreat,
+  kalium_monotreat = kalium_monotreat,
+  kalzium_monotreat = kalzium_monotreat
+)
+
+sink("plots monotreat/results normality, variance, levene, welch.txt")
+
+for (name in names(files)) {
+  
+  data <- files[[name]]
+  
+  cat("\n============================\n")
+  cat("Datensatz:", name, "\n")
+  cat("============================\n\n")
+  
+  var <- "labreads"
+  formula <- as.formula(paste(var, "~ Medication"))
+  
+  cat("Normality Test (Shapiro-Wilk, abgesichert):\n")
+  
+  norm_res <- by(data[[var]], data$Medication, function(x) {
+    if (length(x) >= 3) {
+      shapiro.test(x)
+    } else {
+      list(W = NA, p.value = NA)
+    }
+  })
+  
+  print(norm_res)
+  
+  cat("\nVarianz pro Gruppe:\n")
+  print(tapply(data[[var]], data$Medication, FUN = stats::var))
+  
+  cat("\nLevene-Test:\n")
+  print(leveneTest(formula, data = data))
+  
+  # Filtere Gruppen mit weniger als 3 Beobachtungen aus
+  group_sizes <- table(data$Medication)
+  valid_groups <- names(group_sizes[group_sizes >= 3])
+  
+  # Wenn weniger als 2 Gruppen übrig sind, überspringe den Welch-Test
+  if (length(valid_groups) < 2) {
+    cat("\nWelch ANOVA konnte aufgrund zu wenig Gruppen nicht durchgeführt werden.\n")
+  } else {
+    filtered_data <- data[data$Medication %in% valid_groups, ]
+    cat("\nWelch ANOVA:\n")
+    print(oneway.test(formula, data = filtered_data))
+  }
+}
+
+sink()
+while (sink.number() > 0) sink()
+```
+
+
+### Kruskal-Wallis-Test summary ###
+```{r}
+while (sink.number() > 0) sink()
+files <- list(
+  gpt_monotreat = gpt_monotreat,
+  got_monotreat = got_monotreat,
+  ggt_monotreat = ggt_monotreat,
+  ap_monotreat = ap_monotreat,
+  total_bilirubin_monotreat = total_bilirubin_monotreat,
+  direct_bilirubin_monotreat = direct_bilirubin_monotreat,
+  ldh_monotreat = ldh_monotreat,
+  ck_monotreat = ck_monotreat,
+  quick_monotreat = quick_monotreat,
+  inr_monotreat = inr_monotreat,
+  ptt_monotreat = ptt_monotreat,
+  leukozyten_monotreat = leukozyten_monotreat,
+  erythrozyten_monotreat = erythrozyten_monotreat,
+  thrombozyten_monotreat = thrombozyten_monotreat,
+  hb_monotreat = hb_monotreat,
+  hämatokrit_monotreat = hämatokrit_monotreat,
+  gesamteiweiß_monotreat = gesamteiweiß_monotreat,
+  crp_monotreat = crp_monotreat,
+  kreatinin_monotreat = kreatinin_monotreat,
+  harnstoff_monotreat = harnstoff_monotreat,
+  natrium_monotreat = natrium_monotreat,
+  kalium_monotreat = kalium_monotreat,
+  kalzium_monotreat = kalzium_monotreat
+)
+
+results <- data.frame()
+
+for (name in names(files)) {
+  
+  data <- files[[name]]
+  
+  var <- "labreads"
+  formula <- as.formula(paste(var, "~ Medication"))
+  
+  kw <- kruskal.test(formula, data = data)
+  
+  results <- rbind(
+    results,
+    data.frame(
+      Dataset = name,
+      Variable = var,
+      Chi2 = unname(kw$statistic),
+      df = unname(kw$parameter),
+      p_value = kw$p.value
+    )
+  )
+}
+
+results
+setwd("plots monotreat/")
+write.table(results,
+            file = "kruskal_results.txt",
+            sep = "\t",
+            row.names = FALSE,
+            quote = FALSE)
+while (sink.number() > 0) sink()
+```
+
+
+### peak - normality, variance, levene, welch summary ###
+```{r}
+while (sink.number() > 0) sink()
+
+files <- list(
+  gpt_monotreat_peak = gpt_monotreat_peak,
+  got_monotreat_peak = got_monotreat_peak,
+  ggt_monotreat_peak = ggt_monotreat_peak,
+  ap_monotreat_peak = ap_monotreat_peak,
+  total_bilirubin_monotreat_peak = total_bilirubin_monotreat_peak,
+  direct_bilirubin_monotreat_peak = direct_bilirubin_monotreat_peak,
+  ldh_monotreat_peak = ldh_monotreat_peak,
+  ck_monotreat_peak = ck_monotreat_peak,
+  quick_monotreat_peak = quick_monotreat_peak,
+  inr_monotreat_peak = inr_monotreat_peak,
+  ptt_monotreat_peak = ptt_monotreat_peak,
+  leukozyten_monotreat_peak = leukozyten_monotreat_peak,
+  erythrozyten_monotreat_peak = erythrozyten_monotreat_peak,
+  thrombozyten_monotreat_peak = thrombozyten_monotreat_peak,
+  hb_monotreat_peak = hb_monotreat_peak,
+  hämatokrit_monotreat_peak = hämatokrit_monotreat_peak,
+  gesamteiweiß_monotreat_peak = gesamteiweiß_monotreat_peak,
+  crp_monotreat_peak = crp_monotreat_peak,
+  kreatinin_monotreat_peak = kreatinin_monotreat_peak,
+  harnstoff_monotreat_peak = harnstoff_monotreat_peak,
+  natrium_monotreat_peak = natrium_monotreat_peak,
+  kalium_monotreat_peak = kalium_monotreat_peak,
+  kalzium_monotreat_peak = kalzium_monotreat_peak
+)
+
+sink("plots monotreat/peak_results normality, variance, levene, welch.txt")
+
+for (name in names(files)) {
+  
+  data <- files[[name]]
+  
+  cat("\n============================\n")
+  cat("Datensatz:", name, "\n")
+  cat("============================\n\n")
+  
+  var <- "labreads"
+  formula <- as.formula(paste(var, "~ Medication"))
+  
+  cat("Normality Test (Shapiro-Wilk, abgesichert):\n")
+  
+  norm_res <- by(data[[var]], data$Medication, function(x) {
+    if (length(x) >= 3) {
+      shapiro.test(x)
+    } else {
+      list(W = NA, p.value = NA)
+    }
+  })
+  
+  print(norm_res)
+  
+  cat("\nVarianz pro Gruppe:\n")
+  print(tapply(data[[var]], data$Medication, FUN = stats::var))
+  
+  cat("\nLevene-Test:\n")
+  print(leveneTest(formula, data = data))
+  
+  # Filtere Gruppen mit weniger als 3 Beobachtungen aus
+  group_sizes <- table(data$Medication)
+  valid_groups <- names(group_sizes[group_sizes >= 3])
+  
+  # Wenn weniger als 2 Gruppen übrig sind, überspringe den Welch-Test
+  if (length(valid_groups) < 2) {
+    cat("\nWelch ANOVA konnte aufgrund zu wenig Gruppen nicht durchgeführt werden.\n")
+  } else {
+    filtered_data <- data[data$Medication %in% valid_groups, ]
+    cat("\nWelch ANOVA:\n")
+    print(oneway.test(formula, data = filtered_data))
+  }
+}
+
+sink()
+while (sink.number() > 0) sink()
+```
+
+### peak - Kruskal-Wallis-Test summary ###
+```{r}
+while (sink.number() > 0) sink()
+files <- list(
+  gpt_monotreat_peak = gpt_monotreat_peak,
+  got_monotreat_peak = got_monotreat_peak,
+  ggt_monotreat_peak = ggt_monotreat_peak,
+  ap_monotreat_peak = ap_monotreat_peak,
+  total_bilirubin_monotreat_peak = total_bilirubin_monotreat_peak,
+  direct_bilirubin_monotreat_peak = direct_bilirubin_monotreat_peak,
+  ldh_monotreat_peak = ldh_monotreat_peak,
+  ck_monotreat_peak = ck_monotreat_peak,
+  quick_monotreat_peak = quick_monotreat_peak,
+  inr_monotreat_peak = inr_monotreat_peak,
+  ptt_monotreat_peak = ptt_monotreat_peak,
+  leukozyten_monotreat_peak = leukozyten_monotreat_peak,
+  erythrozyten_monotreat_peak = erythrozyten_monotreat_peak,
+  thrombozyten_monotreat_peak = thrombozyten_monotreat_peak,
+  hb_monotreat_peak = hb_monotreat_peak,
+  hämatokrit_monotreat_peak = hämatokrit_monotreat_peak,
+  gesamteiweiß_monotreat_peak = gesamteiweiß_monotreat_peak,
+  crp_monotreat_peak = crp_monotreat_peak,
+  kreatinin_monotreat_peak = kreatinin_monotreat_peak,
+  harnstoff_monotreat_peak = harnstoff_monotreat_peak,
+  natrium_monotreat_peak = natrium_monotreat_peak,
+  kalium_monotreat_peak = kalium_monotreat_peak,
+  kalzium_monotreat_peak = kalzium_monotreat_peak
+)
+
+results <- data.frame()
+
+for (name in names(files)) {
+  
+  data <- files[[name]]
+  
+  var <- "labreads"
+  formula <- as.formula(paste(var, "~ Treatment"))
+  
+  kw <- kruskal.test(formula, data = data)
+  
+  results <- rbind(
+    results,
+    data.frame(
+      Dataset = name,
+      Variable = var,
+      Chi2 = unname(kw$statistic),
+      df = unname(kw$parameter),
+      p_value = kw$p.value
+    )
+  )
+}
+
+results
+setwd("plots monotreat/")
+write.table(results,
+            file = "peak_kruskal_results.txt",
+            sep = "\t",
+            row.names = FALSE,
+            quote = FALSE)
+while (sink.number() > 0) sink()
+```
+
+
+

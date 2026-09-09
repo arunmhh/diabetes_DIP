@@ -1,0 +1,223 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-05-14"
+---
+
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+```
+
+
+```{r}
+comedicationdata <- read_csv("comedication_full_data.csv")
+comedicationdata1 <- comedicationdata %>% 
+  dplyr::rename( "patient_group" = "treatment",
+                 "parameter_co" = "labreads",
+                 "kathegorie_co" = "kathegorie",
+                 "drug_group_co" = "drug_group")
+
+comedicationdata1
+```
+
+
+
+```{r}
+library(dplyr)
+
+# Schritt 1: Entferne Duplikate, falls ein Patient ein Medikament mehrfach gelistet hat
+unique_data <- comedicationdata1 %>%
+  distinct(bfarm_nummer, Medication)
+
+# Schritt 2: Zähle, wie viele verschiedene Medikamente jeder Patient hatte
+med_count_per_patient <- unique_data %>%
+  group_by(bfarm_nummer) %>%
+  summarise(comedication_count = n())
+
+# Schritt 3: Zähle, wie viele Patienten jeweils eine bestimmte Anzahl an Medikamenten hatten
+patients_per_medcount <- med_count_per_patient %>%
+  group_by(comedication_count) %>%
+  summarise(patient_count = n()) %>%
+  arrange(comedication_count)
+
+# Ergebnis anzeigen
+print(patients_per_medcount)
+```
+
+
+
+
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Sicherstellen, dass medication_count numerisch sortierbar ist
+patients_per_medcount <- patients_per_medcount %>%
+  arrange(comedication_count)
+
+count_of_patients_per_comedication_intake <- ggplot(patients_per_medcount, aes(x = comedication_count, y = patient_count)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(
+    aes(label = paste0("N = ", patient_count)),
+    vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+    size = 3       # Optional: kleinere Schriftgröße
+  ) +
+  labs(
+    title = "Count of Patients per Comedication Intake", 
+    x = "Comedication Count", 
+    y = "Patient Count"
+  ) +
+  scale_x_continuous(
+    breaks = patients_per_medcount$comedication_count  # Alle Werte anzeigen
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 0.5)
+  )
+
+dir.create("plots_comedications patient count", showWarnings = FALSE)
+svg("plots_comedications patient count/count_of_patients_per_comedication_intake.svg", height = 8, width = 12)
+print(count_of_patients_per_comedication_intake)
+dev.off()
+```
+
+
+
+
+```{r}
+library(dplyr)
+library(purrr)
+
+# Step 1: Summary of how many patients have how many medications
+
+patient_comed <- comedicationdata1 %>%
+  distinct(bfarm_nummer, Medication) %>% 
+  group_by(bfarm_nummer) %>% 
+  summarise(comedication = n(), .groups = "drop") %>% 
+  group_by(comedication) %>% 
+  summarise(patient_num_per_med = n(), .groups = "drop")
+
+# Step 2: Get distinct patient-medication pairs
+distinct_data <- comedicationdata1 %>%
+  distinct(bfarm_nummer, Medication)
+
+# Step 3: Create a list based on the actual `comedication` values from patient_comed
+
+medication_groups <- map(patient_comed$comedication, function(n) {
+  distinct_data %>%
+    group_by(bfarm_nummer) %>%
+    filter(n() == !!n) %>%
+    arrange(bfarm_nummer)
+})
+
+# Step 4: Name the list elements based on the number of meds
+
+names(medication_groups) <- paste0("patients_with_", patient_comed$comedication, "_meds")
+
+# Example: show patients with 2 medications
+medication_groups$patients_with_2_meds
+
+```
+
+### venn diagramm ###
+
+
+```{r}
+medication_sets <- map(medication_groups, ~ unique(.x$Medication))
+
+```
+
+```{r}
+group_names <- names(medication_sets)
+
+pairwise_combinations <- combn(group_names, 2, simplify = FALSE)
+
+```
+
+```{r}
+library(VennDiagram)
+
+
+dir.create("venn plots_medication count", showWarnings = FALSE)
+
+# Loop over all combinations
+for (pair in pairwise_combinations) {
+  group1 <- pair[1]
+  group2 <- pair[2]
+
+  meds1 <- medication_sets[[group1]]
+  meds2 <- medication_sets[[group2]]
+
+  venn.plot <- venn.diagram(
+    x = list(
+      Group1 = meds1,
+      Group2 = meds2
+    ),
+    filename = paste0("venn plots_medication count/", group1, "_vs_", group2, ".png"),
+    output = TRUE,
+    category.names = c(group1, group2),
+    fill = c("blue", "yellow"),
+    alpha = 0.5,
+    cex = 1.5,                # Size of intersection counts
+    fontface = "bold",
+
+    cat.cex = 1.5,            # Size of category labels
+    cat.fontface = "bold",
+    cat.pos = c(-15, 15),     # Shift labels vertically
+    cat.dist = c(0.05, 0.05), # Move labels slightly outward
+    cat.just = list(c(0.5, 1), c(0.5, 1)), # Centered top alignment
+    margin = 0.1
+  )
+}
+
+```
+
+```{r}
+library(VennDiagram)
+
+dir.create("venn plots_medication count", showWarnings = FALSE)
+
+for (pair in pairwise_combinations) {
+  group1 <- pair[1]
+  group2 <- pair[2]
+
+  # Entferne NA-Werte aus den Mengen
+  meds1 <- medication_sets[[group1]]
+  meds2 <- medication_sets[[group2]]
+
+  meds1 <- meds1[!is.na(meds1)]
+  meds2 <- meds2[!is.na(meds2)]
+
+  venn.plot <- venn.diagram(
+    x = list(
+      Group1 = meds1,
+      Group2 = meds2
+    ),
+    filename = paste0("venn plots_medication count/", group1, "_vs_", group2, ".png"),
+    output = TRUE,
+    category.names = c(group1, group2),
+    fill = c("blue", "yellow"),
+    alpha = 0.5,
+    cex = 1.5,
+    fontface = "bold",
+    cat.cex = 1.5,
+    cat.fontface = "bold",
+    cat.pos = c(-15, 15),
+    cat.dist = c(0.05, 0.05),
+    cat.just = list(c(0.5, 1), c(0.5, 1)),
+    margin = 0.1
+  )
+}
+
+```
+

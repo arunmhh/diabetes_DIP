@@ -1,0 +1,360 @@
+---
+title: "Untitled"
+output: html_document
+date: "2026-03-28"
+---
+
+```{r} 
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+library(ggstatsplot)
+library(dplyr)
+library(ggplot2)
+library(performance)
+library(car)
+library(flextable)
+library(GGally)
+```
+
+
+```{r}
+comedicationdata_livertox <- read.csv(
+  "E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/co-medication/comedication_with_livertoxicity literature only.csv",
+  sep = ",",
+  stringsAsFactors = FALSE
+)
+comedicationdata_livertox2 <- comedicationdata_livertox %>% 
+  dplyr::rename( "patient_group" = "treatment",
+                 "parameter_co" = "labreads",
+                 "kathegorie_co" = "kathegorie",
+                 "drug_group_co" = "drug_group",
+                 "medication_co" = "Medication") %>% 
+  select(1:7) 
+
+comedicationdata_livertox2
+```
+
+### gpt ############################################################################
+
+```{r}
+gpt_full2 <- gpt_full %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2",
+                "patient_group" = "Treatment",
+                "attribute" = "attribute") %>% 
+  mutate(bfarm_nummer = as.character(bfarm_nummer))%>%
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+gpt_full2 
+```
+
+
+```{r}
+gpt_livertox <- left_join(comedicationdata_livertox2,gpt_full2 ,by = "bfarm_nummer") %>% 
+  drop_na() %>% 
+  dplyr::select(-drug_group_co,-patient_group.y) %>%
+  distinct(bfarm_nummer, attribute, labreads, hep_tox, patient_group.x)
+gpt_livertox
+```
+
+```{r}
+gpt_livertox %>% 
+  group_by(hep_tox) %>% 
+  normality(labreads)
+
+tapply(gpt_livertox$labreads, gpt_livertox$hep_tox, var)
+leveneTest(labreads ~ hep_tox, data = gpt_livertox)
+
+oneway.test(labreads ~ hep_tox, data = gpt_livertox)
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- gpt_livertox %>%
+  distinct(bfarm_nummer, hep_tox) %>%  # nur einzigartige Patienten
+  count(hep_tox, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = gpt_livertox,
+  x = "hep_tox",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_Comparison patients with and without hepatotoxic comedication",
+  xlab = "Patient group",
+  ylab = "gpt (u/l)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+gpt_livertox_comarison_plot <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = hep_tox, 
+        y = max(gpt_livertox$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+gpt_livertox_comarison_plot
+dir.create("plots_tox_notox/", showWarnings = FALSE)
+svg("plots_tox_notox/gpt all_livertox vs notox comarison.svg", height = 8, width = 6.5)
+print(gpt_livertox_comarison_plot)
+dev.off()
+```
+
+
+```{r}
+ld_gpt_livertox <- gpt_livertox %>%
+  filter(patient_group.x == "Leber_Diclo")
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- ld_gpt_livertox %>%
+  distinct(bfarm_nummer, hep_tox) %>%  # nur einzigartige Patienten
+  count(hep_tox, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_gpt_livertox,
+  x = "hep_tox",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver diclo_Comparison patients with and without hepatotoxic comedication",
+  xlab = "Patient group",
+  ylab = "gpt (u/l)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+ld_gpt_livertox_comarison_plot <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = hep_tox, 
+        y = max(ld_gpt_livertox$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_gpt_livertox_comarison_plot
+dir.create("plots_tox_notox/", showWarnings = FALSE)
+svg("plots_tox_notox/ld_gpt_livertox vs notox comarison.svg", height = 8, width = 6.5)
+print(ld_gpt_livertox_comarison_plot)
+dev.off()
+```
+
+
+```{r}
+li_gpt_livertox <- gpt_livertox %>%
+  filter(patient_group.x == "Leber_Ibu")
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- li_gpt_livertox %>%
+  distinct(bfarm_nummer, hep_tox) %>%  # nur einzigartige Patienten
+  count(hep_tox, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_gpt_livertox,
+  x = "hep_tox",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver ibu_Comparison patients with and without hepatotoxic comedication",
+  xlab = "Patient group",
+  ylab = "gpt (u/l)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+li_gpt_livertox_comarison_plot <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = hep_tox, 
+        y = max(li_gpt_livertox$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_gpt_livertox_comarison_plot
+dir.create("plots_tox_notox/", showWarnings = FALSE)
+svg("plots_tox_notox/li_gpt_livertox vs notox comarison.svg", height = 8, width = 6.5)
+print(li_gpt_livertox_comarison_plot)
+dev.off()
+```
+
+
+```{r}
+lp_gpt_livertox <- gpt_livertox %>%
+  filter(patient_group.x == "Leber_Para")
+
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- lp_gpt_livertox %>%
+  distinct(bfarm_nummer, hep_tox) %>%  # nur einzigartige Patienten
+  count(hep_tox, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_gpt_livertox,
+  x = "hep_tox",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver para_Comparison patients with and without hepatotoxic comedication",
+  xlab = "Patient group",
+  ylab = "gpt (u/l)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots_all_labvalues einfügen
+lp_gpt_livertox_comarison_plot <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = hep_tox, 
+        y = max(lp_gpt_livertox$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_gpt_livertox_comarison_plot
+dir.create("plots_tox_notox/", showWarnings = FALSE)
+svg("plots_tox_notox/lp_gpt_livertox vs notox comarison.svg", height = 8, width = 6.5)
+print(lp_gpt_livertox_comarison_plot)
+dev.off()
+```
+
+### gpt_peak ###
+
+```{r}
+gpt_livertox_peak <- gpt_livertox  %>%
+  group_by(hep_tox) %>%  
+  group_by(bfarm_nummer) %>%   
+  filter(labreads == max(labreads, na.rm = TRUE)) %>%  
+  slice(1) %>% 
+  ungroup()
+
+gpt_livertox_peak
+```
+
+
+```{r}
+gpt_livertox_peak %>% 
+  group_by(hep_tox) %>% 
+  normality(labreads)
+
+tapply(gpt_livertox_peak$labreads, gpt_livertox_peak$hep_tox, var)
+leveneTest(labreads ~ hep_tox, data = gpt_livertox_peak)
+
+oneway.test(labreads ~ hep_tox, data = gpt_livertox_peak)
+```
+
+
+```{r}
+gpt_peak_livertox_comarison_plot <- ggbetweenstats(
+  data = gpt_livertox_peak,
+  x = "hep_tox",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All groups_peak_Comparison patients with and without hepatotoxic comedication",
+  xlab = "Patient group",
+  ylab = "Peak-gpt (u/l)",
+  messages = FALSE)
+
+gpt_peak_livertox_comarison_plot
+dir.create("plots_tox_notox/peak/", showWarnings = FALSE)
+svg("plots_tox_notox/peak/gpt all_peak_livertox vs notox comarison.svg", height = 8, width = 6.5)
+print(gpt_peak_livertox_comarison_plot)
+dev.off()
+```
+
+
+```{r}
+ld_gpt_livertox_peak <- gpt_livertox_peak %>%
+  filter(patient_group.x == "Leber_Diclo")
+
+ld_gpt_peak_livertox_comarison_plot <- ggbetweenstats(
+  data = ld_gpt_livertox_peak,
+  x = "hep_tox",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver diclo_peak_Comparison patients with and without hepatotoxic comedication",
+  xlab = "Patient group",
+  ylab = "Peak-gpt (u/l)",
+  messages = FALSE)
+
+ld_gpt_peak_livertox_comarison_plot
+dir.create("plots_tox_notox/peak/", showWarnings = FALSE)
+svg("plots_tox_notox/peak/ld_gpt_peak_livertox vs notox comarison.svg", height = 8, width = 6.5)
+print(ld_gpt_peak_livertox_comarison_plot)
+dev.off()
+```
+
+
+```{r}
+li_gpt_livertox_peak <- gpt_livertox_peak %>%
+  filter(patient_group.x == "Leber_Ibu")
+
+li_gpt_peak_livertox_comarison_plot <- ggbetweenstats(
+  data = li_gpt_livertox_peak,
+  x = "hep_tox",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver ibu_peak_Comparison patients with and without hepatotoxic comedication",
+  xlab = "Patient group",
+  ylab = "Peak-gpt (u/l)",
+  messages = FALSE)
+
+li_gpt_peak_livertox_comarison_plot
+dir.create("plots_tox_notox/peak/", showWarnings = FALSE)
+svg("plots_tox_notox/peak/li_gpt_peak_livertox_peak vs notox comarison.svg", height = 8, width = 6.5)
+print(li_gpt_peak_livertox_comarison_plot)
+dev.off()
+```
+
+
+```{r}
+lp_gpt_livertox_peak <- gpt_livertox_peak %>%
+  filter(patient_group.x == "Leber_Para")
+
+lp_gpt_peak_livertox_comarison_plot <- ggbetweenstats(
+  data = lp_gpt_livertox_peak,
+  x = "hep_tox",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "Liver para_peak_Comparison patients with and without hepatotoxic comedication",
+  xlab = "Patient group",
+  ylab = "Peak-gpt (u/l)",
+  messages = FALSE)
+
+
+dir.create("plots_tox_notox/peak/", showWarnings = FALSE)
+svg("plots_tox_notox/peak/lp_gpt_peak_livertox_peak vs notox comarison.svg", height = 8, width = 6.5)
+print(lp_gpt_peak_livertox_comarison_plot)
+dev.off()
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

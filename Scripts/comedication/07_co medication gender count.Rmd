@@ -1,0 +1,338 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-05-16"
+---
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+library(MAP)
+```
+
+#### comedication based on gender ####
+### comedication_male ###
+
+```{r}
+gender_data <- read_excel("E:\\Daten(x)\\Daten(lw-r)\\Abc\\Doktorarbeit SJS\\Analyse R-Statistics\\gender plots\\gender_info_full.xlsx",
+           skip = 1 )
+gender_data
+```
+
+```{r}
+gender_data %>% 
+mutate(Male = ifelse(Male == 1, "M", Male),
+       Female = ifelse(Female == 1, "F",Female)) 
+```
+
+```{r}
+gender_data_clean <- gender_data %>%
+  mutate(
+    gender = case_when(
+      Male == 1 ~ "M",
+      Female == 1 ~ "F",
+      TRUE ~ NA_character_  
+    )
+  ) %>% 
+  drop_na(gender) %>% 
+  dplyr::select(1,2,5) %>% 
+  dplyr::rename("bfarm_nummer" = "Edited_BfArM Nummer2")
+gender_data_clean
+```
+
+```{r}
+comedicationdata <- read_csv("comedication_full_data.csv")
+comedicationdata1 <- comedicationdata %>% 
+  dplyr::rename( "patient_group" = "treatment",
+                 "parameter_co" = "labreads",
+                 "kathegorie_co" = "kathegorie",
+                 "drug_group_co" = "drug_group")
+
+comedicationdata1
+```
+
+
+
+
+```{r}
+comedication_male_data <- left_join(gender_data_clean,comedicationdata1, by = "bfarm_nummer") %>% 
+  dplyr::filter(gender == "M") %>% 
+  drop_na(patient_group)
+ 
+comedication_male_data
+ 
+comedication_female_data <- left_join(gender_data_clean,comedicationdata1, by = "bfarm_nummer") %>% 
+  dplyr::filter(gender == "F") %>%
+  drop_na(patient_group)
+ 
+comedication_female_data
+```
+ 
+ ### Male ####################################################################
+ 
+```{r}
+male_comed_data <- comedication_male_data %>%
+  distinct(bfarm_nummer, Medication) %>% 
+  group_by(bfarm_nummer) %>% 
+  summarise(comedication = n(), .groups = "drop") %>% 
+  group_by(comedication) %>% 
+  summarise(male_patient_num_per_med = n(), .groups = "drop")
+ 
+male_comed_data
+ 
+# Step 2: Get distinct patient-medication pairs
+distinct_male_data <-  comedication_male_data %>%
+  distinct(bfarm_nummer, Medication)
+ 
+# Step 3: Create a list based on the actual `comedication` values from male_comed_data
+medication_groups_male <- map(male_comed_data$comedication, function(n) {
+  distinct_male_data %>%
+    group_by(bfarm_nummer) %>%
+    filter(n() == !!n) %>%
+    arrange(bfarm_nummer)
+})
+ 
+# Step 4: Name the list elements based on the number of meds
+names(medication_groups_male) <- paste0("patients_with_", male_comed_data$comedication, "_meds")
+ 
+# Example: show patients with 2 medications
+medication_groups_male$patients_with_2_meds
+```
+ 
+```{r}
+medication_sets_male <- map(medication_groups_male, ~ unique(.x$Medication))
+ 
+```
+ 
+ 
+ 
+```{r}
+group_names_male <- names(medication_sets_male)
+ 
+pairwise_combinations_male <- combn(group_names_male, 2, simplify = FALSE)
+ 
+```
+ 
+ 
+```{r}
+library(VennDiagram)
+library(ggvenn)
+library(qPCRtools)
+
+
+dir.create("venn_plots_male", showWarnings = FALSE)
+ 
+for (pair in pairwise_combinations_male) {
+  group1 <- pair[1]
+  group2 <- pair[2]
+ 
+  meds1 <- medication_sets_male[[group1]] %>% na.omit()
+  meds2 <- medication_sets_male[[group2]] %>% na.omit()
+ 
+  # Skip if either set is empty
+  if (length(meds1) == 0 || length(meds2) == 0) {
+    message("Skipping: ", group1, " vs ", group2, " (empty set)")
+    next
+  }
+ 
+  venn.diagram(
+    x = setNames(list(meds1, meds2), c(group1, group2)),
+    filename = paste0("venn_plots_male/", group1, "_vs_", group2, ".png"),
+    output = TRUE,
+    category.names = c(group1, group2),
+    fill = c("blue", "yellow"),
+    alpha = 0.5,
+    cex = 1.5,
+    fontface = "bold",
+    cat.cex = 1.5,
+    cat.fontface = "bold",
+    cat.pos = c(-15, 15),
+    cat.dist = c(0.05, 0.05),
+    cat.just = list(c(0.5, 1), c(0.5, 1)),
+    margin = 0.1
+  )
+ 
+  message("✅ Saved Venn diagram: ", group1, " vs ", group2)
+}
+ 
+```
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Sicherstellen, dass medication_count numerisch sortierbar ist
+males_per_medcount <- male_comed_data %>%
+  arrange(comedication)
+
+count_of_males_per_comedication_intake <- ggplot(males_per_medcount, aes(x = comedication, y = male_patient_num_per_med)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(
+    aes(label = paste0("N = ", male_patient_num_per_med)),
+    vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+    size = 3       # Optional: kleinere Schriftgröße
+  ) +
+  labs(
+    title = "Count of males per Comedication Intake", 
+    x = "Comedication Count", 
+    y = "Males Count"
+  ) +
+  scale_x_continuous(
+    breaks = males_per_medcount$comedication  # Alle Werte anzeigen
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 0.5)
+  )
+
+dir.create("plots_male and female comedication count", showWarnings = FALSE)
+svg("plots_male and female comedication count/count_of_males_per_comedication_intake.svg", height = 8, width = 12)
+print(count_of_males_per_comedication_intake)
+dev.off()
+```
+
+
+
+ ### Female ####################################################################
+ 
+```{r}
+female_comed_data <- comedication_female_data %>%
+  distinct(bfarm_nummer, Medication) %>% 
+  group_by(bfarm_nummer) %>% 
+  summarise(comedication = n(), .groups = "drop") %>% 
+  group_by(comedication) %>% 
+  summarise(female_patient_num_per_med = n(), .groups = "drop")
+ 
+female_comed_data
+ 
+# Step 2: Get distinct patient-medication pairs
+distinct_female_data <-  comedication_female_data %>%
+  distinct(bfarm_nummer, Medication)
+ 
+# Step 3: Create a list based on the actual `comedication` values from female_comed_data
+medication_groups_female <- map(female_comed_data$comedication, function(n) {
+  distinct_female_data %>%
+    group_by(bfarm_nummer) %>%
+    filter(n() == !!n) %>%
+    arrange(bfarm_nummer)
+})
+ 
+# Step 4: Name the list elements based on the number of meds
+names(medication_groups_female) <- paste0("patients_with_", female_comed_data$comedication, "_meds")
+ 
+# Example: show patients with 2 medications
+medication_groups_female$patients_with_2_meds
+```
+ 
+```{r}
+medication_sets_female <- map(medication_groups_female, ~ unique(.x$Medication))
+ 
+```
+ 
+ 
+ 
+```{r}
+group_names_female <- names(medication_sets_female)
+ 
+pairwise_combinations_female <- combn(group_names_female, 2, simplify = FALSE)
+ 
+```
+ 
+ 
+```{r}
+library(VennDiagram)
+library(ggvenn)
+library(qPCRtools)
+
+
+dir.create("venn_plots_female", showWarnings = FALSE)
+ 
+for (pair in pairwise_combinations_female) {
+  group1 <- pair[1]
+  group2 <- pair[2]
+ 
+  meds1 <- medication_sets_female[[group1]] %>% na.omit()
+  meds2 <- medication_sets_female[[group2]] %>% na.omit()
+ 
+  # Skip if either set is empty
+  if (length(meds1) == 0 || length(meds2) == 0) {
+    message("Skipping: ", group1, " vs ", group2, " (empty set)")
+    next
+  }
+ 
+  venn.diagram(
+    x = setNames(list(meds1, meds2), c(group1, group2)),
+    filename = paste0("venn_plots_female/", group1, "_vs_", group2, ".png"),
+    output = TRUE,
+    category.names = c(group1, group2),
+    fill = c("blue", "yellow"),
+    alpha = 0.5,
+    cex = 1.5,
+    fontface = "bold",
+    cat.cex = 1.5,
+    cat.fontface = "bold",
+    cat.pos = c(-15, 15),
+    cat.dist = c(0.05, 0.05),
+    cat.just = list(c(0.5, 1), c(0.5, 1)),
+    margin = 0.1
+  )
+ 
+  message("✅ Saved Venn diagram: ", group1, " vs ", group2)
+}
+ 
+```
+
+
+
+```{r}
+library(ggplot2)
+library(dplyr)
+
+# Sicherstellen, dass medication_count numerisch sortierbar ist
+females_per_medcount <- female_comed_data %>%
+  arrange(comedication)
+
+count_of_females_per_comedication_intake <- ggplot(females_per_medcount, aes(x = comedication, y = female_patient_num_per_med)) +
+  geom_col() +
+  theme_classic() +
+  geom_text(
+    aes(label = paste0("N = ", female_patient_num_per_med)),
+    vjust = -0.3,  # Positionierung leicht oberhalb des Balkens
+    size = 3       # Optional: kleinere Schriftgröße
+  ) +
+  labs(
+    title = "Count of females per Comedication Intake", 
+    x = "Comedication Count", 
+    y = "females Count"
+  ) +
+  scale_x_continuous(
+    breaks = females_per_medcount$comedication  # Alle Werte anzeigen
+  ) +
+  theme(
+    axis.text.x = element_text(angle = 0, hjust = 0.5)
+  )
+
+dir.create("plots_male and female comedication count", showWarnings = FALSE)
+svg("plots_male and female comedication count/count_of_females_per_comedication_intake.svg", height = 8, width = 12)
+print(count_of_females_per_comedication_intake)
+dev.off()
+```
+
+
+
+
+
+
+
+
+
+
+
+

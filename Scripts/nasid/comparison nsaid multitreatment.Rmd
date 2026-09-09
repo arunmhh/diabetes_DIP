@@ -1,0 +1,3876 @@
+---
+title: "Untitled"
+output: html_document
+date: "2026-03-04"
+---
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+library(ggplot2)
+library(ggpubr)
+library(stringr)
+library(car)
+```
+
+
+
+```{r}
+comedicationdata <- read_csv("comedication_full_data.csv")
+comedicationdata2 <- comedicationdata %>% 
+  dplyr::rename( "Edited_BfArM Nummer2" = "bfarm_nummer",
+                 "Attribut"   = "treatment",
+                  "Treatment" = "Medication",
+                 "Parameter" = "labreads",
+                 "Kathegorie" = "kathegorie",
+                 "Drug_Group" = "drug_group") %>% 
+  dplyr::select(1,3,5,6,2,4)
+
+comedicationdata2
+```
+
+
+### Monotreatment data ###########################################################
+
+```{r}
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/comp dose_labvalues")
+
+dose_data <- read_excel("Dose table_assumed_full.xlsx", sheet = 2)  
+
+dose_data
+```
+
+
+```{r}
+dose_data_diclo <- dose_data %>% 
+  filter(Treatment == "Diclofenac") %>% 
+  filter(Attribut == "Leber_Diclo") %>% 
+  filter(Kathegorie != "Cummulative Dosis")
+
+dose_data_diclo 
+```
+
+
+```{r}
+diclo_monotreat_unfinished <- anti_join(dose_data_diclo,comedicationdata2, by = "Edited_BfArM Nummer2")
+diclo_monotreat_unfinished
+```
+
+
+
+```{r}
+# Erzeuge eine neue Tabelle mit den kombinierten Medikamenten pro Patient
+med_summary <- dose_data %>%
+  filter(Kathegorie != "Cummulative Dosis")%>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(multi_med = paste(sort(unique(Treatment)), collapse = "+"), .groups = "drop")
+
+# Füge diese Info wieder an den Originaldatensatz an
+dose_data_multi <- dose_data %>%
+  left_join(med_summary, by = "Edited_BfArM Nummer2")
+dose_data_multi
+```
+
+
+```{r}
+patientid_mainmed_multi <- dose_data_multi %>% 
+  filter(multi_med %in% c("Diclofenac+Paracetamol",
+                          "Diclofenac+Ibuprofen",
+                          "Ibuprofen+Paracetamol",
+                          "Diclofenac+Ibuprofen+Paracetamol"))#%>% 
+#  distinct(`Edited_BfArM Nummer2`)
+
+patientid_mainmed_multi
+  
+```
+
+
+
+```{r}
+diclo_monotreat <- diclo_monotreat_unfinished %>%
+  anti_join(patientid_mainmed_multi, by = "Edited_BfArM Nummer2")
+diclo_monotreat
+```
+
+### ibu ###
+```{r}
+dose_data_ibu <- dose_data %>% 
+  filter(Treatment == "Ibuprofen") %>% 
+  filter(Attribut == "Leber_Ibu") %>% 
+  filter(Kathegorie != "Cummulative Dosis")
+
+dose_data_ibu 
+```
+
+
+```{r}
+ibu_monotreat_unfinished <- anti_join(dose_data_ibu,comedicationdata2, by = "Edited_BfArM Nummer2")
+ibu_monotreat_unfinished
+```
+
+```{r}
+ibu_monotreat <- ibu_monotreat_unfinished %>%
+  anti_join(patientid_mainmed_multi, by = "Edited_BfArM Nummer2")
+ibu_monotreat
+```
+
+### para ###
+```{r}
+dose_data_para <- dose_data %>% 
+  filter(Treatment == "Paracetamol") %>% 
+  filter(Attribut == "Leber_Para") %>% 
+  filter(Kathegorie != "Cummulative Dosis")
+
+dose_data_para 
+```
+
+
+```{r}
+para_monotreat_unfinished <- anti_join(dose_data_para,comedicationdata2, by = "Edited_BfArM Nummer2")
+para_monotreat_unfinished
+```
+
+```{r}
+para_monotreat <- para_monotreat_unfinished %>%
+  anti_join(patientid_mainmed_multi, by = "Edited_BfArM Nummer2")
+para_monotreat
+```
+
+
+### gpt ###############################################################################
+# gpt - diclo
+```{r}
+diclo_multitreat_gpt <- left_join(patientid_mainmed_multi,gpt_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_multitreat_gpt 
+```
+
+```{r}
+diclo_monotreat_gpt <- left_join(diclo_monotreat,gpt_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_monotreat_gpt 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+ld_gpt_monomulti <- bind_rows(
+  diclo_monotreat_gpt %>% mutate(multi_med = "Diclofenac"),  
+  diclo_multitreat_gpt )
+
+ld_gpt_monomulti
+```
+
+
+
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+ld_gpt_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_gpt_monomulti$labreads, ld_gpt_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = ld_gpt_monomulti)
+
+oneway.test(labreads ~ multi_med, data = ld_gpt_monomulti)
+```
+
+```{r}
+n_patients <- ld_gpt_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_gpt_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication",
+  xlab = "Medication group",
+  ylab = "GPT (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_gpt_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_gpt_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_gpt_diclo nsaid monomulti.svg", height = 6, width = 8)
+print(ld_gpt_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+ld_gpt_monomulti_13 <- ld_gpt_monomulti%>% 
+  filter(attribute %in% c("GPT Day1", "GPT Day2", "GPT Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+ld_gpt_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_gpt_monomulti_13$labreads, ld_gpt_monomulti_13$multi_med, var)
+leveneTest(labreads ~ multi_med, data = ld_gpt_monomulti_13)
+
+oneway.test(labreads ~ multi_med, data = ld_gpt_monomulti_13)
+```
+
+```{r}
+n_patients <- ld_gpt_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_gpt_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "GPT (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_gpt_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_gpt_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_gpt_diclo nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(ld_gpt_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+ld_gpt_monomulti_peak <- ld_gpt_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+ld_gpt_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_gpt_monomulti_peak$labreads, ld_gpt_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = ld_gpt_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = ld_gpt_monomulti_peak)
+```
+
+```{r}
+ld_gpt_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = ld_gpt_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-GPT (U/L)",
+  messages = FALSE)
+
+ld_gpt_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_gpt_diclo nsaid monomulti peak.svg", height = 6, width = 8)
+print(ld_gpt_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+# gpt - ibu
+```{r}
+ibu_multitreat_gpt <- left_join(patientid_mainmed_multi,gpt_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_multitreat_gpt 
+```
+
+```{r}
+ibu_monotreat_gpt <- left_join(ibu_monotreat,gpt_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_monotreat_gpt 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+li_gpt_monomulti <- bind_rows(
+  ibu_monotreat_gpt %>% mutate(multi_med = "Ibuprofen"),  
+  ibu_multitreat_gpt )
+
+li_gpt_monomulti
+```
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+li_gpt_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_gpt_monomulti$labreads, li_gpt_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_gpt_monomulti)
+
+oneway.test(labreads ~ multi_med, data = li_gpt_monomulti)
+```
+
+```{r}
+n_patients <- li_gpt_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_gpt_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication",
+  xlab = "Medication group",
+  ylab = "GPT (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_gpt_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_gpt_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_gpt_ibu nsaid monomulti.svg", height = 6, width = 8)
+print(li_gpt_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+li_gpt_monomulti_13 <- li_gpt_monomulti%>% 
+  filter(attribute %in% c("GPT Day1", "GPT Day2", "GPT Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+li_gpt_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_gpt_monomulti_13$labreads, li_gpt_monomulti_13$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_gpt_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = li_gpt_monomulti_13)
+```
+
+```{r}
+n_patients <- li_gpt_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_gpt_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "GPT (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_gpt_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_gpt_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_gpt_ibu nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(li_gpt_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+li_gpt_monomulti_peak <- li_gpt_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+li_gpt_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_gpt_monomulti_peak$labreads, li_gpt_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_gpt_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = li_gpt_monomulti_peak)
+```
+
+```{r}
+li_gpt_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = li_gpt_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-GPT (U/L)",
+  messages = FALSE)
+
+li_gpt_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_gpt_ibu nsaid monomulti peak.svg", height = 6, width = 8)
+print(li_gpt_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+# gpt - para
+```{r}
+para_multitreat_gpt <- left_join(patientid_mainmed_multi,gpt_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_multitreat_gpt 
+```
+
+```{r}
+para_monotreat_gpt <- left_join(para_monotreat,gpt_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_monotreat_gpt 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+lp_gpt_monomulti <- bind_rows(
+  para_monotreat_gpt %>% mutate(multi_med = "Paracetamol"),  
+  para_multitreat_gpt )
+
+lp_gpt_monomulti
+```
+
+
+
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+lp_gpt_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_gpt_monomulti$labreads, lp_gpt_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_gpt_monomulti)
+
+oneway.test(labreads ~ multi_med, data = lp_gpt_monomulti)
+```
+
+```{r}
+n_patients <- lp_gpt_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_gpt_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication",
+  xlab = "Medication group",
+  ylab = "GPT (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_gpt_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_gpt_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_gpt_para nsaid monomulti.svg", height = 6, width = 8)
+print(lp_gpt_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+lp_gpt_monomulti_13 <- lp_gpt_monomulti%>% 
+  filter(attribute %in% c("GPT Day1", "GPT Day2", "GPT Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{}
+lp_gpt_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_gpt_monomulti_13$labreads, lp_gpt_monomulti_13$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_gpt_monomulti_13)
+
+oneway.test(labreads ~ multi_med, data = lp_gpt_monomulti_13)
+```
+
+```{r}
+n_patients <- lp_gpt_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_gpt_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "GPT (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_gpt_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_gpt_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_gpt_para nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(lp_gpt_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+lp_gpt_monomulti_peak <- lp_gpt_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+lp_gpt_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_gpt_monomulti_peak$labreads, lp_gpt_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_gpt_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = lp_gpt_monomulti_peak)
+```
+
+```{r}
+lp_gpt_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = lp_gpt_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-GPT (U/L)",
+  messages = FALSE)
+
+lp_gpt_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_gpt_para nsaid monomulti peak.svg", height = 6, width = 8)
+print(lp_gpt_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+### got ###############################################################################
+# got - diclo
+```{r}
+diclo_multitreat_got <- left_join(patientid_mainmed_multi,got_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_multitreat_got 
+```
+
+```{r}
+diclo_monotreat_got <- left_join(diclo_monotreat,got_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_monotreat_got 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+ld_got_monomulti <- bind_rows(
+  diclo_monotreat_got %>% mutate(multi_med = "Diclofenac"),  
+  diclo_multitreat_got )
+
+ld_got_monomulti
+```
+
+
+
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+ld_got_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_got_monomulti$labreads, ld_got_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = ld_got_monomulti)
+
+oneway.test(labreads ~ multi_med, data = ld_got_monomulti)
+```
+
+```{r}
+n_patients <- ld_got_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_got_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication",
+  xlab = "Medication group",
+  ylab = "got (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_got_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_got_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_got_diclo nsaid monomulti.svg", height = 6, width = 8)
+print(ld_got_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+ld_got_monomulti_13 <- ld_got_monomulti%>% 
+  filter(attribute %in% c("got Day1", "got Day2", "got Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+ld_got_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_got_monomulti_13$labreads, ld_got_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = ld_got_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = ld_got_monomulti_13)
+```
+
+```{}
+n_patients <- ld_got_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_got_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "got (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_got_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_got_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_got_diclo nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(ld_got_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+ld_got_monomulti_peak <- ld_got_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+ld_got_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_got_monomulti_peak$labreads, ld_got_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = ld_got_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = ld_got_monomulti_peak)
+```
+
+```{r}
+ld_got_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = ld_got_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-got (U/L)",
+  messages = FALSE)
+
+ld_got_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_got_diclo nsaid monomulti peak.svg", height = 6, width = 8)
+print(ld_got_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+# got - ibu
+```{r}
+ibu_multitreat_got <- left_join(patientid_mainmed_multi,got_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_multitreat_got 
+```
+
+```{r}
+ibu_monotreat_got <- left_join(ibu_monotreat,got_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_monotreat_got 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+li_got_monomulti <- bind_rows(
+  ibu_monotreat_got %>% mutate(multi_med = "Ibuprofen"),  
+  ibu_multitreat_got )
+
+li_got_monomulti
+```
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+li_got_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_got_monomulti$labreads, li_got_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_got_monomulti)
+
+oneway.test(labreads ~ multi_med, data = li_got_monomulti)
+```
+
+```{r}
+n_patients <- li_got_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_got_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication",
+  xlab = "Medication group",
+  ylab = "got (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_got_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_got_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_got_ibu nsaid monomulti.svg", height = 6, width = 8)
+print(li_got_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+li_got_monomulti_13 <- li_got_monomulti%>% 
+  filter(attribute %in% c("got Day1", "got Day2", "got Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+li_got_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_got_monomulti_13$labreads, li_got_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = li_got_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = li_got_monomulti_13)
+```
+
+```{}
+n_patients <- li_got_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_got_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "got (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_got_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_got_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_got_ibu nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(li_got_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+li_got_monomulti_peak <- li_got_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+li_got_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_got_monomulti_peak$labreads, li_got_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_got_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = li_got_monomulti_peak)
+```
+
+```{r}
+li_got_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = li_got_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-got (U/L)",
+  messages = FALSE)
+
+li_got_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_got_ibu nsaid monomulti peak.svg", height = 6, width = 8)
+print(li_got_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+# got - para
+```{r}
+para_multitreat_got <- left_join(patientid_mainmed_multi,got_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_multitreat_got 
+```
+
+```{r}
+para_monotreat_got <- left_join(para_monotreat,got_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_monotreat_got 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+lp_got_monomulti <- bind_rows(
+  para_monotreat_got %>% mutate(multi_med = "Paracetamol"),  
+  para_multitreat_got )
+
+lp_got_monomulti
+```
+
+
+
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+lp_got_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_got_monomulti$labreads, lp_got_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_got_monomulti)
+
+oneway.test(labreads ~ multi_med, data = lp_got_monomulti)
+```
+
+```{r}
+n_patients <- lp_got_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_got_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication",
+  xlab = "Medication group",
+  ylab = "got (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_got_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_got_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_got_para nsaid monomulti.svg", height = 6, width = 8)
+print(lp_got_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+lp_got_monomulti_13 <- lp_got_monomulti%>% 
+  filter(attribute %in% c("got Day1", "got Day2", "got Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+lp_got_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_got_monomulti_13$labreads, lp_got_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = lp_got_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = lp_got_monomulti_13)
+```
+
+```{}
+n_patients <- lp_got_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_got_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "got (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_got_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_got_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_got_para nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(lp_got_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+lp_got_monomulti_peak <- lp_got_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+lp_got_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_got_monomulti_peak$labreads, lp_got_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_got_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = lp_got_monomulti_peak)
+```
+
+```{r}
+lp_got_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = lp_got_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-got (U/L)",
+  messages = FALSE)
+
+lp_got_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_got_para nsaid monomulti peak.svg", height = 6, width = 8)
+print(lp_got_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+### ggt ###############################################################################
+# ggt - diclo
+```{r}
+diclo_multitreat_ggt <- left_join(patientid_mainmed_multi,ggt_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_multitreat_ggt 
+```
+
+```{r}
+diclo_monotreat_ggt <- left_join(diclo_monotreat,ggt_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_monotreat_ggt 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+ld_ggt_monomulti <- bind_rows(
+  diclo_monotreat_ggt %>% mutate(multi_med = "Diclofenac"),  
+  diclo_multitreat_ggt )
+
+ld_ggt_monomulti
+```
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+ld_ggt_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_ggt_monomulti$labreads, ld_ggt_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = ld_ggt_monomulti)
+
+oneway.test(labreads ~ multi_med, data = ld_ggt_monomulti)
+```
+
+```{r}
+n_patients <- ld_ggt_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_ggt_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication",
+  xlab = "Medication group",
+  ylab = "ggt (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_ggt_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_ggt_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_ggt_diclo nsaid monomulti.svg", height = 6, width = 8)
+print(ld_ggt_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+ld_ggt_monomulti_13 <- ld_ggt_monomulti%>% 
+  filter(attribute %in% c("ggt Day1", "ggt Day2", "ggt Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+ld_ggt_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_ggt_monomulti_13$labreads, ld_ggt_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = ld_ggt_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = ld_ggt_monomulti_13)
+```
+
+```{}
+n_patients <- ld_ggt_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_ggt_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "ggt (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_ggt_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_ggt_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_ggt_diclo nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(ld_ggt_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+ld_ggt_monomulti_peak <- ld_ggt_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+ld_ggt_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_ggt_monomulti_peak$labreads, ld_ggt_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = ld_ggt_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = ld_ggt_monomulti_peak)
+```
+
+```{r}
+ld_ggt_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = ld_ggt_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-ggt (U/L)",
+  messages = FALSE)
+
+ld_ggt_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_ggt_diclo nsaid monomulti peak.svg", height = 6, width = 8)
+print(ld_ggt_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+# ggt - ibu
+```{r}
+ibu_multitreat_ggt <- left_join(patientid_mainmed_multi,ggt_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_multitreat_ggt 
+```
+
+```{r}
+ibu_monotreat_ggt <- left_join(ibu_monotreat,ggt_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_monotreat_ggt 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+li_ggt_monomulti <- bind_rows(
+  ibu_monotreat_ggt %>% mutate(multi_med = "Ibuprofen"),  
+  ibu_multitreat_ggt )
+
+li_ggt_monomulti
+```
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+li_ggt_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_ggt_monomulti$labreads, li_ggt_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_ggt_monomulti)
+
+oneway.test(labreads ~ multi_med, data = li_ggt_monomulti)
+```
+
+```{r}
+n_patients <- li_ggt_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_ggt_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication",
+  xlab = "Medication group",
+  ylab = "ggt (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_ggt_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_ggt_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_ggt_ibu nsaid monomulti.svg", height = 6, width = 8)
+print(li_ggt_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+li_ggt_monomulti_13 <- li_ggt_monomulti%>% 
+  filter(attribute %in% c("ggt Day1", "ggt Day2", "ggt Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+li_ggt_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_ggt_monomulti_13$labreads, li_ggt_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = li_ggt_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = li_ggt_monomulti_13)
+```
+
+```{}
+n_patients <- li_ggt_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_ggt_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "ggt (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_ggt_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_ggt_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_ggt_ibu nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(li_ggt_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+li_ggt_monomulti_peak <- li_ggt_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+li_ggt_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_ggt_monomulti_peak$labreads, li_ggt_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_ggt_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = li_ggt_monomulti_peak)
+```
+
+```{r}
+li_ggt_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = li_ggt_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-ggt (U/L)",
+  messages = FALSE)
+
+li_ggt_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_ggt_ibu nsaid monomulti peak.svg", height = 6, width = 8)
+print(li_ggt_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+# ggt - para
+```{r}
+para_multitreat_ggt <- left_join(patientid_mainmed_multi,ggt_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_multitreat_ggt 
+```
+
+```{r}
+para_monotreat_ggt <- left_join(para_monotreat,ggt_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_monotreat_ggt 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+lp_ggt_monomulti <- bind_rows(
+  para_monotreat_ggt %>% mutate(multi_med = "Paracetamol"),  
+  para_multitreat_ggt )
+
+lp_ggt_monomulti
+```
+
+
+
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+lp_ggt_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_ggt_monomulti$labreads, lp_ggt_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_ggt_monomulti)
+
+oneway.test(labreads ~ multi_med, data = lp_ggt_monomulti)
+```
+
+```{r}
+n_patients <- lp_ggt_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_ggt_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication",
+  xlab = "Medication group",
+  ylab = "ggt (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_ggt_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_ggt_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_ggt_para nsaid monomulti.svg", height = 6, width = 8)
+print(lp_ggt_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+lp_ggt_monomulti_13 <- lp_ggt_monomulti%>% 
+  filter(attribute %in% c("ggt Day1", "ggt Day2", "ggt Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+lp_ggt_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_ggt_monomulti_13$labreads, lp_ggt_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = lp_ggt_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = lp_ggt_monomulti_13)
+```
+
+```{}
+n_patients <- lp_ggt_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_ggt_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "ggt (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_ggt_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_ggt_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_ggt_para nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(lp_ggt_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+lp_ggt_monomulti_peak <- lp_ggt_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+lp_ggt_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_ggt_monomulti_peak$labreads, lp_ggt_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_ggt_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = lp_ggt_monomulti_peak)
+```
+
+```{r}
+lp_ggt_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = lp_ggt_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-ggt (U/L)",
+  messages = FALSE)
+
+lp_ggt_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_ggt_para nsaid monomulti peak.svg", height = 6, width = 8)
+print(lp_ggt_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+### ap ###############################################################################
+# ap - diclo
+```{r}
+diclo_multitreat_ap <- left_join(patientid_mainmed_multi,ap_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_multitreat_ap 
+```
+
+```{r}
+diclo_monotreat_ap <- left_join(diclo_monotreat,ap_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_monotreat_ap 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+ld_ap_monomulti <- bind_rows(
+  diclo_monotreat_ap %>% mutate(multi_med = "Diclofenac"),  
+  diclo_multitreat_ap )
+
+ld_ap_monomulti
+```
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+ld_ap_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_ap_monomulti$labreads, ld_ap_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = ld_ap_monomulti)
+
+#oneway.test(labreads ~ multi_med, data = ld_ap_monomulti)
+```
+
+```{r}
+n_patients <- ld_ap_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_ap_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication",
+  xlab = "Medication group",
+  ylab = "ap (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_ap_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_ap_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_ap_diclo nsaid monomulti.svg", height = 6, width = 8)
+print(ld_ap_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+ld_ap_monomulti_13 <- ld_ap_monomulti%>% 
+  filter(attribute %in% c("ap Day1", "ap Day2", "ap Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+ld_ap_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_ap_monomulti_13$labreads, ld_ap_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = ld_ap_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = ld_ap_monomulti_13)
+```
+
+```{}
+n_patients <- ld_ap_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_ap_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "ap (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_ap_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_ap_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_ap_diclo nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(ld_ap_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+ld_ap_monomulti_peak <- ld_ap_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+ld_ap_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_ap_monomulti_peak$labreads, ld_ap_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = ld_ap_monomulti_peak)
+
+#oneway.test(labreads ~ multi_med, data = ld_ap_monomulti_peak)
+```
+
+```{r}
+ld_ap_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = ld_ap_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-ap (U/L)",
+  messages = FALSE)
+
+ld_ap_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_ap_diclo nsaid monomulti peak.svg", height = 6, width = 8)
+print(ld_ap_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+# ap - ibu
+```{r}
+ibu_multitreat_ap <- left_join(patientid_mainmed_multi,ap_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_multitreat_ap 
+```
+
+```{r}
+ibu_monotreat_ap <- left_join(ibu_monotreat,ap_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_monotreat_ap 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+li_ap_monomulti <- bind_rows(
+  ibu_monotreat_ap %>% mutate(multi_med = "Ibuprofen"),  
+  ibu_multitreat_ap )
+
+li_ap_monomulti
+```
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+li_ap_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_ap_monomulti$labreads, li_ap_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_ap_monomulti)
+
+oneway.test(labreads ~ multi_med, data = li_ap_monomulti)
+```
+
+```{r}
+n_patients <- li_ap_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_ap_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication",
+  xlab = "Medication group",
+  ylab = "ap (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_ap_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_ap_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_ap_ibu nsaid monomulti.svg", height = 6, width = 8)
+print(li_ap_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+li_ap_monomulti_13 <- li_ap_monomulti%>% 
+  filter(attribute %in% c("ap Day1", "ap Day2", "ap Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+li_ap_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_ap_monomulti_13$labreads, li_ap_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = li_ap_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = li_ap_monomulti_13)
+```
+
+```{}
+n_patients <- li_ap_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_ap_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "ap (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_ap_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_ap_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_ap_ibu nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(li_ap_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+li_ap_monomulti_peak <- li_ap_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+li_ap_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_ap_monomulti_peak$labreads, li_ap_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_ap_monomulti_peak)
+
+#oneway.test(labreads ~ multi_med, data = li_ap_monomulti_peak)
+```
+
+```{r}
+li_ap_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = li_ap_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-ap (U/L)",
+  messages = FALSE)
+
+li_ap_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_ap_ibu nsaid monomulti peak.svg", height = 6, width = 8)
+print(li_ap_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+# ap - para
+```{r}
+para_multitreat_ap <- left_join(patientid_mainmed_multi,ap_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_multitreat_ap 
+```
+
+```{r}
+para_monotreat_ap <- left_join(para_monotreat,ap_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_monotreat_ap 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+lp_ap_monomulti <- bind_rows(
+  para_monotreat_ap %>% mutate(multi_med = "Paracetamol"),  
+  para_multitreat_ap )
+
+lp_ap_monomulti
+```
+
+
+
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+lp_ap_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_ap_monomulti$labreads, lp_ap_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_ap_monomulti)
+
+oneway.test(labreads ~ multi_med, data = lp_ap_monomulti)
+```
+
+```{r}
+n_patients <- lp_ap_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_ap_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication",
+  xlab = "Medication group",
+  ylab = "ap (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_ap_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_ap_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_ap_para nsaid monomulti.svg", height = 6, width = 8)
+print(lp_ap_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+lp_ap_monomulti_13 <- lp_ap_monomulti%>% 
+  filter(attribute %in% c("ap Day1", "ap Day2", "ap Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+lp_ap_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_ap_monomulti_13$labreads, lp_ap_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = lp_ap_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = lp_ap_monomulti_13)
+```
+
+```{}
+n_patients <- lp_ap_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_ap_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "ap (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_ap_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_ap_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_ap_para nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(lp_ap_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+lp_ap_monomulti_peak <- lp_ap_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+lp_ap_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_ap_monomulti_peak$labreads, lp_ap_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_ap_monomulti_peak)
+
+#oneway.test(labreads ~ multi_med, data = lp_ap_monomulti_peak)
+```
+
+```{r}
+lp_ap_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = lp_ap_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-ap (U/L)",
+  messages = FALSE)
+
+lp_ap_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_ap_para nsaid monomulti peak.svg", height = 6, width = 8)
+print(lp_ap_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+### ldh ###############################################################################
+# ldh - diclo
+```{r}
+diclo_multitreat_ldh <- left_join(patientid_mainmed_multi,ldh_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_multitreat_ldh 
+```
+
+```{r}
+diclo_monotreat_ldh <- left_join(diclo_monotreat,ldh_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_monotreat_ldh 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+ld_ldh_monomulti <- bind_rows(
+  diclo_monotreat_ldh %>% mutate(multi_med = "Diclofenac"),  
+  diclo_multitreat_ldh )
+
+ld_ldh_monomulti
+```
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+ld_ldh_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_ldh_monomulti$labreads, ld_ldh_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = ld_ldh_monomulti)
+
+oneway.test(labreads ~ multi_med, data = ld_ldh_monomulti)
+```
+
+```{r}
+n_patients <- ld_ldh_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_ldh_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication",
+  xlab = "Medication group",
+  ylab = "ldh (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_ldh_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_ldh_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_ldh_diclo nsaid monomulti.svg", height = 6, width = 8)
+print(ld_ldh_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+ld_ldh_monomulti_13 <- ld_ldh_monomulti%>% 
+  filter(attribute %in% c("ldh Day1", "ldh Day2", "ldh Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+ld_ldh_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_ldh_monomulti_13$labreads, ld_ldh_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = ld_ldh_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = ld_ldh_monomulti_13)
+```
+
+```{}
+n_patients <- ld_ldh_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_ldh_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "ldh (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_ldh_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_ldh_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_ldh_diclo nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(ld_ldh_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+ld_ldh_monomulti_peak <- ld_ldh_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+ld_ldh_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_ldh_monomulti_peak$labreads, ld_ldh_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = ld_ldh_monomulti_peak)
+
+#oneway.test(labreads ~ multi_med, data = ld_ldh_monomulti_peak)
+```
+
+```{r}
+ld_ldh_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = ld_ldh_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-ldh (U/L)",
+  messages = FALSE)
+
+ld_ldh_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_ldh_diclo nsaid monomulti peak.svg", height = 6, width = 8)
+print(ld_ldh_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+# ldh - ibu
+```{r}
+ibu_multitreat_ldh <- left_join(patientid_mainmed_multi,ldh_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_multitreat_ldh 
+```
+
+```{r}
+ibu_monotreat_ldh <- left_join(ibu_monotreat,ldh_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_monotreat_ldh 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+li_ldh_monomulti <- bind_rows(
+  ibu_monotreat_ldh %>% mutate(multi_med = "Ibuprofen"),  
+  ibu_multitreat_ldh )
+
+li_ldh_monomulti
+```
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+li_ldh_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_ldh_monomulti$labreads, li_ldh_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_ldh_monomulti)
+
+oneway.test(labreads ~ multi_med, data = li_ldh_monomulti)
+```
+
+```{r}
+n_patients <- li_ldh_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_ldh_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication",
+  xlab = "Medication group",
+  ylab = "ldh (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_ldh_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_ldh_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_ldh_ibu nsaid monomulti.svg", height = 6, width = 8)
+print(li_ldh_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+li_ldh_monomulti_13 <- li_ldh_monomulti%>% 
+  filter(attribute %in% c("ldh Day1", "ldh Day2", "ldh Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+li_ldh_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_ldh_monomulti_13$labreads, li_ldh_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = li_ldh_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = li_ldh_monomulti_13)
+```
+
+```{}
+n_patients <- li_ldh_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_ldh_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "ldh (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_ldh_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_ldh_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_ldh_ibu nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(li_ldh_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+li_ldh_monomulti_peak <- li_ldh_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+li_ldh_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_ldh_monomulti_peak$labreads, li_ldh_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_ldh_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = li_ldh_monomulti_peak)
+```
+
+```{r}
+li_ldh_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = li_ldh_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-ldh (U/L)",
+  messages = FALSE)
+
+li_ldh_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_ldh_ibu nsaid monomulti peak.svg", height = 6, width = 8)
+print(li_ldh_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+# ldh - para
+```{r}
+para_multitreat_ldh <- left_join(patientid_mainmed_multi,ldh_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_multitreat_ldh 
+```
+
+```{r}
+para_monotreat_ldh <- left_join(para_monotreat,ldh_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_monotreat_ldh 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+lp_ldh_monomulti <- bind_rows(
+  para_monotreat_ldh %>% mutate(multi_med = "Paracetamol"),  
+  para_multitreat_ldh )
+
+lp_ldh_monomulti
+```
+
+
+
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+lp_ldh_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_ldh_monomulti$labreads, lp_ldh_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_ldh_monomulti)
+
+oneway.test(labreads ~ multi_med, data = lp_ldh_monomulti)
+```
+
+```{r}
+n_patients <- lp_ldh_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_ldh_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication",
+  xlab = "Medication group",
+  ylab = "ldh (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_ldh_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_ldh_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_ldh_para nsaid monomulti.svg", height = 6, width = 8)
+print(lp_ldh_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+lp_ldh_monomulti_13 <- lp_ldh_monomulti%>% 
+  filter(attribute %in% c("ldh Day1", "ldh Day2", "ldh Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+lp_ldh_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_ldh_monomulti_13$labreads, lp_ldh_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = lp_ldh_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = lp_ldh_monomulti_13)
+```
+
+```{}
+n_patients <- lp_ldh_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_ldh_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "ldh (U/L)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_ldh_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_ldh_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_ldh_para nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(lp_ldh_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+lp_ldh_monomulti_peak <- lp_ldh_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+lp_ldh_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_ldh_monomulti_peak$labreads, lp_ldh_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_ldh_monomulti_peak)
+
+#oneway.test(labreads ~ multi_med, data = lp_ldh_monomulti_peak)
+```
+
+```{r}
+lp_ldh_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = lp_ldh_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-ldh (U/L)",
+  messages = FALSE)
+
+lp_ldh_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_ldh_para nsaid monomulti peak.svg", height = 6, width = 8)
+print(lp_ldh_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+
+### total_bilirubin ###############################################################################
+# total_bilirubin - diclo
+```{r}
+diclo_multitreat_total_bilirubin <- left_join(patientid_mainmed_multi,total_bilirubin_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_multitreat_total_bilirubin 
+```
+
+```{r}
+diclo_monotreat_total_bilirubin <- left_join(diclo_monotreat,total_bilirubin_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_monotreat_total_bilirubin 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+ld_total_bilirubin_monomulti <- bind_rows(
+  diclo_monotreat_total_bilirubin %>% mutate(multi_med = "Diclofenac"),  
+  diclo_multitreat_total_bilirubin )
+
+ld_total_bilirubin_monomulti
+```
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+ld_total_bilirubin_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_total_bilirubin_monomulti$labreads, ld_total_bilirubin_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = ld_total_bilirubin_monomulti)
+
+oneway.test(labreads ~ multi_med, data = ld_total_bilirubin_monomulti)
+```
+
+```{r}
+n_patients <- ld_total_bilirubin_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_total_bilirubin_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication",
+  xlab = "Medication group",
+  ylab = "total_bilirubin (mg/dl)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_total_bilirubin_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_total_bilirubin_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_total_bilirubin_diclo nsaid monomulti.svg", height = 6, width = 8)
+print(ld_total_bilirubin_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+ld_total_bilirubin_monomulti_13 <- ld_total_bilirubin_monomulti%>% 
+  filter(attribute %in% c("total_bilirubin Day1", "total_bilirubin Day2", "total_bilirubin Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+ld_total_bilirubin_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_total_bilirubin_monomulti_13$labreads, ld_total_bilirubin_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = ld_total_bilirubin_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = ld_total_bilirubin_monomulti_13)
+```
+
+```{}
+n_patients <- ld_total_bilirubin_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_total_bilirubin_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "total_bilirubin (mg/dl)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_total_bilirubin_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_total_bilirubin_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_total_bilirubin_diclo nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(ld_total_bilirubin_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+ld_total_bilirubin_monomulti_peak <- ld_total_bilirubin_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+ld_total_bilirubin_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_total_bilirubin_monomulti_peak$labreads, ld_total_bilirubin_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = ld_total_bilirubin_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = ld_total_bilirubin_monomulti_peak)
+```
+
+```{r}
+ld_total_bilirubin_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = ld_total_bilirubin_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-total_bilirubin (mg/dl)",
+  messages = FALSE)
+
+ld_total_bilirubin_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_total_bilirubin_diclo nsaid monomulti peak.svg", height = 6, width = 8)
+print(ld_total_bilirubin_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+# total_bilirubin - ibu
+```{r}
+ibu_multitreat_total_bilirubin <- left_join(patientid_mainmed_multi,total_bilirubin_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_multitreat_total_bilirubin 
+```
+
+```{r}
+ibu_monotreat_total_bilirubin <- left_join(ibu_monotreat,total_bilirubin_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_monotreat_total_bilirubin 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+li_total_bilirubin_monomulti <- bind_rows(
+  ibu_monotreat_total_bilirubin %>% mutate(multi_med = "Ibuprofen"),  
+  ibu_multitreat_total_bilirubin )
+
+li_total_bilirubin_monomulti
+```
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+li_total_bilirubin_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_total_bilirubin_monomulti$labreads, li_total_bilirubin_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_total_bilirubin_monomulti)
+
+oneway.test(labreads ~ multi_med, data = li_total_bilirubin_monomulti)
+```
+
+```{r}
+n_patients <- li_total_bilirubin_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_total_bilirubin_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication",
+  xlab = "Medication group",
+  ylab = "total_bilirubin (mg/dl)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_total_bilirubin_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_total_bilirubin_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_total_bilirubin_ibu nsaid monomulti.svg", height = 6, width = 8)
+print(li_total_bilirubin_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+li_total_bilirubin_monomulti_13 <- li_total_bilirubin_monomulti%>% 
+  filter(attribute %in% c("total_bilirubin Day1", "total_bilirubin Day2", "total_bilirubin Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+li_total_bilirubin_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_total_bilirubin_monomulti_13$labreads, li_total_bilirubin_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = li_total_bilirubin_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = li_total_bilirubin_monomulti_13)
+```
+
+```{}
+n_patients <- li_total_bilirubin_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_total_bilirubin_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "total_bilirubin (mg/dl)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_total_bilirubin_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_total_bilirubin_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_total_bilirubin_ibu nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(li_total_bilirubin_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+li_total_bilirubin_monomulti_peak <- li_total_bilirubin_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+li_total_bilirubin_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_total_bilirubin_monomulti_peak$labreads, li_total_bilirubin_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_total_bilirubin_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = li_total_bilirubin_monomulti_peak)
+```
+
+```{r}
+li_total_bilirubin_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = li_total_bilirubin_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-total_bilirubin (mg/dl)",
+  messages = FALSE)
+
+li_total_bilirubin_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_total_bilirubin_ibu nsaid monomulti peak.svg", height = 6, width = 8)
+print(li_total_bilirubin_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+# total_bilirubin - para
+```{r}
+para_multitreat_total_bilirubin <- left_join(patientid_mainmed_multi,total_bilirubin_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_multitreat_total_bilirubin 
+```
+
+```{r}
+para_monotreat_total_bilirubin <- left_join(para_monotreat,total_bilirubin_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_monotreat_total_bilirubin 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+lp_total_bilirubin_monomulti <- bind_rows(
+  para_monotreat_total_bilirubin %>% mutate(multi_med = "Paracetamol"),  
+  para_multitreat_total_bilirubin )
+
+lp_total_bilirubin_monomulti
+```
+
+
+
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+lp_total_bilirubin_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_total_bilirubin_monomulti$labreads, lp_total_bilirubin_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_total_bilirubin_monomulti)
+
+oneway.test(labreads ~ multi_med, data = lp_total_bilirubin_monomulti)
+```
+
+```{r}
+n_patients <- lp_total_bilirubin_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_total_bilirubin_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication",
+  xlab = "Medication group",
+  ylab = "total_bilirubin (mg/dl)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_total_bilirubin_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_total_bilirubin_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_total_bilirubin_para nsaid monomulti.svg", height = 6, width = 8)
+print(lp_total_bilirubin_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+lp_total_bilirubin_monomulti_13 <- lp_total_bilirubin_monomulti%>% 
+  filter(attribute %in% c("total_bilirubin Day1", "total_bilirubin Day2", "total_bilirubin Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+lp_total_bilirubin_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_total_bilirubin_monomulti_13$labreads, lp_total_bilirubin_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = lp_total_bilirubin_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = lp_total_bilirubin_monomulti_13)
+```
+
+```{}
+n_patients <- lp_total_bilirubin_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_total_bilirubin_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "total_bilirubin (mg/dl)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_total_bilirubin_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_total_bilirubin_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_total_bilirubin_para nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(lp_total_bilirubin_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+lp_total_bilirubin_monomulti_peak <- lp_total_bilirubin_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+lp_total_bilirubin_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_total_bilirubin_monomulti_peak$labreads, lp_total_bilirubin_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_total_bilirubin_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = lp_total_bilirubin_monomulti_peak)
+```
+
+```{r}
+lp_total_bilirubin_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = lp_total_bilirubin_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-total_bilirubin (mg/dl)",
+  messages = FALSE)
+
+lp_total_bilirubin_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_total_bilirubin_para nsaid monomulti peak.svg", height = 6, width = 8)
+print(lp_total_bilirubin_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+
+### direct_bilirubin ###############################################################################
+# direct_bilirubin - diclo
+```{r}
+diclo_multitreat_direct_bilirubin <- left_join(patientid_mainmed_multi,direct_bilirubin_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_multitreat_direct_bilirubin 
+```
+
+```{r}
+diclo_monotreat_direct_bilirubin <- left_join(diclo_monotreat,direct_bilirubin_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Diclo") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+diclo_monotreat_direct_bilirubin 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+ld_direct_bilirubin_monomulti <- bind_rows(
+  diclo_monotreat_direct_bilirubin %>% mutate(multi_med = "Diclofenac"),  
+  diclo_multitreat_direct_bilirubin )
+
+ld_direct_bilirubin_monomulti
+```
+
+
+
+### mono multitreat for all labvalues ###
+
+```{r}
+ld_direct_bilirubin_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_direct_bilirubin_monomulti$labreads, ld_direct_bilirubin_monomulti$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = ld_direct_bilirubin_monomulti)
+
+#oneway.test(labreads ~ multi_med, data = ld_direct_bilirubin_monomulti)
+```
+
+```{}
+n_patients <- ld_direct_bilirubin_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_direct_bilirubin_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication",
+  xlab = "Medication group",
+  ylab = "direct_bilirubin (mg/dl)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_direct_bilirubin_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_direct_bilirubin_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_direct_bilirubin_diclo nsaid monomulti.svg", height = 6, width = 8)
+print(ld_direct_bilirubin_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+ld_direct_bilirubin_monomulti_13 <- ld_direct_bilirubin_monomulti%>% 
+  filter(attribute %in% c("direct_bilirubin Day1", "direct_bilirubin Day2", "direct_bilirubin Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{r}
+ld_direct_bilirubin_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_direct_bilirubin_monomulti_13$labreads, ld_direct_bilirubin_monomulti_13$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = ld_direct_bilirubin_monomulti_13)
+
+#oneway.test(labreads ~ multi_med, data = ld_direct_bilirubin_monomulti_13)
+```
+
+```{}
+n_patients <- ld_direct_bilirubin_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ld_direct_bilirubin_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "direct_bilirubin (mg/dl)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+ld_direct_bilirubin_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+ld_direct_bilirubin_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_direct_bilirubin_diclo nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(ld_direct_bilirubin_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{r}
+ld_direct_bilirubin_monomulti_peak <- ld_direct_bilirubin_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{r}
+ld_direct_bilirubin_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(ld_direct_bilirubin_monomulti_peak$labreads, ld_direct_bilirubin_monomulti_peak$multi_med, var)
+#leveneTest(labreads ~ multi_med, data = ld_direct_bilirubin_monomulti_peak)
+
+#oneway.test(labreads ~ multi_med, data = ld_direct_bilirubin_monomulti_peak)
+```
+
+```{}
+ld_direct_bilirubin_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = ld_direct_bilirubin_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver diclo_monotreatment vs. diclofenac with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-direct_bilirubin (mg/dl)",
+  messages = FALSE)
+
+ld_direct_bilirubin_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_diclo_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_diclo_nsaid/ld_direct_bilirubin_diclo nsaid monomulti peak.svg", height = 6, width = 8)
+print(ld_direct_bilirubin_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+# direct_bilirubin - ibu
+```{r}
+ibu_multitreat_direct_bilirubin <- left_join(patientid_mainmed_multi,direct_bilirubin_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_multitreat_direct_bilirubin 
+```
+
+```{r}
+ibu_monotreat_direct_bilirubin <- left_join(ibu_monotreat,direct_bilirubin_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Ibu") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+ibu_monotreat_direct_bilirubin 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+li_direct_bilirubin_monomulti <- bind_rows(
+  ibu_monotreat_direct_bilirubin %>% mutate(multi_med = "Ibuprofen"),  
+  ibu_multitreat_direct_bilirubin )
+
+li_direct_bilirubin_monomulti
+```
+
+
+
+### mono multitreat for all labvalues ###
+
+```{}
+li_direct_bilirubin_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_direct_bilirubin_monomulti$labreads, li_direct_bilirubin_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_direct_bilirubin_monomulti)
+
+oneway.test(labreads ~ multi_med, data = li_direct_bilirubin_monomulti)
+```
+
+```{}
+n_patients <- li_direct_bilirubin_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_direct_bilirubin_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication",
+  xlab = "Medication group",
+  ylab = "direct_bilirubin (mg/dl)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_direct_bilirubin_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_direct_bilirubin_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_direct_bilirubin_ibu nsaid monomulti.svg", height = 6, width = 8)
+print(li_direct_bilirubin_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{r}
+li_direct_bilirubin_monomulti_13 <- li_direct_bilirubin_monomulti%>% 
+  filter(attribute %in% c("direct_bilirubin Day1", "direct_bilirubin Day2", "direct_bilirubin Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{}
+li_direct_bilirubin_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_direct_bilirubin_monomulti_13$labreads, li_direct_bilirubin_monomulti_13$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_direct_bilirubin_monomulti_13)
+
+oneway.test(labreads ~ multi_med, data = li_direct_bilirubin_monomulti_13)
+```
+
+```{}
+n_patients <- li_direct_bilirubin_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = li_direct_bilirubin_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "direct_bilirubin (mg/dl)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+li_direct_bilirubin_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+li_direct_bilirubin_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_direct_bilirubin_ibu nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(li_direct_bilirubin_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{}
+li_direct_bilirubin_monomulti_peak <- li_direct_bilirubin_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{}
+li_direct_bilirubin_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(li_direct_bilirubin_monomulti_peak$labreads, li_direct_bilirubin_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = li_direct_bilirubin_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = li_direct_bilirubin_monomulti_peak)
+```
+
+```{}
+li_direct_bilirubin_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = li_direct_bilirubin_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver ibu_monotreatment vs. ibuprofen with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-direct_bilirubin (mg/dl)",
+  messages = FALSE)
+
+li_direct_bilirubin_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_ibu_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_ibu_nsaid/li_direct_bilirubin_ibu nsaid monomulti peak.svg", height = 6, width = 8)
+print(li_direct_bilirubin_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+# direct_bilirubin - para
+```{r}
+para_multitreat_direct_bilirubin <- left_join(patientid_mainmed_multi,direct_bilirubin_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_multitreat_direct_bilirubin 
+```
+
+```{r}
+para_monotreat_direct_bilirubin <- left_join(para_monotreat,direct_bilirubin_full, by = c("Edited_BfArM Nummer2")) %>% 
+  drop_na() %>% 
+  filter(Treatment.y == "Leber_Para") %>%
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>%
+  distinct("Edited_BfArM Nummer2", attribute, labreads, .keep_all = TRUE)
+
+para_monotreat_direct_bilirubin 
+```
+
+```{r}
+# Convert Drug_Group to character in both datasets before combining
+lp_direct_bilirubin_monomulti <- bind_rows(
+  para_monotreat_direct_bilirubin %>% mutate(multi_med = "Paracetamol"),  
+  para_multitreat_direct_bilirubin )
+
+lp_direct_bilirubin_monomulti
+```
+
+
+
+
+
+
+### mono multitreat for all labvalues ###
+
+```{}
+lp_direct_bilirubin_monomulti %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_direct_bilirubin_monomulti$labreads, lp_direct_bilirubin_monomulti$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_direct_bilirubin_monomulti)
+
+oneway.test(labreads ~ multi_med, data = lp_direct_bilirubin_monomulti)
+```
+
+```{}
+n_patients <- lp_direct_bilirubin_monomulti %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_direct_bilirubin_monomulti,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication",
+  xlab = "Medication group",
+  ylab = "direct_bilirubin (mg/dl)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_direct_bilirubin_violin_nsaid_multitreatment <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_direct_bilirubin_violin_nsaid_multitreatment
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_direct_bilirubin_para nsaid monomulti.svg", height = 6, width = 8)
+print(lp_direct_bilirubin_violin_nsaid_multitreatment)
+dev.off()
+```
+
+### mono multitreat for day 1-3 ###
+
+```{}
+lp_direct_bilirubin_monomulti_13 <- lp_direct_bilirubin_monomulti%>% 
+  filter(attribute %in% c("direct_bilirubin Day1", "direct_bilirubin Day2", "direct_bilirubin Day3")) %>% 
+  distinct(`Edited_BfArM Nummer2`, labreads, attribute, .keep_all = TRUE)
+```
+
+```{}
+lp_direct_bilirubin_monomulti_13 %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_direct_bilirubin_monomulti_13$labreads, lp_direct_bilirubin_monomulti_13$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_direct_bilirubin_monomulti_13)
+
+oneway.test(labreads ~ multi_med, data = lp_direct_bilirubin_monomulti_13)
+```
+
+```{}
+n_patients <- lp_direct_bilirubin_monomulti_13 %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med) %>%  # nur einzigartige Patienten
+  count(multi_med, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = lp_direct_bilirubin_monomulti_13,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for day 1-3",
+  xlab = "Medication group",
+  ylab = "direct_bilirubin (mg/dl)",
+  messages = FALSE)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+lp_direct_bilirubin_violin_nsaid_multitreatment_13 <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = multi_med, 
+        y = max(dd$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4)
+
+lp_direct_bilirubin_violin_nsaid_multitreatment_13
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_direct_bilirubin_para nsaid monomulti day 1-3.svg", height = 6, width = 8)
+print(lp_direct_bilirubin_violin_nsaid_multitreatment_13)
+dev.off()
+```
+
+
+
+
+### mono multitreatment for peak labvalue ###
+
+```{}
+lp_direct_bilirubin_monomulti_peak <- lp_direct_bilirubin_monomulti%>% 
+  drop_na(labreads) %>% 
+  group_by(`Edited_BfArM Nummer2`) %>% 
+  slice_max(order_by = labreads, n = 1, with_ties = FALSE) %>%  # behält nur den höchsten Wert pro Patient
+  ungroup()
+```
+
+```{}
+lp_direct_bilirubin_monomulti_peak %>% 
+  group_by(multi_med) %>% 
+  normality(labreads)
+
+tapply(lp_direct_bilirubin_monomulti_peak$labreads, lp_direct_bilirubin_monomulti_peak$multi_med, var)
+leveneTest(labreads ~ multi_med, data = lp_direct_bilirubin_monomulti_peak)
+
+oneway.test(labreads ~ multi_med, data = lp_direct_bilirubin_monomulti_peak)
+```
+
+```{}
+lp_direct_bilirubin_violin_nsaid_multitreatment_peak <- ggbetweenstats(
+  data = lp_direct_bilirubin_monomulti_peak,
+  x = multi_med,
+  y = labreads,
+  type = "np",  # non-parametrisch
+  title = "liver para_monotreatment vs. paracetamol with comedication for peak labvalues",
+  xlab = "Medication group",
+  ylab = "Peak-direct_bilirubin (mg/dl)",
+  messages = FALSE)
+
+lp_direct_bilirubin_violin_nsaid_multitreatment_peak
+dir.create("plots_mono_multitreat/plots_para_nsaid", recursive = TRUE,showWarnings = FALSE)
+svg("plots_mono_multitreat/plots_para_nsaid/lp_direct_bilirubin_para nsaid monomulti peak.svg", height = 6, width = 8)
+print(lp_direct_bilirubin_violin_nsaid_multitreatment_peak)
+dev.off()
+```
+
+
+
+
+
+
+
+
+

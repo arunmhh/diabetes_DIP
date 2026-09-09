@@ -1,0 +1,2218 @@
+---
+title: "boxplots_20may2026"
+author: "Arun Kumar"
+date: "2026-05-20"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(here)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(rstatix)
+```
+
+```{r}
+source(here::here("R/make_boxplot_with_stats.R"))
+source(here::here("R/export_plot.R"))
+source(here::here("R/pretty_boxplot.R"))
+source(here::here("R/clean_data.R"))
+source(here::here("R/comedication.R"))
+```
+
+
+##===================
+## Raw data from Excel
+##===================
+
+```{r}
+sheets <- excel_sheets(here::here(
+  "RawData/new_raw_data/ubersicht_Laborwerte_laborwerte_fertig_aktuell_new.xlsx"
+))
+
+sheets <- sheets[
+  sheets %in% c(
+    "Fallberichte")]
+sheets
+
+
+all_data <- map_dfr(
+  sheets,
+  ~ process_sheet(file = here::here("RawData/new_raw_data/ubersicht_Laborwerte_laborwerte_fertig_aktuell_new.xlsx"), .x)
+  )
+all_data
+```
+
+## Note:: please open the diabetes_graphs_may2026 file to work together ##
+
+
+##================
+## Diabetic case
+##================
+```{r}
+gpt_full <- all_data %>% 
+       filter(panel_id == "gpt")
+gpt_full
+```
+
+
+```{r}
+
+diabetic_data <- read_excel(here::here("RawData/Diabetes rawdata.xlsx"), 
+                            sheet = 2) %>% 
+                            drop_na() %>% 
+  janitor::clean_names() %>% 
+  dplyr::rename("bf_ar_m_nummer"  = "edited_bf_ar_m_nummer2")
+
+diabetic_data
+```
+
+
+```{r}
+p1_diabetic_plot <- left_join(gpt_full, 
+                          diabetic_data, 
+                          by = ("bf_ar_m_nummer"),
+                          relationship = "many-to-many") %>% 
+            mutate(labreads = as.numeric(labreads)) %>% 
+  drop_na() %>% 
+  filter(diabetes == "Diabetic") %>% 
+#  filter(!attribute == "GPT Day_Unknown") %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>% 
+  mutate(treatment = recode(treatment,
+    "Leber_Diclo" = "Liver_Diclo",
+    "Leber_Ibu"   = "Liver_Ibu",
+    "Leber_Para"  = "Liver_Para"
+  )) %>% 
+  group_by(treatment)
+  
+p1_diabetic_plot
+```
+
+```{r}
+df_test <- p1_diabetic_plot %>%
+  ungroup() %>%
+  mutate(
+    labreads  = as.numeric(labreads),
+    treatment = factor(treatment)
+  ) %>%
+  drop_na(treatment, labreads)
+
+stat_test_debug <- df_test %>%
+  pairwise_wilcox_test(
+    formula         = labreads ~ treatment,
+    p.adjust.method = "BH"
+  ) %>%
+  add_significance("p.adj") %>%
+  add_xy_position(x = "treatment")
+
+# Check group1/group2 values and y.position
+print(stat_test_debug)
+```
+
+
+
+```{r}
+comparisons_diabetes <- list(
+  c("Leber_Diclo", "Leber_Ibu"),
+  c("Leber_Diclo", "Leber_Para"),
+  c("Leber_Ibu", "Leber_Para")
+)
+```
+
+```{r}
+diabetic_case <- make_boxplot_with_stats(
+  data = p1_diabetic_plot,
+  x = treatment,
+  y = labreads,
+  title = "Comparison of Diabetic Cases",
+  ylab = "ALT (u/l)",
+  comparisons = comparisons_diabetes
+  
+)
+diabetic_case
+```
+
+
+
+
+##================
+## Non Diabetic case
+##================
+
+```{r}
+p2_nondiabetic_plot <- left_join(gpt_full, 
+                          diabetic_data, 
+                          by = ("bf_ar_m_nummer"),
+                          relationship = "many-to-many") %>% 
+            mutate(labreads = as.numeric(labreads)) %>% 
+  drop_na() %>% 
+  filter(diabetes == "Non_Diabetic") %>% 
+#  filter(!attribute == "GPT Day_Unknown") %>% 
+  filter(!grepl("_From Start|_From start|DBS", attribute)) %>% 
+  filter(grepl("Leber_", treatment)) %>% 
+  mutate(treatment = recode(treatment,
+    "Leber_Diclo" = "Liver_Diclo",
+    "Leber_Ibu"   = "Liver_Ibu",
+    "Leber_Para"  = "Liver_Para"
+  )) %>% 
+  group_by(treatment)
+  
+p2_nondiabetic_plot
+```
+
+
+
+
+```{r}
+non_diabetic_case <- make_boxplot_with_stats(
+  data = p2_nondiabetic_plot,
+  x = treatment,
+  y = labreads,
+  title = "Comparison of nonDiabetic Cases",
+  ylab = "ALT (u/l)",
+  comparisons = comparisons_diabetes,
+  
+)
+non_diabetic_case
+```
+
+
+```{r}
+save_plots(
+  plots = list(diabetic_case,non_diabetic_case),
+  names = c("ALT_diabetic", "ALT_non_diabetic"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+##====================================
+## liver_diclo_diabetic vs nondiabetic
+##====================================
+
+
+```{r}
+# Anzahl einzigartiger Patienten pro Gruppe
+leber_diabetic_diclo <- gpt_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+label_df <- leber_diabetic_diclo %>%
+  group_by(diabetes) %>%
+  summarise(
+    n_patients = n_distinct(bf_ar_m_nummer),
+    n_labreads = n()
+  ) %>%
+  mutate(label = paste0("N = ", n_patients,
+                        "\nLab = ", n_labreads))
+label_df
+
+label_df_top <- label_df %>%
+  mutate(label = paste0("N = ", n_patients))
+label_df_bottom <- label_df %>%
+  mutate(label = paste0("n = ", n_labreads))
+
+
+
+# y positions
+y_max    <- max(leber_diabetic_diclo$labreads, na.rm = TRUE)
+y_top    <- y_max * 1.30
+y_bottom <- y_max * -0.40 
+
+
+
+leber_diclo_diabetic_vs_nondiabetic <- ggplot(leber_diabetic_diclo,
+             aes(x = diabetes, y = labreads, fill = diabetes)) +
+  geom_violin(trim = TRUE, alpha = 0.5, color = "black") +
+  geom_boxplot(width = 0.15, outlier.shape = NA, alpha = 0.8, color = "black") +
+  geom_jitter(width = 0.15, alpha = 0.5, size = 2) +
+  stat_summary(fun = median, geom = "point",
+               shape = 23, size = 4, fill = "yellow") +
+  geom_text(
+    data = label_df_top,
+    aes(x = diabetes, y = y_top, label = label),
+    inherit.aes = FALSE, fontface = "plain", size = 5
+  ) +
+  geom_text(
+    data = label_df_bottom,
+    aes(x = diabetes, y = y_bottom, label = label),
+    inherit.aes = FALSE, fontface = "plain", size = 4
+  ) +
+  stat_compare_means(
+    comparisons = list(c("Diabetic", "Non_Diabetic")),
+    method = "wilcox.test", label = "p.format",
+    label.y = max(leber_diabetic_diclo$labreads, na.rm = TRUE) * 1.08,
+    bracket.size = 1, tip.length = 0.02, size = 4
+  ) +
+  labs(
+    title = "Comparsion ofliver_diclo ALT for \nDiabetic vs. Non-Diabetic Patients",
+    x = NULL, y = "ALT (U/l)"
+  ) +
+  coord_cartesian(ylim = c(0, y_max * 1.50),
+                  clip = "off") +          # ✅ Separate layer — NOT inside theme()
+  theme_classic() +
+  theme(
+    legend.position = "none",
+    plot.title = element_text(hjust = 0.5, face = "bold",
+                              margin = margin(b = 10), lineheight = 1.2),
+    axis.text.x = element_text(size = 12, face = "bold"),
+    axis.text.y = element_text(size = 12, face = "bold"),
+    axis.title  = element_text(size = 15, face = "bold"),
+    axis.line   = element_line(linewidth = 1),
+    plot.margin = margin(t = 10, r = 10, b = 40, l = 10)  # bottom margin for labels
+  )
+leber_diclo_diabetic_vs_nondiabetic
+```
+
+
+##======================================
+## Boxplots for diabetic_non_diabetic
+##======================================
+
+
+
+```{r}
+dibetic_nondiabetic_full <- plot_lab_comparison(
+  data           = gpt_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of \nALT for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "ALT (U/l)"
+)
+dibetic_nondiabetic_full
+```
+
+
+```{r}
+gpt_liver_diclo <- gpt_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_alt_diclo <- plot_lab_comparison(
+  data           = gpt_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of liver diclo \nALT for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "ALT (U/l)"
+)
+p1_alt_diclo
+```
+
+```{r}
+gpt_liver_Ibu <- gpt_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_alt_ibu <-plot_lab_comparison(
+  data           = gpt_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of liver ibu \nALT for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "ALT (U/l)"
+)
+p2_alt_ibu
+```
+
+```{r}
+gpt_liver_para <- gpt_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_alt_para <-plot_lab_comparison(
+  data           = gpt_liver_para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of liver para \nALT for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "ALT (U/l)"
+)
+p3_alt_para
+```
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_full, p1_alt_diclo, p2_alt_ibu, p3_alt_para),
+  names = c("dibetic_nondiabetic_full", "p1_alt_diclo", "p2_alt_ibu", "p3_alt_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+
+
+##=======================
+## GOT Diabetic data
+========================
+
+```{r}
+# plot_lab_comparison <- function(
+#     data,
+#     group_var,
+#     y_var,
+#     patient_id_var,
+#     comparisons,
+#     plot_title   = "Comparison of Lab Values",
+#     x_label      = NULL,
+#     y_label      = "Lab Value",
+#     jitter_width = 0.15,
+#     jitter_alpha = 0.5,
+#     jitter_size  = 2,
+#     text_size    = 4,
+#     n_breaks     = 10
+# ) {
+# 
+#   group_col <- deparse(substitute(group_var))
+#   y_col     <- deparse(substitute(y_var))
+#   id_col    <- deparse(substitute(patient_id_var))
+# 
+#   # ── Validation ---------------------------------------------------------------
+#   missing_cols <- setdiff(c(group_col, y_col, id_col), names(data))
+#   if (length(missing_cols) > 0) {
+#     stop("Column(s) not found in data: ", paste(missing_cols, collapse = ", "))
+#   }
+# 
+#   if (!is.numeric(data[[y_col]])) {
+#     message("Note: Converting '", y_col, "' from ", class(data[[y_col]]), " to numeric.")
+#     data[[y_col]] <- as.numeric(data[[y_col]])
+# 
+#     n_lost <- sum(is.na(data[[y_col]]))
+#     if (n_lost > 0) {
+#       message("Warning: ", n_lost, " value(s) became NA after conversion — check raw data.")
+#     }
+#   }
+# 
+#   if (all(is.na(data[[y_col]]))) {
+#     stop("y_var '", y_col, "' is all NA after conversion — check for non-numeric values.")
+#   }
+# 
+#   # ── Label data frames --------------------------------------------------------
+#   labels <- make_label_dfs(data, {{ group_var }}, {{ patient_id_var }})
+#   label_df_top    <- labels$top
+#   label_df_bottom <- labels$bottom
+# 
+#   # ── Y-axis positions ---------------------------------------------------------
+#   y_max    <- max(data[[y_col]], na.rm = TRUE)
+#   y_top    <- y_max * 1.15
+#   y_bottom <- y_max * -0.25
+# 
+#   # ── rest of your ggplot code unchanged ──────────────────────────────────────
+#   ggplot(data,
+#          aes(x = .data[[group_col]],
+#              y = .data[[y_col]],
+#              fill = .data[[group_col]])) +
+# 
+#     # geom_violin(trim = FALSE, alpha = 0.5, color = "black") +
+# 
+#     geom_boxplot(width = 0.15, outlier.shape = NA,
+#                  alpha = 0.5, color = "black") +
+#     geom_jitter(width = jitter_width, alpha = jitter_alpha,
+#                 size  = jitter_size,
+#                 color = "#CC79A7")  +
+#     stat_summary(fun = median, geom = "point",
+#                  shape = 23, size = 4, fill = "brown") +
+#     geom_text(
+#       data        = label_df_top,
+#       aes(x = .data[[group_col]], y = y_top, label = label),
+#       inherit.aes = FALSE, fontface = "plain", size = text_size
+#     ) +
+#     geom_text(
+#       data        = label_df_bottom,
+#       aes(x = .data[[group_col]], y = y_bottom, label = label),
+#       inherit.aes = FALSE, fontface = "plain", size = text_size
+#     ) +
+#     stat_compare_means(
+#       comparisons  = comparisons,
+#       method       = "wilcox.test",
+#       label        = "p.format",
+#       label.y      = y_max * 1.02,
+#       bracket.size = 1, tip.length = 0.02, size = text_size
+#     ) +
+#     labs(title = plot_title, x = x_label, y = y_label) +
+#     coord_cartesian(ylim = c(0, y_max * 1.20), clip = "off") +
+#     scale_y_continuous(breaks = scales::breaks_pretty(n = n_breaks)) +
+#     theme_classic() +
+#     theme(
+#       legend.position  = "none",
+#       plot.title       = element_text(hjust = 0.5, face = "bold",
+#                                       margin = margin(b = 10),
+#                                       lineheight = 1.2),
+#       axis.text.x      = element_text(size = 12, face = "bold"),
+#       axis.text.y      = element_text(size = 12, face = "bold"),
+#       axis.title       = element_text(size = 15, face = "bold"),
+#       axis.line        = element_line(linewidth = 1),
+#       plot.margin      = margin(t = 10, r = 10, b = 30, l = 10)
+#     )
+# }
+```
+
+
+```{r}
+dibetic_nondiabetic_ASTfull <- plot_lab_comparison(
+  data           = got_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of AST \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "AST (U/l)"
+)
+dibetic_nondiabetic_ASTfull
+```
+
+
+```{r}
+
+got_liver_diclo <- got_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_ast_diclo <- plot_lab_comparison(
+  data           = got_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of AST liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "AST (U/l)"
+)
+p1_ast_diclo
+```
+
+
+```{r}
+
+got_liver_Ibu <- got_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_ast_ibu <- plot_lab_comparison(
+  data           = got_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of AST liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "AST (U/l)"
+)
+p2_ast_ibu
+```
+
+
+```{r}
+
+got_liver_para <- got_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_ast_para <- plot_lab_comparison(
+  data           = got_liver_para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of AST liver_para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "AST (U/l)"
+)
+p3_ast_para
+```
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_ASTfull, p1_ast_diclo, p2_ast_ibu, p3_ast_para),
+  names = c("dibetic_nondiabetic_ASTfull", "p1_ast_diclo", "p2_ast_ibu", "p3_ast_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+##==========================
+## GGT
+##=========================
+
+```{r}
+
+dibetic_nondiabetic_GGTfull <- plot_lab_comparison(
+  data           = ggt_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of GGT \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "GGT (U/l)"
+)
+dibetic_nondiabetic_GGTfull
+```
+
+
+```{r}
+
+ggt_liver_diclo <- ggt_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_ggt_diclo <- plot_lab_comparison(
+  data           = ggt_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of GGT liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "GGT (U/l)"
+)
+p1_ggt_diclo
+```
+
+
+```{r}
+
+ggt_liver_Ibu <- ggt_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_ggt_ibu <- plot_lab_comparison(
+  data           = ggt_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of GGT liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "GGT (U/l)"
+)
+p2_ggt_ibu
+```
+
+
+```{r}
+
+ggt_liver_Para <- ggt_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_ggt_para <- plot_lab_comparison(
+  data           = ggt_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of GGT liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "GGT (U/l)"
+)
+p3_ggt_para
+```
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_GGTfull, p1_ggt_diclo, p2_ggt_ibu, p3_ggt_para),
+  names = c("dibetic_nondiabetic_GGTfull", "p1_ggt_diclo", "p2_ggt_ibu", "p3_ggt_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+##=================
+## LDH
+##================
+
+```{r}
+
+dibetic_nondiabetic_LDHfull <- plot_lab_comparison(
+  data           = ldh_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of LDH \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "LDH (U/l)"
+)
+dibetic_nondiabetic_LDHfull
+```
+
+
+```{r}
+
+ldh_liver_diclo <- ldh_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_ldh_diclo <- plot_lab_comparison(
+  data           = ldh_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of LDH liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "LDH (U/l)"
+)
+p1_ldh_diclo
+```
+
+
+
+```{r}
+
+ldh_liver_Ibu <- ldh_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_ldh_ibu <- plot_lab_comparison(
+  data           = ldh_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of LDH liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "LDH (U/l)"
+)
+p2_ldh_ibu
+```
+
+
+```{r}
+
+ldh_liver_Para <- ldh_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_ldh_para <- plot_lab_comparison(
+  data           = ldh_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of LDH liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "LDH (U/l)"
+)
+p3_ldh_para
+```
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_LDHfull, p1_ldh_diclo, p2_ldh_ibu, p3_ldh_para),
+  names = c("dibetic_nondiabetic_LDHfull", "p1_ldh_diclo", "p2_ldh_ibu", "p3_ldh_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+
+##=================
+## CK
+##================
+
+```{r}
+
+dibetic_nondiabetic_CKfull <- plot_lab_comparison(
+  data           = ck_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of CK \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "CK (U/l)"
+)
+dibetic_nondiabetic_CKfull
+```
+
+
+
+
+```{r}
+
+ck_liver_diclo <- ck_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_ck_diclo <- plot_lab_comparison(
+  data           = ck_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of LDH liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "CK (U/l)"
+)
+p1_ck_diclo
+```
+
+```{r}
+
+ck_liver_Ibu <- ck_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_ck_ibu <- plot_lab_comparison(
+  data           = ck_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of LDH liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "CK (U/l)"
+)
+p2_ck_ibu
+```
+
+```{r}
+
+ck_liver_Para <- ck_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_ck_para <- plot_lab_comparison(
+  data           = ck_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of LDH liver_para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "CK (U/l)"
+)
+p3_ck_para
+```
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_CKfull, p1_ck_diclo, p2_ck_ibu, p3_ck_para),
+  names = c("dibetic_nondiabetic_CKfull", "p1_ck_diclo", "p2_ck_ibu", "p3_ck_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+##==============
+## AP
+##==============
+
+```{r}
+
+dibetic_nondiabetic_APfull <- plot_lab_comparison(
+  data           = ap_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of AP \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "AP (U/l)"
+)
+dibetic_nondiabetic_APfull
+```
+
+
+```{r}
+
+ap_liver_diclo <- ap_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_ap_diclo <- plot_lab_comparison(
+  data           = ap_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of AP liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "AP (U/l)"
+)
+p1_ap_diclo
+```
+
+```{r}
+
+ap_liver_Ibu <- ap_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_ap_ibu <- plot_lab_comparison(
+  data           = ap_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of AP liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "AP (U/l)"
+)
+p2_ap_ibu
+```
+
+
+```{r}
+
+ap_liver_Para <- ap_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_ap_para <- plot_lab_comparison(
+  data           = ap_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of AP liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "AP (U/l)"
+)
+p3_ap_para
+```
+
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_APfull, p1_ap_diclo, p2_ap_ibu, p3_ap_para),
+  names = c("dibetic_nondiabetic_APfull", "p1_ap_diclo", "p2_ap_ibu", "p3_ap_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+##==========
+##ptt
+##==========
+
+```{r}
+
+dibetic_nondiabetic_PTTfull <- plot_lab_comparison(
+  data           = ptt_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of PTT \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "PTT (U/l)"
+)
+dibetic_nondiabetic_PTTfull
+```
+
+
+```{r}
+
+ptt_liver_diclo <- ptt_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_ptt_diclo <- plot_lab_comparison(
+  data           = ptt_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of PTT liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "PTT (U/l)"
+)
+p1_ptt_diclo
+```
+
+```{r}
+
+ptt_liver_Ibu <- ptt_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_ptt_ibu <- plot_lab_comparison(
+  data           = ptt_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of PTT liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "PTT (U/l)"
+)
+p2_ptt_ibu
+```
+
+```{r}
+
+ptt_liver_Para <- ptt_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_ptt_para <- plot_lab_comparison(
+  data           = ptt_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of PTT liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "PTT (U/l)"
+)
+p3_ptt_para 
+```
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_PTTfull, p1_ptt_diclo, p2_ptt_ibu, p3_ptt_para),
+  names = c("dibetic_nondiabetic_PTTfull", "p1_ptt_diclo", "p2_ptt_ibu", "p3_ptt_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+
+##==============
+## leukocytes
+##==============
+
+```{r}
+
+dibetic_nondiabetic_leucoytefull <- plot_lab_comparison(
+  data           = Leukozyten_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of leukocytes \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "leukocytes (U/l)"
+)
+dibetic_nondiabetic_leucoytefull
+```
+
+
+```{r}
+
+Leukozyten_liver_diclo <- Leukozyten_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_leucocyte_diclo <- plot_lab_comparison(
+  data           = Leukozyten_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of leukocytes liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "leukocytes (U/l)"
+)
+p1_leucocyte_diclo
+```
+
+```{r}
+
+Leukozyten_liver_Ibu <- Leukozyten_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_leucocyte_ibu <- plot_lab_comparison(
+  data           = Leukozyten_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of leukocytes liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "leukocytes (U/l)"
+)
+p2_leucocyte_ibu
+```
+
+
+```{r}
+
+Leukozyten_liver_Para <- Leukozyten_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_leucocyte_para <- plot_lab_comparison(
+  data           = Leukozyten_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of leukocytes liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "leukocytes (U/l)"
+)
+p3_leucocyte_para
+```
+
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_leucoytefull, 
+               p1_leucocyte_diclo, 
+               p2_leucocyte_ibu, 
+               p3_leucocyte_para),
+  names = c("dibetic_nondiabetic_leucoytefull", 
+            "p1_leucocyte_diclo", 
+            "p2_leucocyte_ibu", 
+            "p3_leucocyte_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+
+##=================
+## Erythrocytes erythrocytes
+##=================
+
+```{r}
+
+dibetic_nondiabetic_erythrocytesfull <- plot_lab_comparison(
+  data           = erythrozyten_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of erythrocytes \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Erythrocytes (cells/ul)"
+)
+dibetic_nondiabetic_erythrocytesfull
+```
+
+
+```{r}
+
+Erythorcytes_liver_diclo <- erythrozyten_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_erythrocytes_diclo <- plot_lab_comparison(
+  data           = Erythorcytes_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of erythorcytes liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Erythorcytes (Cell/Ul)"
+)
+p1_erythrocytes_diclo
+```
+
+
+```{r}
+
+Erythorcytes_liver_Ibu <- erythrozyten_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_erythrocytes_ibu <- plot_lab_comparison(
+  data           = Erythorcytes_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of erythorcytes liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Erythorcytes (Cell/Ul)"
+)
+p2_erythrocytes_ibu
+```
+
+
+```{r}
+
+Erythorcytes_liver_Para <- erythrozyten_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_erythrocytes_para <- plot_lab_comparison(
+  data           = Erythorcytes_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of erythorcytes liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Erythorcytes (Cell/Ul)"
+)
+p3_erythrocytes_para
+```
+
+
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_erythrocytesfull, 
+               p1_erythrocytes_diclo, 
+               p2_erythrocytes_ibu, 
+               p3_erythrocytes_para),
+  names = c("dibetic_nondiabetic_erythrocytesfull", 
+            "p1_erythrocytes_diclo", 
+            "p2_erythrocytes_ibu", 
+            "p3_erythrocytes_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+##======================
+## Thrombozyten_diabetic
+##======================
+
+```{r}
+
+dibetic_nondiabetic_thrombocytesfull <- plot_lab_comparison(
+  data           = Thrombozyten_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of thrombocytes \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Thrombocytes (cells/ul)"
+)
+dibetic_nondiabetic_thrombocytesfull
+```
+
+```{r}
+
+Thrombocytes_liver_diclo <- Thrombozyten_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_thrombocytes_diclo <- plot_lab_comparison(
+  data           = Thrombocytes_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of thrombocytes liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Thrombocytes (Cell/Ul)"
+)
+p1_thrombocytes_diclo
+```
+
+```{r}
+
+Thrombocytes_liver_Ibu <- Thrombozyten_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_thrombocytes_ibu <- plot_lab_comparison(
+  data           = Thrombocytes_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of thrombocytes liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Thrombocytes (Cell/Ul)"
+)
+p2_thrombocytes_ibu
+```
+
+```{r}
+
+Thrombocytes_liver_Para <- Thrombozyten_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_thrombocytes_para <- plot_lab_comparison(
+  data           = Thrombocytes_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of thrombocytes liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Thrombocytes (Cell/Ul)"
+)
+p3_thrombocytes_para
+```
+
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_thrombocytesfull, 
+               p1_thrombocytes_diclo, 
+               p2_thrombocytes_ibu, 
+               p3_thrombocytes_para),
+  names = c("dibetic_nondiabetic_thrombocytesfull", 
+            "p1_thrombocytes_diclo", 
+            "p2_thrombocytes_ibu", 
+            "p3_thrombocytes_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+
+##===============
+## hb_diabetic
+##===============
+
+```{r}
+
+dibetic_nondiabetic_hbfull <- plot_lab_comparison(
+  data           = hb_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of hb \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "hb (g/dl)"
+)
+dibetic_nondiabetic_hbfull
+```
+
+
+```{r}
+
+hb_liver_diclo <- hb_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_hb_diclo <- plot_lab_comparison(
+  data           = hb_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of hb liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "hb (g/dl)"
+)
+p1_hb_diclo
+```
+
+```{r}
+
+hb_liver_Ibu <- hb_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_hb_ibu <- plot_lab_comparison(
+  data           = hb_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of hb liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "hb (g/dl)"
+)
+p2_hb_ibu
+```
+
+```{r}
+
+hb_liver_Para <- hb_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_hb_para <- plot_lab_comparison(
+  data           = hb_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of hb liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "hb (g/dl)"
+)
+p3_hb_para
+```
+
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_hbfull, 
+               p1_hb_diclo, 
+               p2_hb_ibu, 
+               p3_hb_para),
+  names = c("dibetic_nondiabetic_hbfull", 
+            "p1_hb_diclo", 
+            "p2_hb_ibu", 
+            "p3_hb_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+
+##=======================
+## gesamteiweiß_diabetic
+## Total Protein
+##=======================
+
+
+```{r}
+
+dibetic_nondiabetic_totalproteinfull <- plot_lab_comparison(
+  data           = gesamteiweiß_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of Total protein \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Total Protein (g/dl)"
+)
+dibetic_nondiabetic_totalproteinfull
+```
+
+
+```{r}
+
+TP_liver_diclo <- gesamteiweiß_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_totalprotein_diclo <- plot_lab_comparison(
+  data           = TP_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of Total protein liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Total Protein (g/dl)"
+)
+p1_totalprotein_diclo
+```
+
+```{r}
+
+TP_liver_Ibu <- gesamteiweiß_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_totalprotein_ibu <- plot_lab_comparison(
+  data           = TP_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of Total protein liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Total Protein (g/dl)"
+)
+p2_totalprotein_ibu
+```
+
+```{r}
+
+TP_liver_Para <- gesamteiweiß_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_totalprotein_para <- plot_lab_comparison(
+  data           = TP_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of Total protein liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Total Protein (g/dl)"
+)
+p3_totalprotein_para
+```
+
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_totalproteinfull, 
+               p1_totalprotein_diclo, 
+               p2_totalprotein_ibu, 
+               p3_totalprotein_para),
+  names = c("dibetic_nondiabetic_totalproteinfull", 
+            "p1_totalprotein_diclo", 
+            "p2_totalprotein_ibu", 
+            "p3_totalprotein_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+
+##====================
+## kreatinin_diabetic
+##====================
+
+```{r}
+
+dibetic_nondiabetic_kreatininfull <- plot_lab_comparison(
+  data           = kreatinin_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of kreatinin \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "kreatinin (mg/dl)"
+)
+dibetic_nondiabetic_kreatininfull
+
+```
+
+```{r}
+
+kreatinin_liver_diclo <- kreatinin_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_kreatinin_diclo <- plot_lab_comparison(
+  data           = kreatinin_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of kreatinin liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "kreatinin (mg/dl)"
+)
+p1_kreatinin_diclo
+```
+
+
+```{r}
+
+kreatinin_liver_Ibu <- kreatinin_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_kreatinin_ibu <- plot_lab_comparison(
+  data           = kreatinin_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of kreatinin liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "kreatinin (mg/dl)"
+)
+p2_kreatinin_ibu
+```
+
+```{r}
+
+kreatinin_liver_Para <- kreatinin_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_kreatinin_para <- plot_lab_comparison(
+  data           = kreatinin_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of kreatinin liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "kreatinin (mg/dl)"
+)
+p3_kreatinin_para
+```
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_kreatininfull, 
+               p1_kreatinin_diclo, 
+               p2_kreatinin_ibu, 
+               p3_kreatinin_para),
+  names = c("dibetic_nondiabetic_kreatininfull", 
+            "p1_kreatinin_diclo", 
+            "p2_kreatinin_ibu", 
+            "p3_kreatinin_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+##===========================
+## harnstoff_diabetic
+##===========================
+
+```{r}
+
+dibetic_nondiabetic_ureafull <- plot_lab_comparison(
+  data           = harnstoff_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of Urea \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Urea (mg/dl)"
+)
+dibetic_nondiabetic_ureafull
+```
+
+
+```{r}
+
+urea_liver_diclo <- harnstoff_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_urea_diclo <- plot_lab_comparison(
+  data           = urea_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of urea liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Urea (mg/dl)"
+)
+p1_urea_diclo
+```
+
+
+```{r}
+
+urea_liver_Ibu <- harnstoff_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_urea_ibu <- plot_lab_comparison(
+  data           = urea_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of urea liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Urea (mg/dl)"
+)
+p2_urea_ibu
+```
+
+```{r}
+
+urea_liver_Para <- harnstoff_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_urea_para <- plot_lab_comparison(
+  data           = urea_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of urea liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Urea (mg/dl)"
+)
+p3_urea_para
+```
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_ureafull, 
+               p1_urea_diclo, 
+               p2_urea_ibu, 
+               p3_urea_para),
+  names = c("dibetic_nondiabetic_ureafull", 
+            "p1_urea_diclo", 
+            "p2_urea_ibu", 
+            "p3_urea_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+##================
+## crp_diabetic
+##================
+
+```{r}
+
+dibetic_nondiabetic_crpfull <- plot_lab_comparison(
+  data           = crp_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of CRP \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "CRP (mg/l)"
+)
+dibetic_nondiabetic_crpfull
+```
+
+
+```{r}
+crp_liver_diclo <- crp_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_crp_diclo <- plot_lab_comparison(
+  data           = crp_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of CRP liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "CRP (mg/l)"
+)
+p1_crp_diclo
+```
+
+
+```{r}
+crp_liver_Ibu <- crp_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_crp_ibu <- plot_lab_comparison(
+  data           = crp_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of CRP liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "CRP (mg/l)"
+)
+p2_crp_ibu
+```
+
+
+```{r}
+crp_liver_Para <- crp_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_crp_para <- plot_lab_comparison(
+  data           = crp_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of CRP liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "CRP (mg/l)"
+)
+p3_crp_para
+```
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_crpfull, 
+               p1_crp_diclo, 
+               p2_crp_ibu, 
+               p3_crp_para),
+  names = c("dibetic_nondiabetic_crpfull", 
+            "p1_crp_diclo", 
+            "p2_crp_ibu", 
+            "p3_crp_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+##============================
+## natrium_diabetic
+##============================
+
+```{r}
+
+dibetic_nondiabetic_sodiumfull <- plot_lab_comparison(
+  data           = natrium_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of Sodium \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Sodium (mmol/l)"
+)
+dibetic_nondiabetic_sodiumfull
+```
+
+```{r}
+sodium_liver_diclo <- natrium_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_sodium_diclo <- plot_lab_comparison(
+  data           = sodium_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of sodium liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Sodium (mmol/l)"
+)
+p1_sodium_diclo
+```
+
+
+```{r}
+sodium_liver_Ibu <- natrium_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_sodium_ibu <- plot_lab_comparison(
+  data           = sodium_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of sodium liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Sodium (mmol/l)"
+)
+p2_sodium_ibu
+```
+
+```{r}
+sodium_liver_Para <- natrium_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_sodium_para <- plot_lab_comparison(
+  data           = sodium_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of sodium liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Sodium (mmol/l)"
+)
+p3_sodium_para
+```
+
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_sodiumfull, 
+               p1_sodium_diclo, 
+               p2_sodium_ibu, 
+               p3_sodium_para),
+  names = c("dibetic_nondiabetic_sodiumfull", 
+            "p1_sodium_diclo", 
+            "p2_sodium_ibu", 
+            "p3_sodium_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+##====================
+## kalium_diabetic potassium
+##====================
+
+```{r}
+
+dibetic_nondiabetic_potassiumfull <- plot_lab_comparison(
+  data           = kalium_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of potassium \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Potassium (mmol/l)"
+)
+dibetic_nondiabetic_potassiumfull
+```
+
+
+```{r}
+potassium_liver_diclo <- kalium_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_potassium_diclo <- plot_lab_comparison(
+  data           = potassium_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of potassium liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Potassium (mmol/l)"
+)
+p1_potassium_diclo
+```
+
+```{r}
+potassium_liver_Ibu <- kalium_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_potassium_ibu <- plot_lab_comparison(
+  data           = potassium_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of potassium liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Potassium (mmol/l)"
+)
+p2_potassium_ibu
+```
+
+
+```{r}
+potassium_liver_Para <- kalium_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_potassium_para <- plot_lab_comparison(
+  data           = potassium_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of potassium liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Potassium (mmol/l)"
+)
+p3_potassium_para
+```
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_potassiumfull, 
+               p1_potassium_diclo, 
+               p2_potassium_ibu, 
+               p3_potassium_para),
+  names = c("dibetic_nondiabetic_potassiumfull", 
+            "p1_potassium_diclo", 
+            "p2_potassium_ibu", 
+            "p3_potassium_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+
+##========================
+## kalzium_diabetic
+##========================
+
+
+```{r}
+
+dibetic_nondiabetic_calciumfull <- plot_lab_comparison(
+  data           = kalzium_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of calcium \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Calcium (mmol/l)"
+)
+dibetic_nondiabetic_calciumfull
+```
+
+```{r}
+calcium_liver_diclo <- kalzium_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_calcium_diclo <- plot_lab_comparison(
+  data           = calcium_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of calcium liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Calcium (mmol/l)"
+)
+p1_calcium_diclo
+```
+
+
+```{r}
+calcium_liver_Ibu <- kalzium_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_calcium_ibu <- plot_lab_comparison(
+  data           = calcium_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of calcium liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Calcium (mmol/l)"
+)
+p2_calcium_ibu
+```
+
+```{r}
+calcium_liver_Para <- kalzium_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_calcium_para <- plot_lab_comparison(
+  data           = calcium_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of calcium liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Calcium (mmol/l)"
+)
+p3_calcium_para
+```
+
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_calciumfull, 
+               p1_calcium_diclo, 
+               p2_calcium_ibu, 
+               p3_calcium_para),
+  names = c("dibetic_nondiabetic_calciumfull", 
+            "p1_calcium_diclo", 
+            "p2_calcium_ibu", 
+            "p3_calcium_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+##=====================
+##  quick_diabetic
+##=====================
+
+```{r}
+
+dibetic_nondiabetic_quickfull <- plot_lab_comparison(
+  data           = quick_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of quick \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Quick (%)"
+)
+dibetic_nondiabetic_quickfull
+```
+
+
+```{r}
+quick_liver_diclo <- quick_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_quick_diclo <- plot_lab_comparison(
+  data           = quick_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of quick liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Quick (%)"
+)
+p1_quick_diclo
+```
+
+
+```{r}
+quick_liver_Ibu <- quick_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_quick_ibu <- plot_lab_comparison(
+  data           = quick_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of quick liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Quick (%)"
+)
+p2_quick_ibu
+```
+
+
+```{r}
+quick_liver_Para <- quick_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_quick_para <- plot_lab_comparison(
+  data           = quick_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of quick liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "Quick (%)"
+)
+p3_quick_para
+```
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_quickfull, 
+               p1_quick_diclo, 
+               p2_quick_ibu, 
+               p3_quick_para),
+  names = c("dibetic_nondiabetic_quickfull", 
+            "p1_quick_diclo", 
+            "p2_quick_ibu", 
+            "p3_quick_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+##==================
+## inr_diabetic
+##==================
+
+```{r}
+
+dibetic_nondiabetic_inrfull <- plot_lab_comparison(
+  data           = inr_diabetic,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "All groups_Comparison of INR \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "INR (%)"
+)
+dibetic_nondiabetic_inrfull
+```
+
+
+```{r}
+inr_liver_diclo <- inr_diabetic %>% 
+  filter(treatment == "Leber_Diclo")
+
+p1_inr_diclo <- plot_lab_comparison(
+  data           = inr_liver_diclo,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of INR liver_diclo \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "INR (%)"
+)
+p1_inr_diclo
+```
+
+```{r}
+inr_liver_Ibu <- inr_diabetic %>% 
+  filter(treatment == "Leber_Ibu")
+
+p2_inr_ibu <- plot_lab_comparison(
+  data           = inr_liver_Ibu,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of INR liver_Ibu \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "INR (%)"
+)
+p2_inr_ibu
+```
+
+
+```{r}
+inr_liver_Para <- inr_diabetic %>% 
+  filter(treatment == "Leber_Para")
+
+p3_inr_para <- plot_lab_comparison(
+  data           = inr_liver_Para,
+  group_var      = diabetes,
+  y_var          = labreads,
+  patient_id_var = bf_ar_m_nummer,
+  comparisons    = list(c("Diabetic", "Non_Diabetic")),
+  plot_title     = "Comparison of INR liver_Para \n for Diabetic vs. Non-Diabetic Patients",
+  y_label        = "INR (%)"
+)
+p3_inr_para
+```
+
+
+```{r}
+save_plots(
+  plots = list(dibetic_nondiabetic_inrfull, 
+               p1_inr_diclo, 
+               p2_inr_ibu, 
+               p3_inr_para),
+  names = c("dibetic_nondiabetic_inrfull", 
+            "p1_inr_diclo", 
+            "p2_inr_ibu", 
+            "p3_inr_para"),
+  dataset_name = "diabetic",
+  subfolder    = "diabetic"
+)
+```
+
+
+##==============================================================================
+##==============================================================================
+##==============================================================================
+
+```{r}
+# ══════════════════════════════════════════════════════════════════════════════
+# Helper: filter panel and join with diabetic data
+# ══════════════════════════════════════════════════════════════════════════════
+
+prepare_panel_data <- function(
+    all_data,
+    diabetic_data,
+    panel_id_value,                          # e.g. "got", "crp", "alt"
+    all_data_id_col      = "bf_ar_m_nummer", # join key in all_data
+    diabetic_id_col      = "edited_bf_ar_m_nummer2", # join key in diabetic_data
+    exclude_pattern      = "_From Start|_From start|DBS", # regex to exclude
+    group_col            = "diabetes"
+) {
+
+  library(dplyr)
+
+  # ── Validation ---------------------------------------------------------------
+  if (!panel_id_value %in% unique(all_data$panel_id)) {
+    stop("panel_id '", panel_id_value, "' not found in all_data. ",
+         "Available: ", paste(unique(all_data$panel_id), collapse = ", "))
+  }
+
+  # ── Step 1: Filter panel and convert labreads to numeric --------------------
+  panel_filtered <- all_data %>%
+    filter(panel_id == panel_id_value) %>%
+    mutate(labreads = as.numeric(labreads))
+
+  n_lost <- sum(is.na(panel_filtered$labreads))
+  if (n_lost > 0) {
+    message("Warning: ", n_lost, " value(s) in 'labreads' became NA after conversion.")
+  }
+
+  # ── Step 2: Join with diabetic data -----------------------------------------
+  panel_diabetic <- left_join(
+    panel_filtered,
+    diabetic_data,
+    by           = setNames(diabetic_id_col, all_data_id_col),
+    relationship = "many-to-many"
+  ) %>%
+    drop_na() %>%
+    filter(!grepl(exclude_pattern, attribute)) %>%
+    group_by(.data[[group_col]])
+
+  message("✔ '", panel_id_value, "' ready — ",
+          nrow(panel_diabetic), " rows | ",
+          n_distinct(panel_diabetic[[all_data_id_col]]), " patients")
+
+  return(panel_diabetic)
+}
+```
+
+
+
+```{r}
+got_diabetic <- prepare_panel_data(
+  all_data      = all_data,
+  diabetic_data = diabetic_data,
+  panel_id_value = "got"
+)
+got_diabetic 
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

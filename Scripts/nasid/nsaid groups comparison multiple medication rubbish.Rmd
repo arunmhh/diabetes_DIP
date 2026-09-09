@@ -1,0 +1,170 @@
+---
+title: "Untitled"
+output: html_document
+date: "2025-10-02"
+---
+
+```{r} 
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+library(ggstatsplot)
+library(dplyr)
+library(ggplot2)
+library(performance)
+```
+
+
+
+###dose data##
+```{r}
+
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/comp dose_labvalues")
+
+dose_data <- read_excel("Dose table_assumed_full.xlsx", sheet = 2) 
+ 
+#lvdiclo_dosedata <- dose_data %>% 
+#  filter(Attribut == "Leber_Diclo") %>% 
+#  rename( "Edited_BfArM Nummer2" ="BfArM Nummer_2" )
+
+#lvdiclo_dosedata
+dose_data
+```
+
+
+```{r}
+gpt_dosedata <- left_join(gpt_full,dose_data, by = ("Edited_BfArM Nummer2")) %>% 
+  dplyr::select(!8)
+gpt_dosedata
+```
+
+
+```{r}
+# Erzeuge eine neue Tabelle mit den kombinierten Medikamenten pro Patient
+med_summary <- gpt_dosedata %>%
+  filter(Kathegorie != "Cummulative Dosis")%>%
+  group_by(`Edited_BfArM Nummer2`) %>%
+  summarise(multi_med = paste(sort(unique(Treatment.y)), collapse = "+"), .groups = "drop")
+
+# Füge diese Info wieder an den Originaldatensatz an
+gpt_dosedata_multi <- gpt_dosedata %>%
+  left_join(med_summary, by = "Edited_BfArM Nummer2")
+gpt_dosedata_multi
+```
+
+```{r}
+gpt_dosedata_multi %>% 
+  filter(Treatment.y == "Diclofenac") %>% 
+  filter(Treatment.x == "Leber_Diclo") %>% 
+  distinct(`Edited_BfArM Nummer2`)
+```
+
+
+```{r}
+# 1. Nur eindeutige Patienten-Medikamenten-Kombinationen
+patienten_medikamente <- gpt_dosedata_multi %>%
+  distinct(`Edited_BfArM Nummer2`, multi_med)
+
+# 2. Anzahl Patienten pro Medikamentenkombination
+kombination_counts <- patienten_medikamente %>%
+  count(multi_med, name = "patient_count") %>%
+  arrange(multi_med)
+
+# 3. Balkendiagramm mit Patientenzahlen als Labels
+ggplot(kombination_counts, aes(x = multi_med, y = patient_count)) +
+  geom_col(fill = "steelblue") +
+  geom_text(aes(label = paste0("N=", patient_count)), vjust = -0.5, size = 3.5) +
+  labs(
+    title = "Patient count for medication combination",
+    x = "Medication combination",
+    y = "Patient count"
+  ) +
+  theme_minimal() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+
+```
+
+
+
+
+```{r}
+# Step 1: Prepare your data
+gpt_full_filtered_prepared <- gpt_dosedata_multi %>% 
+  mutate(
+    multi_med = as.factor(multi_med),
+    `Edited_BfArM Nummer2` = as.factor(`Edited_BfArM Nummer2`)
+  ) %>%
+  # 👉 Duplikate auf Patienten-ID + Messtag + Labwert-Ebene entfernen
+  distinct(`Edited_BfArM Nummer2`, attribute, labreads, .keep_all = TRUE)%>% 
+  filter(grepl("Leber", Treatment.x)) %>% 
+  filter(!str_detect(attribute, "_From Start|_From start|DBS"))
+    
+# Step 2: Filter only treatments with "Leber" and count unique patients per group
+group_counts <- gpt_full_filtered_prepared %>%
+  group_by(multi_med) %>%
+  summarise(total_unique = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+
+# Step 3: Calculate maximum labreads value per group (for positioning labels above the boxes)
+y_pos <- gpt_full_filtered_prepared %>%
+  group_by(multi_med) %>%
+  summarise(y = max(labreads, na.rm = TRUE) * 1.05, .groups = "drop")
+
+# Step 4: Join counts and y-positions into one dataframe
+group_counts <- left_join(group_counts, y_pos, by = "multi_med")
+
+# Step 5: Create the base plot (can use all data or filtered data)
+liver_gpt_full_comparison_of_nsaid_groups_multi <- ggbetweenstats(
+  data = gpt_full_filtered_prepared %>% filter(grepl("Leber", Treatment.x)),  # plot only Leber treatments
+  x = multi_med,
+  y = labreads,
+  type = "np",
+  title = "liver_alt_full_comparison of GPT between NSAID-groups", # ALT for labvalue and daily dose
+  xlab = "NSAID intake",
+  ylab = "GPT (U/L)"
+)
+
+# Step 6: Add count labels to the plot
+liver_gpt_full_comparison_of_nsaid_groups_multi <- liver_gpt_full_comparison_of_nsaid_groups_multi + 
+  geom_text(
+    data = group_counts,
+    aes(
+      x = multi_med,
+      y = y,
+      label = paste0("N = ", total_unique)
+    ),
+    inherit.aes = FALSE,
+    size = 6.5,
+    vjust = -0.5
+  )
+
+liver_gpt_full_comparison_of_nsaid_groups_multi
+
+# Step 7: Save the plot
+#dir.create("plots", showWarnings = FALSE)
+#svg("plots/liver_gpt_full_comparison of nsaid groups multi.svg", height = 10, width = 8)
+#print(liver_gpt_full_comparison_of_nsaid_groups_multi)
+#dev.off()
+
+```
+
+
+
+
+```{r}
+liver_gpt_full_comparison_of_nsaid_groups_multi <- ggbetweenstats(
+  data = gpt_full_filtered_prepared %>% filter(grepl("Leber", multi_med)),  # plot only Leber treatments
+  x = multi_med,
+  y = labreads,
+  type = "np",
+  title = "liver_alt_full_comparison of GPT between NSAID-groups", # ALT for labvalue and daily dose",
+       xlab = "NSAID intake",
+       ylab = "GPT (U/L)", 
+)
+```
+
+
+
+
+
+

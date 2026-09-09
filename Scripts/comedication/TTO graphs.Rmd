@@ -1,0 +1,331 @@
+---
+title: "TTO graphs"
+output: html_document
+date: "2025-04-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+```
+
+
+
+
+```{r}
+library(readxl)
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/TTO")
+
+tto_data <- read_excel("TTO Darstellung.xlsx", sheet = 2)
+tto_data
+
+```
+
+
+
+
+```{r}
+gpt_tto <- left_join(gpt_long, tto_data, c = "Edited_BfArM Nummer2")%>% 
+  filter(!str_detect(attribute, "_From Start"))
+gpt_tto
+```
+
+###Diclo###
+
+```{r}
+gpt_tto_diclo <- gpt_tto%>% 
+  filter(Treatment == "Leber_Diclo")%>% 
+  drop_na(tto_diclofenac) 
+gpt_tto_diclo
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+tt <- gpt_tto_diclo %>%
+  mutate(
+    diclo_tto_group = case_when(
+      tto_diclofenac >= 0   & tto_diclofenac <= 10   ~ "0–10",
+      tto_diclofenac >= 11  & tto_diclofenac <= 50   ~ "11–50",
+      tto_diclofenac >= 51  & tto_diclofenac <= 100  ~ "51–100",
+      tto_diclofenac >= 101 & tto_diclofenac <= 500  ~ "101–500",
+      tto_diclofenac > 500                          ~ ">500",
+      TRUE                                           ~ NA_character_
+    ),
+    diclo_tto_group = factor(diclo_tto_group, levels = c("0–10", "11–50", "51–100", "101–500", ">500"))
+  ) %>%
+  filter(!is.na(diclo_tto_group))
+
+ggbetweenstats(
+  data = tt,
+  x = diclo_tto_group,
+  y = labreads,
+  type = "np",
+  title = "liver_diclo time to onset-groups vs. labvalues",
+  xlab = "time to onset (days)",
+  ylab = "ALT (U/L)")
+
+```
+
+##### linear regression###
+```{r}
+breaks_up_to_20 <- seq(0, 20, 1)
+
+# Only generate additional breaks if max > 20
+additional_breaks <- if (20 < 200) {
+  seq(50, 200, by = 50)
+} else {
+  numeric(0)
+}
+
+all_breaks <- c(breaks_up_to_20, additional_breaks)
+print(all_breaks)
+
+```
+
+
+```{r}
+
+
+
+ggplot(gpt_tto_diclo, aes(x = tto_diclofenac, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth() + labs(title = "liver_diclo linear regression for time to onset line plot",        
+                       x = "time to onset (days)", 
+                       y = "ALT (U/L)")
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ tto_diclofenac, data = gpt_tto_diclo)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(gpt_tto_diclo, aes(x = tto_diclofenac, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "liver_diclo linerar regression for time to onset scatter plot",
+       x = "time to onset (days)",
+       y = "ALT (U/L)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 1, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 1, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+
+###Ibu###
+
+```{r}
+gpt_tto_ibu <- gpt_tto%>% 
+  filter(Treatment == "Leber_Ibu")%>% 
+  drop_na(tto_ibuprofen) 
+gpt_tto_ibu
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+zz <- gpt_tto_ibu %>%
+  mutate(
+    ibu_tto_group = case_when(
+      tto_ibuprofen >= 0   & tto_ibuprofen <= 10   ~ "0–10",
+      tto_ibuprofen >= 11  & tto_ibuprofen <= 50   ~ "11–50",
+      tto_ibuprofen >= 51  & tto_ibuprofen <= 100  ~ "51–100",
+      tto_ibuprofen >= 101 & tto_ibuprofen <= 500  ~ "101–500",
+      tto_ibuprofen > 500                          ~ ">500",
+      TRUE                                           ~ NA_character_
+    ),
+    ibu_tto_group = factor(ibu_tto_group, levels = c("0–10", "11–50", "51–100", "101–500", ">500"))
+  ) %>%
+  filter(!is.na(ibu_tto_group))
+
+ggbetweenstats(
+  data = zz,
+  x = ibu_tto_group,
+  y = labreads,
+  type = "np",
+  title = "liver_ibu time to onset-groups vs. labvalues",
+  xlab = "time to onset (days)",
+  ylab = "ALT (U/L)")
+
+```
+
+##### linear regression###
+
+
+```{r}
+ggplot(gpt_tto_ibu, aes(x = tto_ibuprofen, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth() + labs(title = "liver_ibu linear regression for time to onset line plot",        
+                       x = "time to onset (days)",             y = "ALT (U/L)")
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ tto_ibuprofen, data = gpt_tto_ibu)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(gpt_tto_ibu, aes(x = tto_ibuprofen, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "liver_ibu linerar regression for time to onset scatter plot",
+       x = "time to onset (days)",
+       y = "ALT (U/L)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 1, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 1, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+
+###Para###
+
+```{r}
+gpt_tto_para <- gpt_tto%>% 
+  filter(Treatment == "Leber_Para")%>% 
+  drop_na(tto_paracetamol) 
+gpt_tto_para
+```
+
+
+
+```{r}
+library(ggstatsplot)
+
+uu <- gpt_tto_para %>%
+  mutate(
+    para_tto_group = case_when(
+      tto_paracetamol >= 0   & tto_paracetamol <= 10   ~ "0–10",
+      tto_paracetamol >= 11  & tto_paracetamol <= 50   ~ "11–50",
+      tto_paracetamol >= 51  & tto_paracetamol <= 100  ~ "51–100",
+      tto_paracetamol >= 101 & tto_paracetamol <= 500  ~ "101–500",
+      tto_paracetamol > 500                          ~ ">500",
+      TRUE                                           ~ NA_character_
+    ),
+    para_tto_group = factor(para_tto_group, levels = c("0–10", "11–50", "51–100", "101–500", ">500"))
+  ) %>%
+  filter(!is.na(para_tto_group))
+
+ggbetweenstats(
+  data = uu,
+  x = para_tto_group,
+  y = labreads,
+  type = "np",
+  title = "liver_para time to onset-groups vs. labvalues",
+  xlab = "time to onset (days)",
+  ylab = "ALT (U/L)")
+
+```
+
+##### linear regression###
+
+
+```{r}
+ggplot(gpt_tto_para, aes(x = tto_paracetamol, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth() + labs(title = "liver_para linear regression for time to onset line plot",        
+                       x = "time to onset (days)",             y = "ALT (U/L)")
+
+```
+
+```{r}
+library(performance)
+library(ggplot2)
+
+library(ggplot2)
+
+# Fit the linear model
+lm_model <- lm(labreads ~ tto_paracetamol, data = gpt_tto_para)
+
+#check_model(lm_model)
+
+# Extract the coefficients
+intercept <- coef(lm_model)[1]
+slope <- coef(lm_model)[2]
+
+# Create the equation string
+equation <- paste("y = ", round(intercept, 2), " + ", round(slope, 2), "x", sep = "")
+r_squared <- summary(lm_model)$r.squared
+
+
+```
+
+```{r}
+# Create the scatter plot with linear regression line, R-squared, and equation
+ggplot(gpt_tto_para, aes(x = tto_paracetamol, y = labreads)) +
+  geom_point(color = "blue", size = 2) +    # Scatter plot points
+  geom_smooth(method = "lm", se = TRUE, color = "red", linetype = "dashed")+
+  labs(title = "liver_para linerar regression for time to onset scatter plot",
+       x = "time to onset (days)",
+       y = "ALT (U/L)") +
+  theme_classic() +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  annotate("text", x = 150, y = 1, label = paste("R² =", round(r_squared, 2)), 
+           hjust = 1.1, vjust = 2, size = 5, color = "black") +
+  annotate("text", x = 150, y = 1, label = equation, 
+           hjust = 1.1, vjust = 3.5, size = 5, color = "black")
+```
+
+
+

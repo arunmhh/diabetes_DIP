@@ -1,0 +1,136 @@
+---
+title: "demographic_Data"
+author: "Arun Kumar"
+date: "2026-05-18"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r}
+library(tidyverse)
+library(here)
+library(readxl)
+
+```
+
+```{r}
+comedication_data <- read.csv(here::here("RawData/transfer/comedication_full_data.csv"))
+n_comedication <- comedication_data %>% 
+  select(bfarm_nummer, treatment, Medication) %>% 
+  group_by(bfarm_nummer, treatment) %>% 
+  summarize(n_comedication = n_distinct(Medication), .groups = "drop")
+n_comedication
+
+```
+
+```{r}
+comed_livertox <- read.csv(here::here("RawData/transfer/comedication_with_livertoxicity literature only.csv"))
+
+ntox_comedication <- comed_livertox%>%
+  filter(hep_tox == "tox") %>% 
+  select(bfarm_nummer, treatment, Medication) %>%
+  group_by(bfarm_nummer, treatment) %>%
+  summarize(ntox_comedication = n_distinct(Medication), .groups = "drop")
+ntox_comedication
+
+```
+
+```{r}
+demographic_data <- read_excel(here::here("RawData/transfer/Demographic_data.xlsx")) %>% 
+  janitor::clean_names()
+demographic_data
+```
+
+
+```{r}
+demographic_data %>% 
+  left_join(
+    n_comedication,
+    by = c("edited_bf_ar_m_nummer2" = "bfarm_nummer")
+  ) %>% 
+  left_join(
+    ntox_comedication,
+    by = c("edited_bf_ar_m_nummer2" = "bfarm_nummer")
+  ) %>% 
+  dplyr::select(-c(treatment.y,treatment.x))
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

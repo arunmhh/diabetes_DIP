@@ -1,0 +1,4100 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+
+
+```{r}
+library(readxl)
+library(tidyr)
+library(dplyr)
+library(ggstatsplot)
+library(tidyverse)
+library(readxl)
+library(dlookr)
+library(reshape2)
+```
+
+
+
+
+```{r}
+library(readxl)
+setwd("E:/Daten(x)/Daten(lw-r)/Abc/Doktorarbeit SJS/Analyse R-Statistics/body weight")
+
+bmi_rawdata <- read_excel("bmi rawdata.xlsx")
+bmi_rawdata
+
+```
+
+
+###GPT############
+
+```{r}
+gpt_bmi <- left_join(gpt_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "GPT Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+gpt_bmi
+```
+
+
+```{r}
+library(dlookr)
+gpt_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = gpt_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = gpt_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # ALT for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "ALT u/l") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- gpt_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = gpt_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of alt for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "ALT u/l",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_alt_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(gpt_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/alt_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_alt_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- gpt_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- gpt_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(gpt_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ALT U/L",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- gpt_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- gpt_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(gpt_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ALT U/L",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- gpt_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- gpt_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(gpt_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ALT U/L",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+alt_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/alt_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(alt_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### got ##############################################################################
+
+```{r}
+got_bmi <- left_join(got_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "got Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+got_bmi
+```
+
+
+```{r}
+library(dlookr)
+got_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = got_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = got_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # got for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "got u/l") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- got_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = got_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of got for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "got u/l",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_got_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(got_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/got_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_got_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- got_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- got_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(got_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "got U/L",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- got_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- got_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(got_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "got U/L",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- got_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- got_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(got_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "got U/L",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+got_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/got_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(got_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### ggt ##############################################################################
+
+```{r}
+ggt_bmi <- left_join(ggt_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "ggt Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+ggt_bmi
+```
+
+
+```{r}
+library(dlookr)
+ggt_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = ggt_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = ggt_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # ggt for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "ggt u/l") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- ggt_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ggt_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of ggt for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "ggt u/l",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_ggt_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(ggt_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/ggt_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_ggt_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- ggt_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- ggt_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(ggt_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ggt U/L",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- ggt_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- ggt_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(ggt_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ggt U/L",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- ggt_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- ggt_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(ggt_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ggt U/L",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+ggt_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/ggt_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(ggt_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### ldh ##############################################################################
+
+```{r}
+ldh_bmi <- left_join(ldh_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "ldh Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+ldh_bmi
+```
+
+
+```{r}
+library(dlookr)
+ldh_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = ldh_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = ldh_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # ldh for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "ldh u/l") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- ldh_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ldh_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of ldh for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "ldh u/l",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_ldh_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(ldh_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/ldh_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_ldh_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- ldh_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- ldh_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(ldh_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ldh U/L",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- ldh_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- ldh_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(ldh_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ldh U/L",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- ldh_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- ldh_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(ldh_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ldh U/L",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+ldh_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/ldh_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(ldh_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+
+### ck ##############################################################################
+
+```{r}
+ck_bmi <- left_join(ck_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "ck Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+ck_bmi
+```
+
+
+```{r}
+library(dlookr)
+ck_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = ck_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = ck_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # ck for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "ck u/l") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- ck_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ck_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of ck for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "ck u/l",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_ck_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(ck_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/ck_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_ck_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- ck_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- ck_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(ck_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ck U/L",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- ck_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- ck_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(ck_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ck U/L",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- ck_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- ck_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(ck_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ck U/L",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+ck_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/ck_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(ck_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### ap ##############################################################################
+
+```{r}
+ap_bmi <- left_join(ap_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "ap Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+ap_bmi
+```
+
+
+```{r}
+library(dlookr)
+ap_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = ap_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = ap_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # ap for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "ap u/l") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- ap_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ap_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of ap for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "ap u/l",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_ap_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(ap_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/ap_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_ap_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- ap_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- ap_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(ap_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ap U/L",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- ap_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- ap_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(ap_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ap U/L",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- ap_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- ap_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(ap_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ap U/L",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+ap_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/ap_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(ap_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+
+### ptt ##############################################################################
+
+```{r}
+ptt_bmi <- left_join(ptt_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "ptt Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+ptt_bmi
+```
+
+
+```{r}
+library(dlookr)
+ptt_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = ptt_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = ptt_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # ptt for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "ptt sec.") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- ptt_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ptt_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of ptt for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "ptt sec.",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_ptt_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(ptt_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/ptt_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_ptt_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- ptt_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- ptt_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(ptt_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ptt sec.",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- ptt_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- ptt_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(ptt_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ptt sec.",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- ptt_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- ptt_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(ptt_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ptt sec.",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+ptt_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/ptt_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(ptt_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+
+### ptt ##############################################################################
+
+```{r}
+ptt_bmi <- left_join(ptt_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "ptt Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+ptt_bmi
+```
+
+
+```{r}
+library(dlookr)
+ptt_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = ptt_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = ptt_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # ptt for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "ptt mg/dl") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- ptt_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = ptt_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of ptt for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "ptt mg/dl",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_ptt_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(ptt_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/ptt_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_ptt_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- ptt_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- ptt_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(ptt_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ptt mg/dl",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- ptt_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- ptt_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(ptt_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ptt mg/dl",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- ptt_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- ptt_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(ptt_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "ptt mg/dl",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+ptt_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/ptt_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(ptt_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### total_bilirubin ##############################################################################
+
+```{r}
+total_bilirubin_bmi <- left_join(total_bilirubin_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "total_bilirubin Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+total_bilirubin_bmi
+```
+
+
+```{r}
+library(dlookr)
+total_bilirubin_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = total_bilirubin_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = total_bilirubin_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # total_bilirubin for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "total_bilirubin mg/dl") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- total_bilirubin_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = total_bilirubin_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of total_bilirubin for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "total_bilirubin mg/dl",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_total_bilirubin_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(total_bilirubin_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/total_bilirubin_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_total_bilirubin_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- total_bilirubin_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- total_bilirubin_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(total_bilirubin_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "total_bilirubin mg/dl",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- total_bilirubin_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- total_bilirubin_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(total_bilirubin_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "total_bilirubin mg/dl",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- total_bilirubin_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- total_bilirubin_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(total_bilirubin_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "total_bilirubin mg/dl",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+total_bilirubin_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/total_bilirubin_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(total_bilirubin_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### direct_bilirubin ##############################################################################
+
+```{r}
+direct_bilirubin_bmi <- left_join(direct_bilirubin_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "direct_bilirubin Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+direct_bilirubin_bmi
+```
+
+
+```{r}
+library(dlookr)
+direct_bilirubin_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = direct_bilirubin_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = direct_bilirubin_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # direct_bilirubin for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "direct_bilirubin mg/dl") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- direct_bilirubin_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = direct_bilirubin_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of direct_bilirubin for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "direct_bilirubin mg/dl",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_direct_bilirubin_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(direct_bilirubin_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/direct_bilirubin_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_direct_bilirubin_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- direct_bilirubin_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- direct_bilirubin_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(direct_bilirubin_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "direct_bilirubin mg/dl",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- direct_bilirubin_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- direct_bilirubin_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(direct_bilirubin_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "direct_bilirubin mg/dl",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- direct_bilirubin_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- direct_bilirubin_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(direct_bilirubin_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "direct_bilirubin mg/dl",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+direct_bilirubin_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/direct_bilirubin_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(direct_bilirubin_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### kreatinin ##############################################################################
+
+```{r}
+kreatinin_bmi <- left_join(kreatinin_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "kreatinin Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+kreatinin_bmi
+```
+
+
+```{r}
+library(dlookr)
+kreatinin_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = kreatinin_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = kreatinin_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # kreatinin for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "kreatinin mg/dl") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- kreatinin_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = kreatinin_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of kreatinin for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "kreatinin mg/dl",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_kreatinin_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(kreatinin_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/kreatinin_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_kreatinin_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- kreatinin_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- kreatinin_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(kreatinin_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "kreatinin mg/dl",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- kreatinin_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- kreatinin_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(kreatinin_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "kreatinin mg/dl",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- kreatinin_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- kreatinin_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(kreatinin_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "kreatinin mg/dl",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+kreatinin_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/kreatinin_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(kreatinin_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### harnstoff ##############################################################################
+
+```{r}
+harnstoff_bmi <- left_join(harnstoff_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "harnstoff Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+harnstoff_bmi
+```
+
+
+```{r}
+library(dlookr)
+harnstoff_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = harnstoff_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = harnstoff_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # harnstoff for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "harnstoff mg/dl") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- harnstoff_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = harnstoff_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of harnstoff for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "harnstoff mg/dl",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_harnstoff_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(harnstoff_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/harnstoff_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_harnstoff_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- harnstoff_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- harnstoff_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(harnstoff_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "harnstoff mg/dl",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- harnstoff_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- harnstoff_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(harnstoff_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "harnstoff mg/dl",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- harnstoff_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- harnstoff_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(harnstoff_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "harnstoff mg/dl",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+harnstoff_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/harnstoff_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(harnstoff_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### leukozyten ##############################################################################
+
+```{r}
+leukozyten_bmi <- left_join(leukozyten_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "leukozyten Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+leukozyten_bmi
+```
+
+
+```{r}
+library(dlookr)
+leukozyten_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = leukozyten_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = leukozyten_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # leukozyten for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "leukozyten cells/ul") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- leukozyten_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = leukozyten_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of leukozyten for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "leukozyten cells/ul",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_leukozyten_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(leukozyten_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/leukozyten_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_leukozyten_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- leukozyten_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- leukozyten_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(leukozyten_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "leukozyten cells/ul",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- leukozyten_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- leukozyten_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(leukozyten_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "leukozyten cells/ul",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- leukozyten_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- leukozyten_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(leukozyten_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "leukozyten cells/ul",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+leukozyten_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/leukozyten_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(leukozyten_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### thrombozyten ##############################################################################
+
+```{r}
+thrombozyten_bmi <- left_join(thrombozyten_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "thrombozyten Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+thrombozyten_bmi
+```
+
+
+```{r}
+library(dlookr)
+thrombozyten_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = thrombozyten_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = thrombozyten_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # thrombozyten for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "thrombozyten cells/ul") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- thrombozyten_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = thrombozyten_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of thrombozyten for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "thrombozyten cells/ul",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_thrombozyten_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(thrombozyten_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/thrombozyten_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_thrombozyten_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- thrombozyten_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- thrombozyten_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(thrombozyten_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "thrombozyten cells/ul",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- thrombozyten_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- thrombozyten_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(thrombozyten_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "thrombozyten cells/ul",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- thrombozyten_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- thrombozyten_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(thrombozyten_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "thrombozyten cells/ul",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+thrombozyten_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/thrombozyten_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(thrombozyten_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### erythrozyten ##############################################################################
+
+```{r}
+erythrozyten_bmi <- left_join(erythrozyten_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "erythrozyten Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+erythrozyten_bmi
+```
+
+
+```{r}
+library(dlookr)
+erythrozyten_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = erythrozyten_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = erythrozyten_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # erythrozyten for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "erythrozyten cells/ul") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- erythrozyten_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = erythrozyten_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of erythrozyten for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "erythrozyten cells/ul",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_erythrozyten_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(erythrozyten_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/erythrozyten_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_erythrozyten_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- erythrozyten_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- erythrozyten_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(erythrozyten_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "erythrozyten cells/ul",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- erythrozyten_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- erythrozyten_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(erythrozyten_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "erythrozyten cells/ul",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- erythrozyten_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- erythrozyten_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(erythrozyten_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "erythrozyten cells/ul",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+erythrozyten_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/erythrozyten_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(erythrozyten_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### hb ##############################################################################
+
+```{r}
+hb_bmi <- left_join(hb_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "hb Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+hb_bmi
+```
+
+
+```{r}
+library(dlookr)
+hb_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = hb_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = hb_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # hb for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "hb g/dl") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- hb_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = hb_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of hb for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "hb g/dl",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_hb_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(hb_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/hb_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_hb_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- hb_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- hb_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(hb_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "hb g/dl",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- hb_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- hb_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(hb_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "hb g/dl",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- hb_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- hb_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(hb_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "hb g/dl",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+hb_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/hb_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(hb_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### gesamteiweiß ##############################################################################
+
+```{r}
+gesamteiweiß_bmi <- left_join(gesamteiweiß_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "gesamteiweiß Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+gesamteiweiß_bmi
+```
+
+
+```{r}
+library(dlookr)
+gesamteiweiß_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = gesamteiweiß_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = gesamteiweiß_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # gesamteiweiß for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "gesamteiweiß g/dl") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- gesamteiweiß_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = gesamteiweiß_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of gesamteiweiß for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "gesamteiweiß g/dl",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_gesamteiweiß_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(gesamteiweiß_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/gesamteiweiß_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_gesamteiweiß_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- gesamteiweiß_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- gesamteiweiß_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(gesamteiweiß_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "gesamteiweiß g/dl",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- gesamteiweiß_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- gesamteiweiß_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(gesamteiweiß_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "gesamteiweiß g/dl",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- gesamteiweiß_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- gesamteiweiß_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(gesamteiweiß_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "gesamteiweiß g/dl",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+gesamteiweiß_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/gesamteiweiß_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(gesamteiweiß_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### crp ##############################################################################
+
+```{r}
+crp_bmi <- left_join(crp_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "crp Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+crp_bmi
+```
+
+
+```{r}
+library(dlookr)
+crp_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = crp_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = crp_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # crp for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "crp mg/l") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- crp_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = crp_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of crp for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "crp mg/l",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_crp_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(crp_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/crp_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_crp_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- crp_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- crp_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(crp_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "crp mg/l",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- crp_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- crp_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(crp_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "crp mg/l",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- crp_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- crp_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(crp_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "crp mg/l",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+crp_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/crp_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(crp_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### natrium ##############################################################################
+
+```{r}
+natrium_bmi <- left_join(natrium_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "natrium Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+natrium_bmi
+```
+
+
+```{r}
+library(dlookr)
+natrium_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = natrium_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = natrium_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # natrium for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "natrium mmol/l") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- natrium_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = natrium_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of natrium for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "natrium mmol/l",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_natrium_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(natrium_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/natrium_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_natrium_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- natrium_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- natrium_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(natrium_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "natrium mmol/l",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- natrium_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- natrium_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(natrium_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "natrium mmol/l",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- natrium_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- natrium_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(natrium_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "natrium mmol/l",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+natrium_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/natrium_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(natrium_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### kalium ##############################################################################
+
+```{r}
+kalium_bmi <- left_join(kalium_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "kalium Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+kalium_bmi
+```
+
+
+```{r}
+library(dlookr)
+kalium_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = kalium_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = kalium_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # kalium for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "kalium mmol/l") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- kalium_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = kalium_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of kalium for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "kalium mmol/l",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_kalium_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(kalium_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/kalium_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_kalium_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- kalium_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- kalium_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(kalium_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "kalium mmol/l",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- kalium_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- kalium_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(kalium_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "kalium mmol/l",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- kalium_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- kalium_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(kalium_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "kalium mmol/l",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+kalium_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/kalium_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(kalium_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### kalzium ##############################################################################
+
+```{r}
+kalzium_bmi <- left_join(kalzium_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "kalzium Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+kalzium_bmi
+```
+
+
+```{r}
+library(dlookr)
+kalzium_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = kalzium_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = kalzium_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # kalzium for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "kalzium mmol/l") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- kalzium_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = kalzium_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of kalzium for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "kalzium mmol/l",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_kalzium_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(kalzium_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/kalzium_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_kalzium_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- kalzium_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- kalzium_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(kalzium_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "kalzium mmol/l",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- kalzium_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- kalzium_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(kalzium_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "kalzium mmol/l",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- kalzium_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- kalzium_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(kalzium_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "kalzium mmol/l",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+kalzium_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/kalzium_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(kalzium_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+
+### quick ##############################################################################
+
+```{r}
+quick_bmi <- left_join(quick_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "quick Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+quick_bmi
+```
+
+
+```{r}
+library(dlookr)
+quick_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = quick_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = quick_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # quick for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "quick %") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- quick_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = quick_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of quick for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "quick %",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_quick_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(quick_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/quick_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_quick_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- quick_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- quick_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(quick_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "quick %",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- quick_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- quick_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(quick_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "quick %",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- quick_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- quick_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(quick_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "quick %",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+quick_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/quick_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(quick_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+### hämatokrit ##############################################################################
+
+```{r}
+hämatokrit_bmi <- left_join(hämatokrit_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "hämatokrit Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+hämatokrit_bmi
+```
+
+
+```{r}
+library(dlookr)
+hämatokrit_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = hämatokrit_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = hämatokrit_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # hämatokrit for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "hämatokrit %") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- hämatokrit_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = hämatokrit_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of hämatokrit for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "hämatokrit %",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_hämatokrit_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(hämatokrit_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/hämatokrit_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_hämatokrit_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- hämatokrit_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- hämatokrit_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(hämatokrit_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "hämatokrit %",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- hämatokrit_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- hämatokrit_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(hämatokrit_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "hämatokrit %",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- hämatokrit_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- hämatokrit_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(hämatokrit_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "hämatokrit %",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+hämatokrit_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/hämatokrit_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(hämatokrit_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+
+
+### inr ##############################################################################
+
+```{r}
+inr_bmi <- left_join(inr_full, bmi_rawdata, c = "Edited_BfArM Nummer2") %>% 
+  drop_na() %>% 
+#  filter(Treatment == "Leber_Diclo") %>% 
+#  filter(!attribute == "inr Day_Unknown") %>% 
+ filter(!str_detect(attribute, "_From Start|_From start|DBS"))%>% 
+ filter(!grepl("SJS_ | Haut_", Treatment))  
+inr_bmi
+```
+
+
+```{r}
+library(dlookr)
+inr_bmi %>% 
+  group_by(obese) %>% 
+  normality(labreads)
+```
+
+```{r}
+t.test(
+   labreads ~ obese,
+  data = inr_bmi
+)
+```
+
+```{r}
+library(ggstatsplot)
+
+ggbetweenstats(
+  data = inr_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",
+  title = "all groups_Comparsion of obesity vs. labreads", # inr for labvalue and daily dose",
+       xlab = "obesity",
+       ylab = "inr ") 
+
+```
+
+
+```{r}
+# Schritt 1: Anzahl einzigartiger Patienten pro Diabetes-Gruppe berechnen
+n_patients <- inr_bmi %>%
+  distinct(`Edited_BfArM Nummer2`, obese) %>%  # nur einzigartige Patienten
+  count(obese, name = "n") %>%
+  mutate(label = paste0("N = ", n))
+
+# Schritt 2: ggbetweenstats-Plot erstellen
+plot_without_count <- ggbetweenstats(
+  data = inr_bmi,
+  x = "obese",
+  y = "labreads",
+  type = "np",  # non-parametrisch
+  title = "All Groups: Comparison of inr for obese vs. non-obese patients",
+  xlab = "obesity",
+  ylab = "inr ",
+  messages = FALSE
+)
+
+# Schritt 3: N-Werte oberhalb der Violinenplots einfügen
+all_groups_inr_obese_non_obese_patients <- plot_without_count+ 
+  geom_text(
+    data = n_patients,
+    aes(x = obese, 
+        y = max(inr_bmi$labreads, na.rm = TRUE) * 1.05,  # Position leicht oberhalb
+        label = label),
+    inherit.aes = FALSE,
+    size = 4
+  )
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/inr_all groups_violin plot_obese non obese patients.svg", height = 6, width = 8)
+print(all_groups_inr_obese_non_obese_patients)
+dev.off()
+```
+
+
+
+```{r}
+
+o1_diclo <- inr_bmi %>% 
+  filter(Treatment == "Leber_Diclo")
+o1_diclo_counts <- o1_diclo %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o1_diclo <- inr_bmi %>% 
+  filter(Treatment == "Leber_Diclo") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o1_diclo_counts, 
+            aes(x = obese, 
+                y = max(inr_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "inr ",
+    title = "Leber_Diclo" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o2_ibu <- inr_bmi %>% 
+  filter(Treatment == "Leber_Ibu")
+o2_ibu_counts <- o2_ibu %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o2_ibu <- inr_bmi %>% 
+  filter(Treatment == "Leber_Ibu") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o2_ibu_counts, 
+            aes(x = obese, 
+                y = max(inr_bmi$labreads) * 0.4, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "inr ",
+    title = "Leber_Ibu" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+
+```{r}
+o3_para <- inr_bmi %>% 
+  filter(Treatment == "Leber_Para")
+o3_para_counts <- o3_para %>% 
+  group_by(obese) %>%
+  summarize(n_patients = n_distinct(`Edited_BfArM Nummer2`), .groups = "drop")
+o3_para <- inr_bmi %>% 
+  filter(Treatment == "Leber_Para") %>% 
+  ggplot(aes( x =obese, y = labreads))+
+  geom_boxplot()+
+  geom_jitter(colour = "red")+
+  geom_text(data = o3_para_counts, 
+            aes(x = obese, 
+                y = max(inr_bmi$labreads) * 0.8, 
+                label = paste0("n=", n_patients)),color = "red") +
+  labs(
+    x = "obesity",
+    y = "inr ",
+    title = "Leber_Para" )+
+  theme_classic()+
+  theme(
+    plot.title = element_text(size = 10, hjust =0.5)
+  )
+```
+
+```{r}
+inr_all_groups_box_plot_obese_non_obese_patients <- o1_diclo+o2_ibu+o3_para
+
+dir.create("plots", showWarnings = FALSE)
+svg("plots/inr_all groups_box plot_obese non obese patients.svg", height = 6, width = 8)
+print(inr_all_groups_box_plot_obese_non_obese_patients)
+dev.off()
+
+```
+
+
+
+
