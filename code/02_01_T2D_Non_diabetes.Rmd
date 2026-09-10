@@ -34,7 +34,7 @@ p_bottom <- all_data %>%
       filter(
         !str_detect(
           attribute,
-          "_krankheitsbeginn|dbs|_from_start"
+          "_krankheitsbeginn|dbs|_from_start|_From Start"
         ))%>%
       filter(
         !is.na(diabetes)) %>% 
@@ -50,7 +50,6 @@ p_bottom <- all_data %>%
   )
 p_bottom
 ```
-
 
 
 
@@ -114,7 +113,7 @@ plot_leber_boxplot <- function(
     filter(
       panel_id == .env$panel,
       grepl("Leber_", treatment),
-      !str_detect(attribute, "_from_start|dbs"),
+      !str_detect(attribute, "_krankheitsbeginn|dbs|_from_start|_From Start"),
       !is.na(diabetes),
       !is.na(treatment),
       !is.na(labreads)
@@ -384,28 +383,28 @@ plot_liver_boxplot_break <- function(
 
   # ── Data ─────────────────────────────────────────────────────────────────
   plot_data <- all_data %>%
-    left_join(diabetic_data,
-              by = "bf_ar_m_nummer",
+    full_join(diabetic_data,
+              by = c("bf_ar_m_nummer","treatment"),
               relationship = "many-to-many") %>%
-    left_join(gender_data1,
+    full_join(gender_data1,
               by = join_by("bf_ar_m_nummer", "treatment"),
               relationship = "many-to-many") %>%
+      filter(
+      panel_id == .env$panel,
+      grepl("Leber_", treatment),
+      !str_detect(attribute, "_krankheitsbeginn|dbs|_from_start|_From Start"),
+      !is.na(diabetes),
+      !is.na(treatment),
+      !is.na(labreads)
+    ) %>% 
     mutate(
-      kathegorie = recode(
-        kathegorie,
+      treatment = recode(
+        treatment,
         "Leber_Diclo" = "Liver_Diclo",
         "Leber_Ibu"   = "Liver_Ibu",
         "Leber_Para"  = "Liver_Para"
       )
-    ) %>%
-    filter(
-      panel_id == .env$panel,
-      grepl("Liver_", kathegorie),
-      !str_detect(attribute, "_krankheitsbeginn|dbs"),
-      !is.na(diabetes),
-      !is.na(kathegorie),
-      !is.na(labreads)
-    )
+    ) 
 
   if (nrow(plot_data) == 0) {
     stop("No data remaining after filtering.")
@@ -413,7 +412,7 @@ plot_liver_boxplot_break <- function(
 
   # ── Stats ───────────────────────────────────────────────────────────────
   group_stats <- plot_data %>%
-    group_by(kathegorie) %>%
+    group_by(treatment) %>%
     summarise(
       N = n_distinct(bf_ar_m_nummer),
       n = n(),
@@ -422,8 +421,8 @@ plot_liver_boxplot_break <- function(
     )
 
   x_labels <- setNames(
-    paste0(group_stats$kathegorie, "\nN = ", group_stats$N),
-    group_stats$kathegorie
+    paste0(group_stats$treatment, "\nN = ", group_stats$N),
+    group_stats$treatment
   )
 
   # ── y scaling ───────────────────────────────────────────────────────────
@@ -441,10 +440,10 @@ plot_liver_boxplot_break <- function(
   p <- ggplot(
     plot_data,
     aes(
-      x = kathegorie,
+      x = treatment,
       y = labreads,
-      fill = kathegorie,
-      colour = kathegorie
+      fill = treatment,
+      colour = treatment
     )
   ) +
 
@@ -456,7 +455,7 @@ plot_liver_boxplot_break <- function(
     ) +
 
     geom_jitter(
-      aes(shape = kathegorie),
+      aes(shape = treatment),
       width = 0.2,
       size = 2,
       alpha = 0.8
@@ -464,7 +463,7 @@ plot_liver_boxplot_break <- function(
 
     geom_text(
       data = group_stats,
-      aes(x = kathegorie,
+      aes(x = treatment,
           y = n_label_y,
           label = paste0("n = ", n)),
       inherit.aes = FALSE,
@@ -559,7 +558,7 @@ dir.create(png_dir, recursive = TRUE, showWarnings = FALSE)
 ```
 
 ```{r}
-panel <- "ferritin"
+panel <- "ggt"
 p <- plot_liver_boxplot_break(
   all_data,
   diabetic_data,
